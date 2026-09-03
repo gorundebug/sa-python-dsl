@@ -4,9 +4,56 @@
 used to compose and reuse graph definitions; the resulting YAML remains the stable
 input contract for the existing designer and code generator.
 
+<p align="center">
+  <a href="https://www.gorundebug.com"><strong>Open Service Architect</strong></a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://www.gorundebug.com/help/python-dsl">Python DSL documentation</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://github.com/gorundebug/sa-python-dsl/tree/main/examples/processorder">Process Order example</a>
+</p>
+
+![A Service Architect graph compiled into generated service code](screen.png)
+
 The SDK deliberately hides numeric IDs. Services, streams, connectors and endpoints
 reference Python objects, while the serializer emits the symbolic YAML references
 expected by `servicegen`.
+
+The graph is the source of truth. The visual designer, canonical YAML, and typed Python
+API are three interfaces over the same architecture. A validated Project can be sent to
+the existing generation backend to download complete target-language projects.
+
+## Explore the product
+
+| Resource | Description |
+| --- | --- |
+| [Open Service Architect](https://www.gorundebug.com) | Design and inspect the executable service graph. |
+| [Service Architect Help](https://www.gorundebug.com/help) | Product documentation for the graph, types, connectors, generation, runtimes, and lifecycle. |
+| [Python DSL Help](https://www.gorundebug.com/help/python-dsl) | Python API guide, typed factories, YAML conversion, authentication, and code generation. |
+| [Process Order example](examples/processorder/README.md) | Four-service Python topology with HTTP, gRPC, Kafka, Cron, and Temporal. |
+| [ServiceGen](https://github.com/gorundebug/servicegen) | Shared validator and multi-language project generator. |
+| [ServiceLib for Go](https://github.com/gorundebug/servicelib) | Go runtime used by generated services. |
+
+## Generated runtime examples
+
+The same product topology is generated for multiple target runtimes:
+
+| Target | Generated project |
+| --- | --- |
+| Go | [gorundebug/goexample](https://github.com/gorundebug/goexample) |
+| C++ userver | [gorundebug/cppexample](https://github.com/gorundebug/cppexample) |
+| C++ Boost | [gorundebug/cppboostexample](https://github.com/gorundebug/cppboostexample) |
+| Python | [gorundebug/pyexample](https://github.com/gorundebug/pyexample) |
+| Rust | [gorundebug/rustexample](https://github.com/gorundebug/rustexample) |
+| TypeScript | [gorundebug/tsexample](https://github.com/gorundebug/tsexample) |
+
+Related runtime libraries:
+
+- [Go ServiceLib](https://github.com/gorundebug/servicelib)
+- [C++ userver ServiceLib](https://github.com/gorundebug/cppservicelib)
+- [C++ Boost ServiceLib](https://github.com/gorundebug/cppboostservicelib)
+- [Python ServiceLib](https://github.com/gorundebug/pyservicelib)
+- [Rust ServiceLib](https://github.com/gorundebug/rustservicelib)
+- [TypeScript ServiceLib](https://github.com/gorundebug/tsservicelib)
 
 ## Install for development
 
