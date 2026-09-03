@@ -10,6 +10,8 @@ input contract for the existing designer and code generator.
   <a href="https://www.gorundebug.com/help/python-dsl">Python DSL documentation</a>
   &nbsp;&middot;&nbsp;
   <a href="https://github.com/gorundebug/sa-python-dsl/tree/main/examples/processorder">Process Order example</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://www.youtube.com/watch?v=fNv2Jz8lHiw">Watch demo</a>
 </p>
 
 ![A Service Architect graph compiled into generated service code](screen.png)
@@ -30,6 +32,7 @@ the existing generation backend to download complete target-language projects.
 | [Service Architect Help](https://www.gorundebug.com/help) | Product documentation for the graph, types, connectors, generation, runtimes, and lifecycle. |
 | [Python DSL Help](https://www.gorundebug.com/help/python-dsl) | Python API guide, typed factories, YAML conversion, authentication, and code generation. |
 | [Process Order example](examples/processorder/README.md) | Four-service Python topology with HTTP, gRPC, Kafka, Cron, and Temporal. |
+| [Demo video](https://www.youtube.com/watch?v=fNv2Jz8lHiw) | Watch Service Architect model and generate the example system. |
 | [ServiceGen](https://github.com/gorundebug/servicegen) | Shared validator and multi-language project generator. |
 | [ServiceLib for Go](https://github.com/gorundebug/servicelib) | Go runtime used by generated services. |
 
