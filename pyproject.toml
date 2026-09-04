@@ -13,12 +13,18 @@ authors = [
     { name = "Sergey Alexeev", email = "sergeyalexeev@yahoo.com" },
 ]
 dependencies = [
+    "mcp>=2.0,<3",
     "PyYAML>=6.0,<7",
 ]
 
+[project.urls]
+Homepage = "https://gorundebug.com/"
+Repository = "https://github.com/gorundebug/sa-python-dsl"
+Documentation = "https://gorundebug.com/help/python-dsl-api"
+
 [project.scripts]
 sa-dsl = "sa_dsl.cli:main"
+sa-dsl-mcp = "sa_dsl.mcp_server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sa_dsl"]
-

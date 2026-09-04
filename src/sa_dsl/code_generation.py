@@ -6,6 +6,7 @@ import io
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -20,7 +21,9 @@ from .auth import CognitoAuthenticator, load_env
 
 
 DEFAULT_API_URL = "https://0pc6ljy0hg.execute-api.us-east-1.amazonaws.com/test"
+DEFAULT_API_KEY_URL = "https://z06e41vwnl.execute-api.us-east-1.amazonaws.com/prod"
 GENERATE_CODE_PATH = "/service_architect/generateCode"
+GENERATION_JOBS_PATH = "/v1/generation-jobs"
 _OMIT = object()
 
 _ENUM_VALUES = {
@@ -323,27 +326,35 @@ class ServiceArchitectClient:
     def __init__(
         self,
         *,
+        api_key: str | None = None,
         id_token: str | None = None,
         username: str | None = None,
         password: str | None = None,
         base_url: str | None = None,
         timeout: float = 120,
         opener: Callable[..., _Response] | None = None,
+        sleep: Callable[[float], None] = time.sleep,
+        monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
+        if api_key is not None and not api_key.strip():
+            api_key = None
         if id_token is not None and not id_token.strip():
             id_token = None
-        if id_token is None and (not username or not password):
-            raise ValueError("provide id_token or Cognito username and password")
+        if api_key is None and id_token is None and (not username or not password):
+            raise ValueError("provide api_key, id_token, or Cognito username and password")
+        self.api_key = api_key
         self.id_token = id_token
         self.username = username
         self.password = password
         self.base_url = (
             base_url
             or os.environ.get("SERVICE_ARCHITECT_API_URL")
-            or DEFAULT_API_URL
+            or (DEFAULT_API_KEY_URL if api_key is not None else DEFAULT_API_URL)
         ).rstrip("/")
         self.timeout = timeout
         self._opener = opener or urllib.request.urlopen
+        self._sleep = sleep
+        self._monotonic = monotonic
 
     @classmethod
     def from_env(
@@ -353,6 +364,7 @@ class ServiceArchitectClient:
     ) -> ServiceArchitectClient:
         values = load_env(env_file)
         options = {
+            "api_key": values.get("SERVICE_ARCHITECT_API_KEY") or None,
             "id_token": values.get("SERVICE_ARCHITECT_ID_TOKEN") or None,
             "username": values.get("SERVICE_ARCHITECT_USERNAME") or None,
             "password": values.get("SERVICE_ARCHITECT_PASSWORD") or None,
@@ -372,16 +384,112 @@ class ServiceArchitectClient:
     def generate_code(self, project: Any) -> GeneratedProjectArchive:
         if not hasattr(project, "to_document"):
             raise TypeError("project must provide to_document()")
-        request = urllib.request.Request(
-            f"{self.base_url}{GENERATE_CODE_PATH}",
-            data=json.dumps(yaml_to_api_document(project.to_yaml())).encode("utf-8"),
-            headers={
-                "Accept": "application/json, application/zip",
-                "Authorization": self._token(),
-                "Content-Type": "application/json",
-            },
+        document = yaml_to_api_document(project.to_yaml())
+        if self.api_key is not None:
+            return self._generate_async(document)
+        return self._generate_legacy(document)
+
+    def _generate_async(self, document: Mapping[str, Any]) -> GeneratedProjectArchive:
+        submitted = self._json_request(
+            f"{self.base_url}{GENERATION_JOBS_PATH}",
             method="POST",
+            data=json.dumps(document).encode("utf-8"),
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "X-Service-Architect-Key": self.api_key or "",
+            },
         )
+        job = submitted.get("job")
+        status_url = submitted.get("statusUrl")
+        if not isinstance(job, Mapping) or not isinstance(status_url, str):
+            raise CodeGenerationError(
+                "Service Architect returned an invalid generation job response",
+                details=submitted,
+            )
+        status_endpoint = urllib.parse.urljoin(
+            self.base_url.rstrip("/") + "/", status_url.lstrip("/")
+        )
+        poll_after = submitted.get("pollAfterSeconds", 2)
+        poll_interval = float(poll_after) if isinstance(poll_after, (int, float)) else 2.0
+        deadline = self._monotonic() + self.timeout
+        while True:
+            status = str(job.get("status", ""))
+            if status == "SUCCEEDED":
+                break
+            if status in {"FAILED", "EXPIRED"}:
+                code = job.get("errorCode") or status
+                raise CodeGenerationError(
+                    f"Service Architect generation job failed: {code}",
+                    details=job,
+                )
+            if status not in {"QUEUED", "RUNNING"}:
+                raise CodeGenerationError(
+                    f"Service Architect returned unknown generation status: {status or '<empty>'}",
+                    details=job,
+                )
+            if self._monotonic() >= deadline:
+                raise CodeGenerationError(
+                    "Service Architect generation job timed out while polling",
+                    details=job,
+                )
+            self._sleep(max(0.0, min(poll_interval, deadline - self._monotonic())))
+            status_payload = self._json_request(
+                status_endpoint,
+                headers={
+                    "Accept": "application/json",
+                    "X-Service-Architect-Key": self.api_key or "",
+                },
+            )
+            job = status_payload.get("job")
+            if not isinstance(job, Mapping):
+                raise CodeGenerationError(
+                    "Service Architect returned an invalid job status response",
+                    details=status_payload,
+                )
+
+        download = self._json_request(
+            status_endpoint + "/download",
+            headers={
+                "Accept": "application/json",
+                "X-Service-Architect-Key": self.api_key or "",
+            },
+        )
+        download_url = download.get("url")
+        filename = download.get("fileName")
+        if not isinstance(download_url, str) or not isinstance(filename, str):
+            raise CodeGenerationError(
+                "Service Architect returned an invalid download response",
+                details=download,
+            )
+        archive_content, _, _ = self._request(
+            urllib.request.Request(download_url, headers={"Accept": "application/zip"})
+        )
+        return self._validated_archive(filename, archive_content)
+
+    def _json_request(
+        self,
+        url: str,
+        *,
+        method: str = "GET",
+        data: bytes | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> Mapping[str, Any]:
+        content, status_code, _ = self._request(
+            urllib.request.Request(url, data=data, headers=dict(headers or {}), method=method)
+        )
+        payload = _json_or_text(content)
+        if not isinstance(payload, Mapping):
+            raise CodeGenerationError(
+                "Service Architect returned a non-JSON response",
+                status_code=status_code,
+                details=payload,
+            )
+        return payload
+
+    def _request(
+        self, request: urllib.request.Request
+    ) -> tuple[bytes, int, Mapping[str, str]]:
         try:
             with self._opener(request, timeout=self.timeout) as response:
                 status_code = getattr(response, "status", 200)
@@ -390,23 +498,32 @@ class ServiceArchitectClient:
         except urllib.error.HTTPError as error:
             details = _json_or_text(error.read())
             raise CodeGenerationError(
-                _error_message(details),
-                status_code=error.code,
-                details=details,
+                _error_message(details), status_code=error.code, details=details
             ) from error
         except urllib.error.URLError as error:
             raise CodeGenerationError(
                 f"Cannot reach Service Architect: {error.reason}",
                 details=str(error.reason),
             ) from error
-
         if not 200 <= status_code < 300:
             details = _json_or_text(content)
             raise CodeGenerationError(
-                _error_message(details),
-                status_code=status_code,
-                details=details,
+                _error_message(details), status_code=status_code, details=details
             )
+        return content, status_code, response_headers
+
+    def _generate_legacy(self, document: Mapping[str, Any]) -> GeneratedProjectArchive:
+        request = urllib.request.Request(
+            f"{self.base_url}{GENERATE_CODE_PATH}",
+            data=json.dumps(document).encode("utf-8"),
+            headers={
+                "Accept": "application/json, application/zip",
+                "Authorization": self._token(),
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        content, status_code, response_headers = self._request(request)
 
         content_type = _header(response_headers, "Content-Type") or ""
         if "application/zip" in content_type.casefold():
@@ -452,6 +569,11 @@ class ServiceArchitectClient:
                 ) from error
             filename = _archive_filename(disposition)
 
+        return self._validated_archive(filename, archive_content, status_code)
+
+    def _validated_archive(
+        self, filename: str, archive_content: bytes, status_code: int | None = None
+    ) -> GeneratedProjectArchive:
         if not zipfile.is_zipfile(io.BytesIO(archive_content)):
             raise CodeGenerationError(
                 "Service Architect response is not a valid ZIP archive",

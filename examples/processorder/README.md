@@ -247,16 +247,22 @@ processorder/
     automation_service/
 ```
 
-## Build and validate YAML
+## Inspect, validate, and export
 
 From the repository root:
 
 ```bash
 . .venv/bin/activate
 
-sa-dsl check examples/processorder/main.py
-sa-dsl build examples/processorder/main.py --output architecture.yaml
+sa-dsl inspect --project examples/processorder
+sa-dsl validate --project examples/processorder
+sa-dsl export --project examples/processorder
 ```
+
+`inspect` reads `.service-architect/project.yaml` without importing this project.
+`validate` executes the manifest entrypoint in a bounded child process. `export` writes
+`.service-architect/build/processorder.yaml`, which is generated canonical interchange
+rather than an editable source file.
 
 The same operation is available from Python:
 
@@ -272,15 +278,21 @@ yaml_source = project.to_yaml()
 
 ## Generate the target projects
 
-Create a local `.env` from the repository template and provide the Service Architect
-Cognito credentials:
+Create a local `.env` from the repository template and provide a Service Architect API
+key:
 
 ```dotenv
-SERVICE_ARCHITECT_USERNAME=user@example.com
-SERVICE_ARCHITECT_PASSWORD=your-password
+SERVICE_ARCHITECT_API_KEY=sa_live_<key-id>_<secret>
+SERVICE_ARCHITECT_API_URL=https://z06e41vwnl.execute-api.us-east-1.amazonaws.com/prod
 ```
 
 Then request the same generated ZIP that the designer's **Code** button downloads:
+
+```bash
+sa-dsl generate --project examples/processorder
+```
+
+Or call the same operation from Python:
 
 ```python
 from pathlib import Path
@@ -290,9 +302,9 @@ archive = project.generate_code()
 archive.save(Path("dist") / archive.filename)
 ```
 
-The call performs Cognito SRP authentication, converts the symbolic topology to the
-designer API JSON model, downloads the base64 response, and verifies that the result is a
-valid ZIP before returning it.
+The call converts the symbolic topology to the designer API JSON model, submits an
+asynchronous generation job, polls it, downloads the result through a short-lived URL,
+and verifies that the result is a valid ZIP before returning it.
 
 ## Round-trip guarantee
 

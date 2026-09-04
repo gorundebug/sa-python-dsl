@@ -20,10 +20,10 @@ def zip_content() -> bytes:
 
 
 class FakeResponse:
-    def __init__(self, payload: dict, *, status: int = 200) -> None:
+    def __init__(self, payload, *, status: int = 200, headers=None) -> None:
         self.status = status
-        self.headers = {"Content-Type": "application/json"}
-        self._content = json.dumps(payload).encode("utf-8")
+        self.headers = headers or {"Content-Type": "application/json"}
+        self._content = payload if isinstance(payload, bytes) else json.dumps(payload).encode("utf-8")
 
     def read(self) -> bytes:
         return self._content
@@ -90,6 +90,68 @@ class CodeGenerationTest(unittest.TestCase):
             client.generate_code(Project("Invalid"))
 
         self.assertEqual(422, raised.exception.status_code)
+
+    def test_api_key_generation_submits_polls_and_downloads_without_leaking_key(self) -> None:
+        expected = zip_content()
+        requests = []
+
+        def open_request(request, *, timeout):
+            requests.append(request)
+            if request.full_url.endswith("/v1/generation-jobs"):
+                return FakeResponse({
+                    "job": {"id": "job-1", "status": "QUEUED"},
+                    "statusUrl": "/v1/generation-jobs/job-1",
+                    "pollAfterSeconds": 0,
+                }, status=202)
+            if request.full_url.endswith("/v1/generation-jobs/job-1"):
+                return FakeResponse({"job": {"id": "job-1", "status": "SUCCEEDED"}})
+            if request.full_url.endswith("/download"):
+                return FakeResponse({
+                    "url": "https://objects.example/orders.zip",
+                    "fileName": "orders.zip",
+                })
+            if request.full_url == "https://objects.example/orders.zip":
+                return FakeResponse(expected, headers={"Content-Type": "application/zip"})
+            raise AssertionError(request.full_url)
+
+        project = Project("Orders")
+        client = ServiceArchitectClient(
+            api_key="sa_live_key_secret",
+            base_url="https://api.example.test/prod",
+            opener=open_request,
+            sleep=lambda _: None,
+        )
+        result = client.generate_code(project)
+
+        self.assertEqual("orders.zip", result.filename)
+        self.assertEqual(expected, result.content)
+        self.assertEqual(
+            ["POST", "GET", "GET", "GET"],
+            [request.get_method() for request in requests],
+        )
+        self.assertEqual(
+            "sa_live_key_secret",
+            requests[0].get_header("X-service-architect-key"),
+        )
+        self.assertIsNone(requests[-1].get_header("X-service-architect-key"))
+
+    def test_api_key_generation_exposes_terminal_job_failure(self) -> None:
+        responses = iter([
+            FakeResponse({
+                "job": {"id": "job-1", "status": "QUEUED"},
+                "statusUrl": "/v1/generation-jobs/job-1",
+                "pollAfterSeconds": 0,
+            }, status=202),
+            FakeResponse({"job": {"id": "job-1", "status": "FAILED", "errorCode": "INVALID_ARCHITECTURE"}}),
+        ])
+        client = ServiceArchitectClient(
+            api_key="sa_live_key_secret",
+            base_url="https://api.example.test/prod",
+            opener=lambda request, timeout: next(responses),
+            sleep=lambda _: None,
+        )
+        with self.assertRaisesRegex(CodeGenerationError, "INVALID_ARCHITECTURE"):
+            client.generate_code(Project("Invalid"))
 
 
 if __name__ == "__main__":
