@@ -1,3 +1,15 @@
+from .execution import ExecutionResult, execute_project, write_canonical_yaml
+from .generation import GenerationResult, generate_project_archive
+from .manifest import (
+    AuthoringConfig,
+    CanonicalConfig,
+    GenerationConfig,
+    ManifestError,
+    ProjectManifest,
+    find_manifest,
+    load_manifest,
+)
+from .migration import ImportResult, import_yaml_project
 from .model import (
     CallSemantics,
     Connector,
@@ -54,6 +66,20 @@ from .code_generation import (
 from .auth import AuthenticationError, CognitoAuthenticator
 
 __all__ = [
+    "ExecutionResult",
+    "execute_project",
+    "write_canonical_yaml",
+    "GenerationResult",
+    "generate_project_archive",
+    "AuthoringConfig",
+    "CanonicalConfig",
+    "GenerationConfig",
+    "ManifestError",
+    "ProjectManifest",
+    "find_manifest",
+    "load_manifest",
+    "ImportResult",
+    "import_yaml_project",
     "CallSemantics",
     "AuthenticationError",
     "CodeGenerationError",

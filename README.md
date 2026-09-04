@@ -1,5 +1,17 @@
 # Service Architect Python DSL
 
+For the manifest-driven Codex and MCP workflow, see
+[`docs/codex.md`](docs/codex.md). Typed Python is the editable source of truth;
+canonical YAML is generated for Designer interchange and code generation.
+
+Install the Codex plugin from the public marketplace after installing
+[`uv`](https://docs.astral.sh/uv/getting-started/installation/):
+
+```bash
+codex plugin marketplace add gorundebug/sa-python-dsl
+codex plugin add service-architect@service-architect
+```
+
 `sa-python-dsl` is a typed authoring layer for Service Architect graphs. Python is
 used to compose and reuse graph definitions; the resulting YAML remains the stable
 input contract for the existing designer and code generator.
@@ -22,7 +34,7 @@ expected by `servicegen`.
 
 The graph is the source of truth. The visual designer, canonical YAML, and typed Python
 API are three interfaces over the same architecture. A validated Project can be sent to
-the existing generation backend to download complete target-language projects.
+the asynchronous generation backend to download complete target-language projects.
 
 ## Explore the product
 
@@ -84,16 +96,16 @@ sa-dsl build examples/processorder/main.py
 
 ## Generate project code
 
-Put the Cognito credentials in the local, git-ignored `.env` file:
+Create an API key in Service Architect and put it in the local, git-ignored `.env` file:
 
 ```dotenv
-SERVICE_ARCHITECT_USERNAME=user@example.com
-SERVICE_ARCHITECT_PASSWORD=your-password
+SERVICE_ARCHITECT_API_KEY=sa_live_<key-id>_<secret>
+SERVICE_ARCHITECT_API_URL=https://z06e41vwnl.execute-api.us-east-1.amazonaws.com/prod
 ```
 
-Then call the same authenticated generation endpoint used by the designer. The client
-performs Cognito SRP authentication, obtains a temporary ID token and sends it in
-`Authorization`, matching the Amplify client:
+The client submits an asynchronous generation job, polls its owned status, requests a
+five-minute download URL, validates the ZIP, and never sends the API key to the presigned
+S3 URL:
 
 ```python
 from processorder import project
@@ -102,10 +114,12 @@ archive = project.generate_code()
 archive.save(archive.filename)
 ```
 
-The default API URL is the designer's Service Architect API. Set
-`SERVICE_ARCHITECT_API_URL` or pass `base_url` to target another environment. A successful
-call returns `GeneratedProjectArchive`; HTTP, API payload, base64 and ZIP errors raise
-`CodeGenerationError`, which exposes `status_code` and `details`.
+The API-key default is the production asynchronous API. Set
+`SERVICE_ARCHITECT_API_URL` or pass `base_url` to select beta or another environment.
+A successful call returns `GeneratedProjectArchive`; HTTP, job, timeout and ZIP errors
+raise `CodeGenerationError`, which exposes `status_code` and `details`. Existing
+`SERVICE_ARCHITECT_ID_TOKEN` or username/password settings remain available only as a
+legacy synchronous fallback.
 
 Reuse a configured client when generating more than one project:
 

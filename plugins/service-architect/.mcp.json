@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "service-architect": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/gorundebug/sa-python-dsl.git@main",
+        "sa-dsl-mcp"
+      ]
+    }
+  }
+}

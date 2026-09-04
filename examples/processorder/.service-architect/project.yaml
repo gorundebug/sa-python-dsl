@@ -1,0 +1,15 @@
+version: 1
+
+project:
+  name: Example
+
+authoring:
+  mode: python
+  entrypoint: main:project
+
+canonical:
+  output: .service-architect/build/processorder.yaml
+
+generation:
+  targets:
+    - go
