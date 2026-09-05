@@ -144,15 +144,15 @@ payload = yaml_to_api_document("architecture.yaml")
 ## Authoring model
 
 ```python
-from sa_dsl import ConnectorType, DataConnectorImplementation, DataType, HTTPMethodType, ProgrammingLanguage, Project, StreamType
+from sa_dsl import ConnectorType, DataConnectorImplementation, DataType, Golang, HTTPMethodType, Project, ServiceModule, StreamType
 
 project = Project("Orders")
 order = project.type("Order", DataType.CUSTOM)
 
 service = project.service(
     "Order Service",
-    programming_language=ProgrammingLanguage.GO,
-    module_path="github.com/example/orders/orderservice",
+    language=Golang(version="1.25.4"),
+    module=ServiceModule(path="github.com/example/orders/orderservice"),
 )
 
 http = project.connector(
@@ -278,19 +278,22 @@ synchronized with `servicegen/internal/codegenerator/validation.go`.
 ## Explicit links
 
 The ordinary data-flow relationship is expressed by a stream's `source` or `sources`.
-Call `Stream.link()` on the source when the persisted edge needs explicit delivery
+Call the semantic method on the source when a persisted edge needs explicit delivery
 settings. The graph connection must already exist:
 
 ```python
 incoming >> processor
 
-incoming.link(
+incoming.priority_task_pool_call(
     processor,
-    call_semantics=CallSemantics.PRIORITY_TASK_POOL,
     pool=workers,
     priority=5,
 )
 ```
+
+Available methods are `function_call()`, `task_pool_call()`,
+`priority_task_pool_call()` and `parallel_call()`. Each method exposes only the
+arguments supported by that delivery strategy.
 
 ## Extension boundary
 
