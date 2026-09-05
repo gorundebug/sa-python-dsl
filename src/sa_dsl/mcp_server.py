@@ -37,6 +37,13 @@ def _asset_base() -> str:
     )
 
 
+def _asset_origin() -> str:
+    from urllib.parse import urlparse
+
+    parsed = urlparse(_asset_base())
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
 def _designer_server() -> DesignerSnapshotServer:
     global _snapshot_server
     if _snapshot_server is None:
@@ -53,13 +60,13 @@ def _designer_server() -> DesignerSnapshotServer:
         "ui": {
             "prefersBorder": False,
             "csp": {
-                "resourceDomains": ["https://gorundebug.com"],
+                "resourceDomains": [_asset_origin()],
                 "connectDomains": [],
             },
         },
         "openai/widgetDescription": "Read-only Service Architect graph and object inspector.",
         "openai/widgetCSP": {
-            "resource_domains": ["https://gorundebug.com"],
+            "resource_domains": [_asset_origin()],
             "connect_domains": [],
         },
     },

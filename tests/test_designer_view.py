@@ -21,6 +21,8 @@ class WorkspaceBoundaryTest(unittest.TestCase):
                 boundary.resolve("../outside")
             with self.assertRaises(WorkspaceBoundaryError):
                 boundary.resolve(root)
+            with self.assertRaises(WorkspaceBoundaryError):
+                boundary.resolve("project\\outside")
 
     def test_rejects_symlink_escape(self) -> None:
         with tempfile.TemporaryDirectory() as temporary, tempfile.TemporaryDirectory() as outside:

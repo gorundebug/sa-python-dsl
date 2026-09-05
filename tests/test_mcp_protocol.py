@@ -64,12 +64,22 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                         },
                         {tool.name for tool in tools.tools},
                     )
+                    designer_tool = next(
+                        tool for tool in tools.tools if tool.name == "designer_view"
+                    )
+                    self.assertEqual(
+                        "ui://service-architect/designer",
+                        designer_tool.meta["ui"]["resourceUri"],
+                    )
 
                     resources = await session.list_resources()
-                    self.assertIn(
-                        "ui://service-architect/designer",
-                        {str(resource.uri) for resource in resources.resources},
+                    designer_resource = next(
+                        resource
+                        for resource in resources.resources
+                        if str(resource.uri) == "ui://service-architect/designer"
                     )
+                    self.assertEqual("text/html;profile=mcp-app", designer_resource.mime_type)
+                    self.assertIn("resourceDomains", designer_resource.meta["ui"]["csp"])
                     ui = await session.read_resource("ui://service-architect/designer")
                     self.assertIn("/mcp-ui/0.1.0/designer.js", ui.contents[0].text)
 

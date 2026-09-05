@@ -57,7 +57,7 @@ def designer_document(
         f'<link rel="stylesheet" href="{html.escape(base)}/designer.css">'
         "</head><body style=\"margin:0;background:#07091a\">"
         f"{snapshot_element}<div id=\"service-architect-designer\"></div>"
-        f'<script type="module" src="{html.escape(base)}/designer.js"></script>'
+        f'<script src="{html.escape(base)}/designer.js"></script>'
         "</body></html>"
     )
 
@@ -100,7 +100,7 @@ class DesignerSnapshotServer:
                 self.send_header(
                     "Content-Security-Policy",
                     "default-src 'none'; "
-                    f"script-src {origin}; style-src {origin}; font-src {origin}; "
+                    f"script-src {origin}; style-src {origin} 'unsafe-inline'; font-src {origin}; "
                     "img-src data: blob:; connect-src 'none'; base-uri 'none'; "
                     "form-action 'none'; frame-ancestors 'self'",
                 )

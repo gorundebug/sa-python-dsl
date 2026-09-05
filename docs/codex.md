@@ -77,10 +77,36 @@ The `sa-dsl-mcp` command starts the local stdio server. It exposes:
 | `export_project` | Writes canonical YAML | Produce deterministic interchange for Designer or backend use. |
 | `generate_project` | Calls the backend and writes ZIP | Download generated target-language projects. |
 | `import_yaml_project` | Creates a new project directory | Migrate canonical YAML into modular typed Python and create its manifest. |
+| `designer_view` | Executes trusted project Python and starts a local snapshot view | Inspect the exact exported revision as a read-only graph. |
 
 All tools return a `schemaVersion`, operation, status, and diagnostics. Diagnostics contain
 a stable code, severity, model path, and message so an agent can repair the owning Python
 declaration rather than editing generated YAML.
+
+The server must be started with an explicit `--workspace` root. Every tool path is a
+forward-slash relative path below that root. Absolute paths, parent traversal, backslash
+paths and symlink escapes fail with `SA_WORKSPACE_BOUNDARY_VIOLATION`.
+
+## Read-only Designer
+
+`designer_view` validates and exports the same typed project used by the other tools,
+then returns a content-addressed snapshot with its canonical SHA-256 revision. It never
+opens a floating working copy and never writes graph edits back to Python.
+
+Hosts with MCP Apps support render `ui://service-architect/designer`. The small HTML
+resource loads the pinned frontend bundle from
+`https://gorundebug.com/mcp-ui/0.1.0/`; the graph payload arrives in structured tool
+output and is not uploaded to that site. The resource receives no filesystem access,
+API key, Cognito token, `.env` contents or AWS credentials.
+
+Other clients use the returned `fallbackUrl`. It binds to `127.0.0.1`, contains an
+unguessable token, expires after 15 minutes, sends `Cache-Control: no-store`, and stops
+with the MCP process. Both presentations are read-only: selection, inspection, pan,
+zoom, Fit Graph and renderer switching are available, while Build Mode, connecting,
+moving, adding, deleting, saving and generation controls are absent.
+
+For a pinned alternative asset host, set `SERVICE_ARCHITECT_UI_ASSET_BASE` to an HTTPS
+URL containing the compatible versioned `designer.js` and `designer.css` bundle.
 
 ## Codex plugin
 

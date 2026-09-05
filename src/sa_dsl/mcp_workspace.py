@@ -15,6 +15,10 @@ class WorkspaceBoundary:
         self.root = candidate.resolve(strict=True)
 
     def resolve(self, relative: str | Path = ".") -> Path:
+        if "\\" in str(relative):
+            raise WorkspaceBoundaryError(
+                "path must use forward slashes relative to the registered MCP workspace"
+            )
         candidate = Path(relative)
         if candidate.is_absolute() or ".." in candidate.parts:
             raise WorkspaceBoundaryError(
