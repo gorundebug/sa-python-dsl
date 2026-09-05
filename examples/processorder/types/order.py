@@ -3,7 +3,7 @@ from processorder.modules.model import model
 from processorder.project.processorder import project
 
 from sa_dsl import (
-    NULL,
+    LocalType,
     ROOT_PACKAGE,
     TypeDefinitionFormat,
 )
@@ -15,7 +15,7 @@ order = project.struct_type(
         "[]OrderItem, CreatedAt time.Time."
     ),
     public_type=False,
-    module=NULL,
+    module=LocalType(),
     package=ROOT_PACKAGE,
     transfer_by_value=False,
     definition_format=TypeDefinitionFormat.NATIVE,
@@ -29,7 +29,7 @@ order_state = project.struct_type(
         "out), ConfirmedItems []OrderItemResult, TotalAmount float64, ProcessedAt time.Time."
     ),
     public_type=False,
-    module=NULL,
+    module=LocalType(),
     package=ROOT_PACKAGE,
     transfer_by_value=False,
     definition_format=TypeDefinitionFormat.NATIVE,

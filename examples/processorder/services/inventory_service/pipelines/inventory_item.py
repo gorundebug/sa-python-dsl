@@ -3,6 +3,7 @@ from processorder.services.inventory_service.service import inventory_service
 from processorder.pools.inventory_priority import inventory_priority_workers
 
 from sa_dsl import (
+    Appearance,
     Function,
     LOCAL_MODULE,
 )
@@ -21,16 +22,13 @@ from processorder.types.order import (
 process_inventory_item = inventory_item_pipeline.input(
     "Process Inventory Item",
     endpoint=process_order_item,
-    x=250,
-    y=-400,
+    appearance=Appearance(x=250, y=-400),
     value_type=order_item,
 )
 
 get_inventory_item_data = inventory_item_pipeline.process(
     "Get Inventory Item Data",
-    x=527,
-    y=-562,
-    error_stream="getInventoryItemError",
+    appearance=Appearance(x=527, y=-562),
     value_type=order_item_result,
     function=Function(
         package=inventory_item_package,
@@ -46,14 +44,12 @@ get_inventory_item_data = inventory_item_pipeline.process(
 
 merge_inventory_result = inventory_item_pipeline.merge(
     "Merge Inventory Result",
-    x=542,
-    y=33,
+    appearance=Appearance(x=542, y=33),
 )
 
 get_inventory_item_error = inventory_item_pipeline.error(
     "Get Inventory Item Error",
-    x=733,
-    y=-263,
+    appearance=Appearance(x=733, y=-263),
     value_type=order_item_result,
     function=Function(
         package=inventory_item_package,
@@ -72,16 +68,16 @@ get_inventory_item_error = inventory_item_pipeline.error(
     >> get_inventory_item_error
 )
 
-process_inventory_item.link(
+process_inventory_item.priority_task_pool_call(
     get_inventory_item_data,
-    call_semantics=CallSemantics.TASK_POOL,
     pool=inventory_priority_workers,
     priority=10,
 )
 
 merge_inventory_result << get_inventory_item_data << get_inventory_item_error
 
-get_inventory_item_data.link(
+get_inventory_item_data | get_inventory_item_error
+
+get_inventory_item_data.parallel_call(
     merge_inventory_result,
-    call_semantics=CallSemantics.PARALLEL_CALL,
 )

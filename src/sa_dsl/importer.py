@@ -9,23 +9,45 @@ from typing import Any, Mapping
 import yaml
 
 from .model import (
+    ActivityTimeouts,
+    ActivityWorker,
+    Appearance,
     CallSemantics,
+    CppBoost,
+    CppUserver,
+    CronSchedule,
     DataConnectorImplementation,
     DataType,
     Environment,
     GrpcMethodType,
+    GrpcServer,
+    Golang,
     HTTPMethodType,
+    HttpServer,
     JoinStorageType,
     JoinType,
     KafkaSaslMechanism,
+    KafkaCluster,
+    KafkaSecurity,
     KafkaSecurityProtocol,
     KubernetesWorkloadType,
+    Kubernetes,
     LogLevel,
+    LocalType,
+    Observability,
+    Python,
     ProcessPattern,
     ProgrammingLanguage,
     ScheduleMissedRunPolicy,
     ScheduleOverlapPolicy,
+    Rust,
+    RetryPolicy,
+    ServiceModule,
+    TypeScript,
+    TemporalSchedule,
     TypeDefinitionFormat,
+    WorkflowTimeouts,
+    WorkflowWorker,
 )
 
 
@@ -140,10 +162,11 @@ def _call(
 def _link_call(
     source: str,
     destination: str,
+    method: str,
     values: Mapping[str, Any],
 ) -> str:
     lines = [
-        f"{source}.link(",
+        f"{source}.{method}(",
         f"    {destination},",
     ]
     for field, value in values.items():
@@ -152,23 +175,47 @@ def _link_call(
     return "\n".join(lines)
 
 
+def _object_code(values: dict[str, Any], class_name: str, fields: tuple[tuple[str, str], ...]) -> _Code:
+    arguments = [
+        f"{argument}={_literal(values.pop(field))}"
+        for argument, field in fields
+        if field in values
+    ]
+    return _Code(f"{class_name}({', '.join(arguments)})")
+
+
 def _dsl_imports(body: str) -> str:
     names = [
+        "ActivityTimeouts",
+        "ActivityWorker",
+        "Appearance",
         "CallSemantics",
+        "CppBoost",
+        "CppUserver",
+        "CronSchedule",
         "DataConnectorImplementation",
         "DataType",
         "Environment",
         "Function",
         "GrpcMethodType",
+        "GrpcServer",
+        "Golang",
         "HTTPMethodType",
+        "HttpServer",
         "JoinStorageType",
         "JoinType",
         "KafkaSaslMechanism",
+        "KafkaCluster",
+        "KafkaSecurity",
         "KafkaSecurityProtocol",
         "KubernetesWorkloadType",
+        "Kubernetes",
         "LOCAL_MODULE",
         "LogLevel",
+        "LocalType",
         "NULL",
+        "Observability",
+        "Python",
         "Package",
         "ProcessPattern",
         "ProgrammingLanguage",
@@ -176,7 +223,14 @@ def _dsl_imports(body: str) -> str:
         "ROOT_PACKAGE",
         "ScheduleMissedRunPolicy",
         "ScheduleOverlapPolicy",
+        "Rust",
+        "RetryPolicy",
+        "ServiceModule",
+        "TypeScript",
+        "TemporalSchedule",
         "TypeDefinitionFormat",
+        "WorkflowTimeouts",
+        "WorkflowWorker",
     ]
     used = [name for name in names if re.search(rf"\b{re.escape(name)}\b", body)]
     if not used:
@@ -189,9 +243,10 @@ def _dsl_imports(body: str) -> str:
 
 
 class _Writer:
-    def __init__(self, root: Path, package: str):
+    def __init__(self, root: Path | None, package: str):
         self.root = root
         self.package = package
+        self.files: dict[str, str] = {}
         self.modules: dict[str, tuple[str, str]] = {}
         self.pools: dict[str, tuple[str, str]] = {}
         self.types: dict[str, tuple[str, str]] = {}
@@ -201,8 +256,6 @@ class _Writer:
         self.registration_modules: list[str] = []
 
     def write(self, relative: str, body: str, imports: list[str] | None = None) -> None:
-        path = self.root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
         sections = []
         dsl = _dsl_imports(body)
         if dsl:
@@ -210,10 +263,18 @@ class _Writer:
         if imports:
             sections.append("\n".join(sorted(set(imports))))
         sections.append(body.rstrip())
-        path.write_text(
+        self.write_raw(
+            relative,
             "\n\n".join(section for section in sections if section) + "\n",
-            encoding="utf-8",
         )
+
+    def write_raw(self, relative: str, content: str) -> None:
+        normalized = relative.replace("\\", "/").lstrip("/")
+        self.files[f"{self.package}/{normalized}"] = content
+        if self.root is not None:
+            path = self.root / normalized
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
 
     def ref_import(
         self, table: Mapping[str, tuple[str, str]], key: str
@@ -268,28 +329,38 @@ def _property_values(values: Mapping[str, Any]) -> dict[str, Any]:
     return {field: _enum(field, value) for field, value in values.items()}
 
 
-def yaml_to_python_project(
-    source: str | Path | Mapping[str, Any], output_dir: str | Path
-) -> Path:
-    """Convert Service Architect YAML into an importable typed Python project."""
+@dataclass(frozen=True)
+class PythonProjectFiles:
+    """A browser-friendly generated Python workspace with no filesystem dependency."""
+
+    package_name: str
+    entrypoint: str
+    files: Mapping[str, str]
+
+
+def yaml_to_python_files(
+    source: str | Path | Mapping[str, Any], package_name: str
+) -> PythonProjectFiles:
+    """Convert Service Architect YAML into an in-memory typed Python project."""
     if isinstance(source, Mapping):
         document = dict(source)
+    elif isinstance(source, Path):
+        document = yaml.safe_load(source.read_text(encoding="utf-8"))
     else:
-        source_path = Path(source)
-        document = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+        candidate = Path(source)
+        if "\n" not in source and len(source) < 4096 and candidate.is_file():
+            document = yaml.safe_load(candidate.read_text(encoding="utf-8"))
+        else:
+            document = yaml.safe_load(source)
     if not isinstance(document, dict):
         raise ValueError("Service Architect YAML root must be a mapping")
 
-    root = Path(output_dir)
-    package = root.name
+    package = package_name
     if not package.isidentifier() or keyword.iskeyword(package):
         raise ValueError(
-            f"Output directory name {package!r} must be a Python identifier"
+            f"Package name {package!r} must be a Python identifier"
         )
-    if root.exists() and any(root.iterdir()):
-        raise FileExistsError(f"Output directory {root} is not empty")
-    root.mkdir(parents=True, exist_ok=True)
-    writer = _Writer(root, package)
+    writer = _Writer(None, package)
 
     for category in (
         "project",
@@ -301,9 +372,8 @@ def yaml_to_python_project(
         "endpoints",
         "services",
     ):
-        (root / category).mkdir(exist_ok=True)
-        (root / category / "__init__.py").write_text(
-            f'"""Generated {category}."""\n', encoding="utf-8"
+        writer.write_raw(
+            f"{category}/__init__.py", f'"""Generated {category}."""\n'
         )
 
     settings = dict(document.get("settings") or {})
@@ -404,7 +474,7 @@ def yaml_to_python_project(
         imports = [project_import]
         module_value = values.pop("module", None)
         if module_value is None and "module" in item:
-            values["module"] = _Code("NULL")
+            values["module"] = _Code("LocalType()")
         elif module_value is not None:
             values["module"], imported = writer.ref_import(writer.modules, module_value)
             imports.append(imported)
@@ -457,6 +527,19 @@ def yaml_to_python_project(
             values["module"], imported = writer.ref_import(writer.modules, module_value)
             imports.append(imported)
         values = _property_values(values)
+        if connector_type == "Kafka":
+            values["cluster"] = _object_code(
+                values,
+                "KafkaCluster",
+                (("brokers", "brokers"), ("version", "version"), ("dial_timeout", "dialTimeout")),
+            )
+            security_fields = ("securityProtocol", "saslMechanism", "username", "password")
+            if any(field in values for field in security_fields):
+                values["security"] = _object_code(
+                    values,
+                    "KafkaSecurity",
+                    (("protocol", "securityProtocol"), ("mechanism", "saslMechanism"), ("username", "username"), ("password", "password")),
+                )
         module, variable = writer.connectors[key]
         body = _call(
             variable, "project", connector_methods[connector_type], name, values
@@ -476,13 +559,16 @@ def yaml_to_python_project(
             if function is not None:
                 endpoint_values["function"] = function
             if connector_type == "HTTP":
-                method = "route"
-                endpoint_values["method"] = endpoint_values.pop("httpMethodType", None)
+                method = {"GET": "get", "POST": "post"}[
+                    endpoint_values.pop("httpMethodType")
+                ]
             elif connector_type == "gRPC":
-                method = "method"
-                endpoint_values["methodType"] = endpoint_values.pop(
-                    "grpcMethodType", None
-                )
+                method = {
+                    "NoStreaming": "unary_method",
+                    "ClientStreaming": "client_streaming_method",
+                    "ServerStreaming": "server_streaming_method",
+                    "BidirectionalStreaming": "bidirectional_streaming_method",
+                }[endpoint_values.pop("grpcMethodType", "NoStreaming")]
             elif connector_type == "Kafka":
                 method = "topic"
             elif connector_type == "Cron":
@@ -493,6 +579,51 @@ def yaml_to_python_project(
             else:
                 method = "endpoint"
             endpoint_values = _property_values(endpoint_values)
+            if connector_type == "Cron":
+                endpoint_values["trigger"] = _object_code(
+                    endpoint_values,
+                    "CronSchedule",
+                    (("expression", "schedule"), ("timezone", "timezone"), ("overlap_policy", "overlapPolicy"), ("missed_run_policy", "missedRunPolicy")),
+                )
+            elif connector_type == "Temporal":
+                if method == "activity":
+                    endpoint_values["worker"] = _object_code(
+                        endpoint_values,
+                        "ActivityWorker",
+                        (("task_queue", "taskQueue"), ("max_concurrent", "maxConcurrentActivities")),
+                    )
+                    endpoint_values["timeouts"] = _object_code(
+                        endpoint_values,
+                        "ActivityTimeouts",
+                        (("start_to_close", "activityStartToCloseTimeout"), ("heartbeat", "activityHeartbeatTimeout"), ("workflow_execution", "workflowExecutionTimeout")),
+                    )
+                else:
+                    endpoint_values["worker"] = _object_code(
+                        endpoint_values,
+                        "WorkflowWorker",
+                        (("task_queue", "taskQueue"), ("max_concurrent", "maxConcurrentWorkflowTasks")),
+                    )
+                    endpoint_values["timeouts"] = _object_code(
+                        endpoint_values,
+                        "WorkflowTimeouts",
+                        (("execution", "workflowExecutionTimeout"),),
+                    )
+                maximum_attempts = endpoint_values.pop("maximumAttempts", None)
+                if maximum_attempts is not None and maximum_attempts != 1:
+                    endpoint_values["retry"] = _Code(
+                        f"RetryPolicy(maximum_attempts={_literal(maximum_attempts)})"
+                    )
+                schedule = endpoint_values.pop("schedule", "")
+                schedule_id = endpoint_values.pop("scheduleId", "")
+                timezone = endpoint_values.pop("timezone", "UTC")
+                overlap = endpoint_values.pop("overlapPolicy", _enum("overlapPolicy", ScheduleOverlapPolicy.SKIP.value))
+                missed = endpoint_values.pop("missedRunPolicy", _enum("missedRunPolicy", ScheduleMissedRunPolicy.FIRE_ONCE.value))
+                if schedule or schedule_id:
+                    endpoint_values["schedule"] = _Code(
+                        "TemporalSchedule("
+                        f"expression={schedule!r}, id={schedule_id!r}, timezone={timezone!r}, "
+                        f"overlap_policy={_literal(overlap)}, missed_run_policy={_literal(missed)})"
+                    )
             endpoint_blocks.append(
                 _call(
                     endpoint_variable, variable, method, endpoint_name, endpoint_values
@@ -513,15 +644,99 @@ def yaml_to_python_project(
         appearance = service_values.pop("appearance", {}) or {}
         coordinates = appearance.get("pipelines", {}) or {}
         if "color" in appearance:
-            service_values.setdefault("color", appearance["color"])
+            service_values["appearance"] = _Code(
+                f"Appearance(color={appearance['color']!r})"
+            )
         service_name = service_values.pop("name", service_key)
+        programming_language = service_values.pop("programmingLanguage")
+        module_path = service_values.pop("modulePath")
+        golang_version = service_values.pop("golangVersion", None)
+        language_classes = {
+            ProgrammingLanguage.GO.value: "Golang",
+            ProgrammingLanguage.CPP_USERVER.value: "CppUserver",
+            ProgrammingLanguage.CPP_BOOST.value: "CppBoost",
+            ProgrammingLanguage.PYTHON.value: "Python",
+            ProgrammingLanguage.RUST.value: "Rust",
+            ProgrammingLanguage.TYPESCRIPT.value: "TypeScript",
+        }
+        try:
+            language_class = language_classes[programming_language]
+        except KeyError as error:
+            raise ValueError(
+                f"Unsupported programmingLanguage value {programming_language!r}"
+            ) from error
+        language_arguments = (
+            f"version={golang_version!r}"
+            if language_class == "Golang" and golang_version is not None
+            else ""
+        )
+        service_values["language"] = _Code(f"{language_class}({language_arguments})")
+        service_values["module"] = _Code(f"ServiceModule(path={module_path!r})")
         default_call_semantics = service_values.get(
             "defaultCallSemantics", CallSemantics.FUNCTION_CALL.value
         )
+        service_defaults = {
+            "defaultCallSemantics": CallSemantics.FUNCTION_CALL.value,
+            "environment": "",
+            "httpHost": "0.0.0.0",
+            "grpcHost": "0.0.0.0",
+            "shutdownTimeout": 30000,
+            "kubernetesWorkloadType": "Deployment",
+            "statusHandler": "status",
+            "metricsHandler": "metrics",
+            "startupHandler": "health/startup",
+            "readinessHandler": "health/ready",
+            "livenessHandler": "health/live",
+        }
+        for field, default in service_defaults.items():
+            if service_values.get(field) == default:
+                service_values.pop(field)
         service_variable = _snake(service_key)
         service_module = f"services.{service_variable}.service"
         service_modules.append(service_module)
         service_values = _property_values(service_values)
+        service_groups = (
+            (
+                "http_server",
+                "HttpServer",
+                (("host", "httpHost"), ("port", "httpPort")),
+            ),
+            (
+                "grpc_server",
+                "GrpcServer",
+                (
+                    ("host", "grpcHost"),
+                    ("port", "grpcPort"),
+                    ("default_timeout", "defaultGrpcTimeout"),
+                ),
+            ),
+            (
+                "observability",
+                "Observability",
+                (
+                    ("metrics_handler", "metricsHandler"),
+                    ("status_handler", "statusHandler"),
+                    ("startup_handler", "startupHandler"),
+                    ("readiness_handler", "readinessHandler"),
+                    ("liveness_handler", "livenessHandler"),
+                ),
+            ),
+            (
+                "kubernetes",
+                "Kubernetes",
+                (("workload_type", "kubernetesWorkloadType"),),
+            ),
+        )
+        for parameter, class_name, fields in service_groups:
+            arguments = [
+                f"{argument}={_literal(service_values.pop(property_name))}"
+                for argument, property_name in fields
+                if property_name in service_values
+            ]
+            if arguments:
+                service_values[parameter] = _Code(
+                    f"{class_name}({', '.join(arguments)})"
+                )
         service_body = [
             _call(service_variable, "project", "service", service_name, service_values)
         ]
@@ -587,13 +802,27 @@ def yaml_to_python_project(
                 imports.append(
                     f"from {package}.{service_module} import {service_variable}"
                 )
+            semantics = link_values.pop("callSemantics")
+            if (
+                semantics == CallSemantics.TASK_POOL.value
+                and "priority" in link_values
+            ):
+                semantics = CallSemantics.PRIORITY_TASK_POOL.value
+            methods = {
+                CallSemantics.FUNCTION_CALL.value: "function_call",
+                CallSemantics.TASK_POOL.value: "task_pool_call",
+                CallSemantics.PRIORITY_TASK_POOL.value: "priority_task_pool_call",
+                CallSemantics.PARALLEL_CALL.value: "parallel_call",
+            }
             return _link_call(
                 source_variable,
                 target_variable,
+                methods[semantics],
                 _property_values(link_values),
             )
 
         cross_connections = []
+        error_connections = []
         pipeline_files = []
         service_imports = [project_import]
         for pipeline_key, stream_items in pipelines.items():
@@ -613,6 +842,7 @@ def yaml_to_python_project(
                 source = values.pop("source", None)
                 sources = values.pop("sources", None) or []
                 endpoint = values.pop("endpoint", None)
+                error_stream = values.pop("errorStream", None)
                 function = _function(values, writer, pipeline_imports)
                 if function is not None:
                     values["function"] = function
@@ -635,8 +865,13 @@ def yaml_to_python_project(
                 point = (coordinates.get(pipeline_key, {}) or {}).get(
                     stream_key, {}
                 ) or {}
-                values["x"] = point.get("x", 0)
-                values["y"] = point.get("y", 0)
+                appearance_fields = [
+                    f"{field}={point[field]!r}" for field in ("x", "y") if field in point
+                ]
+                if appearance_fields:
+                    values["appearance"] = _Code(
+                        f"Appearance({', '.join(appearance_fields)})"
+                    )
                 values = _property_values(values)
                 variable = stream_refs[stream_key][2]
                 blocks.append(
@@ -648,6 +883,17 @@ def yaml_to_python_project(
                         values,
                     )
                 )
+                if error_stream is not None:
+                    if error_stream not in stream_refs:
+                        raise ValueError(f"Unknown error stream {error_stream!r}")
+                    error_connections.append(
+                        (
+                            pipeline_module,
+                            variable,
+                            stream_refs[error_stream][1],
+                            stream_refs[error_stream][2],
+                        )
+                    )
                 references = ([source] if source else []) + list(sources)
                 for reference in references:
                     if reference not in stream_refs:
@@ -691,6 +937,9 @@ def yaml_to_python_project(
                 f"{pipeline_name} as _{pipeline_name}_pipeline"
             )
         cross_imports = set()
+        for source_module, source_variable, error_module, error_variable in error_connections:
+            cross_imports.add(f"from {package}.{source_module} import {source_variable}")
+            cross_imports.add(f"from {package}.{error_module} import {error_variable}")
         for (
             _,
             _,
@@ -706,6 +955,9 @@ def yaml_to_python_project(
                 f"from {package}.{target_module} import {target_variable}"
             )
         service_body.extend(sorted(cross_imports))
+
+        for _, source_variable, _, error_variable in error_connections:
+            service_body.append(f"{source_variable} | {error_variable}")
 
         for (
             expression,
@@ -733,12 +985,13 @@ def yaml_to_python_project(
             "\n\n".join(service_body),
             service_imports,
         )
-        service_root = root / "services" / service_variable
-        (service_root / "__init__.py").write_text(
-            '"""Generated service."""\n', encoding="utf-8"
+        writer.write_raw(
+            f"services/{service_variable}/__init__.py",
+            '"""Generated service."""\n',
         )
-        (service_root / "pipelines" / "__init__.py").write_text(
-            '"""Generated pipelines."""\n', encoding="utf-8"
+        writer.write_raw(
+            f"services/{service_variable}/pipelines/__init__.py",
+            '"""Generated pipelines."""\n',
         )
 
     imports = [f"from .project.{project_file} import project"]
@@ -746,17 +999,40 @@ def yaml_to_python_project(
         imports.append(f"from .{module} import *")
     for module in service_modules:
         imports.append(f"from .{module} import *")
-    (root / "__init__.py").write_text(
+    writer.write_raw(
+        "__init__.py",
         '"""Generated Service Architect project."""\n\n'
         + "\n".join(imports)
         + '\n\n__all__ = ["project"]\n',
-        encoding="utf-8",
     )
-    (root / "main.py").write_text(
+    writer.write_raw(
+        "main.py",
         "import sys\nfrom pathlib import Path\n\n"
         "_examples_dir = str(Path(__file__).resolve().parent.parent)\n"
         "if _examples_dir not in sys.path:\n    sys.path.insert(0, _examples_dir)\n\n"
         f'from {package} import project\n\n__all__ = ["project"]\n',
-        encoding="utf-8",
     )
+    return PythonProjectFiles(
+        package_name=package,
+        entrypoint=f"{package}.main:project",
+        files=dict(writer.files),
+    )
+
+
+def yaml_to_python_project(
+    source: str | Path | Mapping[str, Any], output_dir: str | Path
+) -> Path:
+    """Convert Service Architect YAML into an importable typed Python project."""
+    root = Path(output_dir)
+    package = root.name
+    if root.exists() and any(root.iterdir()):
+        raise FileExistsError(f"Output directory {root} is not empty")
+    generated = yaml_to_python_files(source, package)
+    root.mkdir(parents=True, exist_ok=True)
+    prefix = f"{package}/"
+    for filename, content in generated.files.items():
+        relative = filename.removeprefix(prefix)
+        destination = root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(content, encoding="utf-8")
     return root / "main.py"

@@ -1,4 +1,5 @@
 from sa_dsl import (
+    Appearance,
     Function,
     LOCAL_MODULE,
 )
@@ -18,23 +19,20 @@ from processorder.types.order import order_processed
 stream_analytics_schedule = analytics_pipeline.input(
     "Analytics Schedule",
     endpoint=analytics_schedule,
-    x=-1600,
-    y=-205,
+    appearance=Appearance(x=-1600, y=-205),
     value_type=automation_job,
 )
 
 consume_order_processed = analytics_pipeline.input(
     "Consume Order Processed",
     endpoint=endpoint_order_processed,
-    x=-1190,
-    y=-205,
+    appearance=Appearance(x=-1190, y=-205),
     value_type=order_processed,
 )
 
 count_order_processed = analytics_pipeline.process(
     "Count Order Processed",
-    x=-1390,
-    y=-19,
+    appearance=Appearance(x=-1390, y=-19),
     value_type=order_processed,
     function=Function(
         package=analytics_package,

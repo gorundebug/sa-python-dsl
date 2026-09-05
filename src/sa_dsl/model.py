@@ -350,6 +350,205 @@ class InitializerGroup:
     name: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class Appearance:
+    x: float | None = None
+    y: float | None = None
+    color: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ServiceModule:
+    path: str
+
+
+class ServiceLanguage:
+    programming_language: ProgrammingLanguage
+
+    def to_properties(self) -> dict[str, Any]:
+        return {}
+
+
+@dataclass(frozen=True, slots=True)
+class Golang(ServiceLanguage):
+    version: str | None = None
+    programming_language = ProgrammingLanguage.GO
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({"golang_version": self.version})
+
+
+@dataclass(frozen=True, slots=True)
+class CppUserver(ServiceLanguage):
+    programming_language = ProgrammingLanguage.CPP_USERVER
+
+
+@dataclass(frozen=True, slots=True)
+class CppBoost(ServiceLanguage):
+    programming_language = ProgrammingLanguage.CPP_BOOST
+
+
+@dataclass(frozen=True, slots=True)
+class Python(ServiceLanguage):
+    programming_language = ProgrammingLanguage.PYTHON
+
+
+@dataclass(frozen=True, slots=True)
+class Rust(ServiceLanguage):
+    programming_language = ProgrammingLanguage.RUST
+
+
+@dataclass(frozen=True, slots=True)
+class TypeScript(ServiceLanguage):
+    programming_language = ProgrammingLanguage.TYPESCRIPT
+
+
+@dataclass(frozen=True, slots=True)
+class HttpServer:
+    host: str | None = None
+    port: int | None = None
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({"http_host": self.host, "http_port": self.port})
+
+
+@dataclass(frozen=True, slots=True)
+class GrpcServer:
+    host: str | None = None
+    port: int | None = None
+    default_timeout: int | None = None
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties(
+            {
+                "grpc_host": self.host,
+                "grpc_port": self.port,
+                "default_grpc_timeout": self.default_timeout,
+            }
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Observability:
+    metrics_handler: str | None = None
+    status_handler: str | None = None
+    startup_handler: str | None = None
+    readiness_handler: str | None = None
+    liveness_handler: str | None = None
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties(
+            {
+                "metrics_handler": self.metrics_handler,
+                "status_handler": self.status_handler,
+                "startup_handler": self.startup_handler,
+                "readiness_handler": self.readiness_handler,
+                "liveness_handler": self.liveness_handler,
+            }
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Kubernetes:
+    workload_type: KubernetesWorkloadType | str | None = None
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({"kubernetes_workload_type": self.workload_type})
+
+
+@dataclass(frozen=True, slots=True)
+class CronSchedule:
+    expression: str
+    timezone: str = "UTC"
+    overlap_policy: ScheduleOverlapPolicy = ScheduleOverlapPolicy.SKIP
+    missed_run_policy: ScheduleMissedRunPolicy = ScheduleMissedRunPolicy.SKIP
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({"schedule": self.expression, "timezone": self.timezone, "overlap_policy": self.overlap_policy, "missed_run_policy": self.missed_run_policy})
+
+
+@dataclass(frozen=True, slots=True)
+class TemporalSchedule:
+    expression: str
+    id: str
+    timezone: str = "UTC"
+    overlap_policy: ScheduleOverlapPolicy = ScheduleOverlapPolicy.SKIP
+    missed_run_policy: ScheduleMissedRunPolicy = ScheduleMissedRunPolicy.FIRE_ONCE
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({"schedule": self.expression, "schedule_id": self.id, "timezone": self.timezone, "overlap_policy": self.overlap_policy, "missed_run_policy": self.missed_run_policy})
+
+
+@dataclass(frozen=True, slots=True)
+class ActivityWorker:
+    task_queue: str
+    max_concurrent: int
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({"task_queue": self.task_queue, "max_concurrent_activities": self.max_concurrent})
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowWorker:
+    task_queue: str
+    max_concurrent: int
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({"task_queue": self.task_queue, "max_concurrent_workflow_tasks": self.max_concurrent})
+
+
+@dataclass(frozen=True, slots=True)
+class ActivityTimeouts:
+    start_to_close: int
+    heartbeat: int | None = None
+    workflow_execution: int | None = None
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({"activity_start_to_close_timeout": self.start_to_close, "activity_heartbeat_timeout": self.heartbeat, "workflow_execution_timeout": self.workflow_execution})
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowTimeouts:
+    execution: int | None = None
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({"workflow_execution_timeout": self.execution})
+
+
+@dataclass(frozen=True, slots=True)
+class RetryPolicy:
+    maximum_attempts: int = 1
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({"maximum_attempts": self.maximum_attempts})
+
+
+@dataclass(frozen=True, slots=True)
+class KafkaCluster:
+    brokers: str
+    version: str | None = None
+    dial_timeout: float | None = None
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({"brokers": self.brokers, "version": self.version, "dial_timeout": self.dial_timeout})
+
+
+@dataclass(frozen=True, slots=True)
+class KafkaSecurity:
+    protocol: KafkaSecurityProtocol
+    mechanism: KafkaSaslMechanism | None = None
+    username: str | None = None
+    password: str | None = None
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({"security_protocol": self.protocol, "sasl_mechanism": self.mechanism, "username": self.username, "password": self.password})
+
+
+@dataclass(frozen=True, slots=True)
+class LocalType:
+    pass
+
+
 @dataclass(slots=True)
 class Function:
     name: str
@@ -419,10 +618,11 @@ class Pipeline:
         value_type: TypeDefinition | DataType | str | None = None,
         key_type: TypeDefinition | DataType | str | None = None,
         function: Function | None = None,
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
         **properties: Any,
     ) -> Stream:
+        if appearance is not None and not isinstance(appearance, Appearance):
+            raise DslValidationError("Stream appearance must be an Appearance")
         stream_key = _key(None, name)
         all_streams = {
             item.key
@@ -446,8 +646,7 @@ class Pipeline:
             sources=list(sources),
             endpoint=endpoint,
             function=function,
-            x=x,
-            y=y,
+            appearance=appearance or Appearance(),
             properties=_properties(
                 {
                     "value_type": value_type,
@@ -468,8 +667,7 @@ class Pipeline:
         value_type: TypeDefinition | DataType | str | None = None,
         source: Stream | None = None,
         sources: Sequence[Stream] = (),
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
             name,
@@ -478,8 +676,7 @@ class Pipeline:
             value_type=value_type,
             source=source,
             sources=sources,
-            x=x,
-            y=y,
+            appearance=appearance,
         )
 
     def map(
@@ -489,8 +686,7 @@ class Pipeline:
         function: Function,
         value_type: TypeDefinition | DataType | str | None = None,
         source: Stream | None = None,
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
             name,
@@ -498,8 +694,7 @@ class Pipeline:
             function=function,
             value_type=value_type,
             source=source,
-            x=x,
-            y=y,
+            appearance=appearance,
         )
 
     def filter(
@@ -508,11 +703,10 @@ class Pipeline:
         *,
         function: Function,
         source: Stream | None = None,
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
-            name, StreamType.FILTER, function=function, source=source, x=x, y=y
+            name, StreamType.FILTER, function=function, source=source, appearance=appearance
         )
 
     def join(
@@ -527,8 +721,7 @@ class Pipeline:
         renew_ttl: bool | None = None,
         source: Stream | None = None,
         sources: Sequence[Stream] = (),
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
             name,
@@ -537,8 +730,7 @@ class Pipeline:
             value_type=value_type,
             source=source,
             sources=sources,
-            x=x,
-            y=y,
+            appearance=appearance,
             join_type=join_type,
             join_storage=join_storage,
             ttl=ttl,
@@ -556,8 +748,7 @@ class Pipeline:
         renew_ttl: bool | None = None,
         source: Stream | None = None,
         sources: Sequence[Stream] = (),
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
             name,
@@ -566,8 +757,7 @@ class Pipeline:
             value_type=value_type,
             source=source,
             sources=sources,
-            x=x,
-            y=y,
+            appearance=appearance,
             join_storage=join_storage,
             ttl=ttl,
             renew_ttl=renew_ttl,
@@ -580,21 +770,17 @@ class Pipeline:
         function: Function,
         pattern: ProcessPattern | None = None,
         value_type: TypeDefinition | DataType | str | None = None,
-        error_stream: str | None = None,
         source: Stream | None = None,
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
             name,
             StreamType.PROCESS,
             function=function,
             source=source,
-            x=x,
-            y=y,
+            appearance=appearance,
             pattern=pattern,
             value_type=value_type,
-            error_stream=error_stream,
         )
 
     def delay(
@@ -604,16 +790,14 @@ class Pipeline:
         function: Function,
         duration: int,
         source: Stream | None = None,
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
             name,
             StreamType.DELAY,
             function=function,
             source=source,
-            x=x,
-            y=y,
+            appearance=appearance,
             duration=duration,
         )
 
@@ -624,8 +808,7 @@ class Pipeline:
         function: Function,
         value_type: TypeDefinition | DataType | str | None = None,
         source: Stream | None = None,
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
             name,
@@ -633,8 +816,7 @@ class Pipeline:
             function=function,
             value_type=value_type,
             source=source,
-            x=x,
-            y=y,
+            appearance=appearance,
         )
 
     def flat_map_iterable(
@@ -643,16 +825,14 @@ class Pipeline:
         *,
         value_type: TypeDefinition | DataType | str | None = None,
         source: Stream | None = None,
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
             name,
             StreamType.FLAT_MAP_ITERABLE,
             value_type=value_type,
             source=source,
-            x=x,
-            y=y,
+            appearance=appearance,
         )
 
     def key_by(
@@ -663,8 +843,7 @@ class Pipeline:
         key_type: TypeDefinition | DataType | str,
         value_type: TypeDefinition | DataType | str | None = None,
         source: Stream | None = None,
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
             name,
@@ -673,19 +852,18 @@ class Pipeline:
             key_type=key_type,
             value_type=value_type,
             source=source,
-            x=x,
-            y=y,
+            appearance=appearance,
         )
 
     def merge(
-        self, name: str, *, sources: Sequence[Stream] = (), x: float = 0, y: float = 0
+        self, name: str, *, sources: Sequence[Stream] = (), appearance: Appearance | None = None
     ) -> Stream:
-        return self._stream(name, StreamType.MERGE, sources=sources, x=x, y=y)
+        return self._stream(name, StreamType.MERGE, sources=sources, appearance=appearance)
 
     def split(
-        self, name: str, *, source: Stream | None = None, x: float = 0, y: float = 0
+        self, name: str, *, source: Stream | None = None, appearance: Appearance | None = None
     ) -> Stream:
-        return self._stream(name, StreamType.SPLIT, source=source, x=x, y=y)
+        return self._stream(name, StreamType.SPLIT, source=source, appearance=appearance)
 
     def case(
         self,
@@ -693,11 +871,10 @@ class Pipeline:
         *,
         function: Function,
         source: Stream | None = None,
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
-            name, StreamType.CASE, function=function, source=source, x=x, y=y
+            name, StreamType.CASE, function=function, source=source, appearance=appearance
         )
 
     def sink(
@@ -706,10 +883,8 @@ class Pipeline:
         *,
         endpoint: Endpoint,
         value_type: TypeDefinition | DataType | str | None = None,
-        error_stream: str | None = None,
         source: Stream | None = None,
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
             name,
@@ -717,15 +892,13 @@ class Pipeline:
             endpoint=endpoint,
             value_type=value_type,
             source=source,
-            x=x,
-            y=y,
-            error_stream=error_stream,
+            appearance=appearance,
         )
 
     def cycle_link(
-        self, name: str, *, source: Stream | None = None, x: float = 0, y: float = 0
+        self, name: str, *, source: Stream | None = None, appearance: Appearance | None = None
     ) -> Stream:
-        return self._stream(name, StreamType.CYCLE_LINK, source=source, x=x, y=y)
+        return self._stream(name, StreamType.CYCLE_LINK, source=source, appearance=appearance)
 
     def error(
         self,
@@ -734,8 +907,7 @@ class Pipeline:
         value_type: TypeDefinition | DataType | str | None = None,
         function: Function | None = None,
         source: Stream | None = None,
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
             name,
@@ -743,8 +915,7 @@ class Pipeline:
             value_type=value_type,
             function=function,
             source=source,
-            x=x,
-            y=y,
+            appearance=appearance,
         )
 
     def when(
@@ -753,11 +924,10 @@ class Pipeline:
         *,
         value_type: TypeDefinition | DataType | str | None = None,
         source: Stream | None = None,
-        x: float = 0,
-        y: float = 0,
+        appearance: Appearance | None = None,
     ) -> Stream:
         return self._stream(
-            name, StreamType.WHEN, value_type=value_type, source=source, x=x, y=y
+            name, StreamType.WHEN, value_type=value_type, source=source, appearance=appearance
         )
 
 
@@ -823,7 +993,7 @@ class Connector:
 
 
 class HttpConnector(Connector):
-    def route(
+    def _route(
         self,
         name: str,
         *,
@@ -840,24 +1010,42 @@ class HttpConnector(Connector):
             tracing_enabled=tracing_enabled,
         )
 
+    def get(self, name: str, *, function: Function, path: str, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._route(name, function=function, method=HTTPMethodType.GET, path=path, tracing_enabled=tracing_enabled)
+
+    def post(self, name: str, *, function: Function, path: str, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._route(name, function=function, method=HTTPMethodType.POST, path=path, tracing_enabled=tracing_enabled)
+
 
 class GrpcConnector(Connector):
-    def method(
+    def _method(
         self,
         name: str,
         *,
         function: Function,
-        method_name: str,
-        method_type: GrpcMethodType = GrpcMethodType.NO_STREAMING,
+        method_type: GrpcMethodType,
+        method_name: str | None = None,
         tracing_enabled: bool | None = None,
     ) -> Endpoint:
         return self._endpoint(
             name,
             function=function,
             grpc_method_type=method_type,
-            method_name=method_name,
+            method_name=method_name or function.name,
             tracing_enabled=tracing_enabled,
         )
+
+    def unary_method(self, name: str, *, function: Function, method_name: str | None = None, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._method(name, function=function, method_type=GrpcMethodType.NO_STREAMING, method_name=method_name, tracing_enabled=tracing_enabled)
+
+    def client_streaming_method(self, name: str, *, function: Function, method_name: str | None = None, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._method(name, function=function, method_type=GrpcMethodType.CLIENT_STREAMING, method_name=method_name, tracing_enabled=tracing_enabled)
+
+    def server_streaming_method(self, name: str, *, function: Function, method_name: str | None = None, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._method(name, function=function, method_type=GrpcMethodType.SERVER_STREAMING, method_name=method_name, tracing_enabled=tracing_enabled)
+
+    def bidirectional_streaming_method(self, name: str, *, function: Function, method_name: str | None = None, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._method(name, function=function, method_type=GrpcMethodType.BIDIRECTIONAL_STREAMING, method_name=method_name, tracing_enabled=tracing_enabled)
 
 
 class KafkaConnector(Connector):
@@ -895,22 +1083,18 @@ class CronConnector(Connector):
         name: str,
         *,
         function: Function,
-        schedule: str,
-        timezone: str = "UTC",
+        trigger: CronSchedule,
         enabled: bool = True,
         tracing_enabled: bool | None = None,
-        overlap_policy: ScheduleOverlapPolicy = ScheduleOverlapPolicy.SKIP,
-        missed_run_policy: ScheduleMissedRunPolicy = ScheduleMissedRunPolicy.SKIP,
     ) -> Endpoint:
+        if not isinstance(trigger, CronSchedule):
+            raise DslValidationError("Cron trigger must be a CronSchedule")
         return self._endpoint(
             name,
             function=function,
             enabled=enabled,
             tracing_enabled=tracing_enabled,
-            schedule=schedule,
-            timezone=timezone,
-            overlap_policy=overlap_policy,
-            missed_run_policy=missed_run_policy,
+            **trigger.to_properties(),
         )
 
 
@@ -920,37 +1104,36 @@ class TemporalConnector(Connector):
         name: str,
         *,
         function: Function,
-        task_queue: str,
-        max_concurrent_activities: int,
-        activity_start_to_close_timeout: int,
-        activity_heartbeat_timeout: int | None = None,
+        worker: ActivityWorker,
+        timeouts: ActivityTimeouts,
+        retry: RetryPolicy | None = None,
+        schedule: TemporalSchedule | None = None,
         enabled: bool = True,
         tracing_enabled: bool | None = None,
-        schedule: str | None = None,
-        schedule_id: str | None = None,
-        timezone: str | None = None,
-        overlap_policy: ScheduleOverlapPolicy | None = None,
-        missed_run_policy: ScheduleMissedRunPolicy | None = None,
-        workflow_execution_timeout: int | None = None,
-        maximum_attempts: int = 1,
     ) -> Endpoint:
+        if not isinstance(worker, ActivityWorker):
+            raise DslValidationError("Temporal Activity worker must be an ActivityWorker")
+        if not isinstance(timeouts, ActivityTimeouts):
+            raise DslValidationError("Temporal Activity timeouts must be ActivityTimeouts")
+        if retry is not None and not isinstance(retry, RetryPolicy):
+            raise DslValidationError("Temporal retry must be a RetryPolicy")
+        if schedule is not None and not isinstance(schedule, TemporalSchedule):
+            raise DslValidationError("Temporal schedule must be a TemporalSchedule")
+        schedule_properties = schedule.to_properties() if schedule else _properties({
+            "schedule": "", "schedule_id": "", "timezone": "UTC",
+            "overlap_policy": ScheduleOverlapPolicy.SKIP,
+            "missed_run_policy": ScheduleMissedRunPolicy.FIRE_ONCE,
+        })
         return self._endpoint(
             name,
             function=function,
             temporal_execution_type=TemporalExecutionType.ACTIVITY,
-            task_queue=task_queue,
-            max_concurrent_activities=max_concurrent_activities,
-            activity_start_to_close_timeout=activity_start_to_close_timeout,
-            activity_heartbeat_timeout=activity_heartbeat_timeout,
             enabled=enabled,
             tracing_enabled=tracing_enabled,
-            schedule=schedule,
-            schedule_id=schedule_id,
-            timezone=timezone,
-            overlap_policy=overlap_policy,
-            missed_run_policy=missed_run_policy,
-            workflow_execution_timeout=workflow_execution_timeout,
-            maximum_attempts=maximum_attempts,
+            **worker.to_properties(),
+            **timeouts.to_properties(),
+            **(retry or RetryPolicy()).to_properties(),
+            **schedule_properties,
         )
 
     def workflow(
@@ -958,33 +1141,36 @@ class TemporalConnector(Connector):
         name: str,
         *,
         function: Function,
-        task_queue: str,
-        max_concurrent_workflow_tasks: int,
+        worker: WorkflowWorker,
+        timeouts: WorkflowTimeouts | None = None,
+        retry: RetryPolicy | None = None,
+        schedule: TemporalSchedule | None = None,
         enabled: bool = True,
         tracing_enabled: bool | None = None,
-        schedule: str | None = None,
-        schedule_id: str | None = None,
-        timezone: str | None = None,
-        overlap_policy: ScheduleOverlapPolicy | None = None,
-        missed_run_policy: ScheduleMissedRunPolicy | None = None,
-        workflow_execution_timeout: int | None = None,
-        maximum_attempts: int = 1,
     ) -> Endpoint:
+        if not isinstance(worker, WorkflowWorker):
+            raise DslValidationError("Temporal Workflow worker must be a WorkflowWorker")
+        if timeouts is not None and not isinstance(timeouts, WorkflowTimeouts):
+            raise DslValidationError("Temporal Workflow timeouts must be WorkflowTimeouts")
+        if retry is not None and not isinstance(retry, RetryPolicy):
+            raise DslValidationError("Temporal retry must be a RetryPolicy")
+        if schedule is not None and not isinstance(schedule, TemporalSchedule):
+            raise DslValidationError("Temporal schedule must be a TemporalSchedule")
+        schedule_properties = schedule.to_properties() if schedule else _properties({
+            "schedule": "", "schedule_id": "", "timezone": "UTC",
+            "overlap_policy": ScheduleOverlapPolicy.SKIP,
+            "missed_run_policy": ScheduleMissedRunPolicy.FIRE_ONCE,
+        })
         return self._endpoint(
             name,
             function=function,
             temporal_execution_type=TemporalExecutionType.WORKFLOW,
-            task_queue=task_queue,
-            max_concurrent_workflow_tasks=max_concurrent_workflow_tasks,
             enabled=enabled,
             tracing_enabled=tracing_enabled,
-            schedule=schedule,
-            schedule_id=schedule_id,
-            timezone=timezone,
-            overlap_policy=overlap_policy,
-            missed_run_policy=missed_run_policy,
-            workflow_execution_timeout=workflow_execution_timeout,
-            maximum_attempts=maximum_attempts,
+            **worker.to_properties(),
+            **(timeouts or WorkflowTimeouts()).to_properties(),
+            **(retry or RetryPolicy()).to_properties(),
+            **schedule_properties,
         )
 
 
@@ -1006,8 +1192,8 @@ class Stream:
     sources: list[Stream] = field(default_factory=list)
     endpoint: Endpoint | None = None
     function: Function | None = None
-    x: float = 0
-    y: float = 0
+    error_stream: Stream | None = None
+    appearance: Appearance = field(default_factory=Appearance)
     properties: dict[str, Any] = field(default_factory=dict)
 
     def __rshift__(self, target: Stream) -> Stream:
@@ -1030,6 +1216,10 @@ class Stream:
         self.sources.append(source)
         return self
 
+    def __or__(self, error_stream: Stream) -> Stream:
+        self.on_error(error_stream)
+        return error_stream
+
     def from_sources(self, *sources: Stream) -> Stream:
         if any(source.service is not self.service for source in sources):
             raise DslValidationError(
@@ -1038,22 +1228,60 @@ class Stream:
         self.sources = list(sources)
         return self
 
-    def link(
+    def on_error(self, error_stream: Stream) -> Stream:
+        if error_stream.service is not self.service:
+            raise DslValidationError("An error stream must belong to the same service")
+        if error_stream.type != StreamType.ERROR.value:
+            raise DslValidationError("on_error() target must be an Error stream")
+        self.error_stream = error_stream
+        return self
+
+    def function_call(
         self,
         target: Stream,
         *,
-        call_semantics: CallSemantics | str | None = CallSemantics.INHERITED,
         async_: bool | None = None,
-        pool: Pool | None = None,
-        priority: int | None = None,
     ) -> Link:
-        return self.service.link(
+        return self.service._link(
             self,
             target,
-            call_semantics=call_semantics,
+            call_semantics=CallSemantics.FUNCTION_CALL,
             async_=async_,
+        )
+
+    def task_pool_call(
+        self,
+        target: Stream,
+        *,
+        pool: Pool,
+    ) -> Link:
+        return self.service._link(
+            self,
+            target,
+            call_semantics=CallSemantics.TASK_POOL,
+            pool=pool,
+        )
+
+    def priority_task_pool_call(
+        self,
+        target: Stream,
+        *,
+        pool: Pool,
+        priority: int,
+    ) -> Link:
+        return self.service._link(
+            self,
+            target,
+            call_semantics=CallSemantics.PRIORITY_TASK_POOL,
             pool=pool,
             priority=priority,
+        )
+
+    def parallel_call(self, target: Stream) -> Link:
+        return self.service._link(
+            self,
+            target,
+            call_semantics=CallSemantics.PARALLEL_CALL,
         )
 
     def to_document(self) -> dict[str, Any]:
@@ -1066,6 +1294,7 @@ class Stream:
                     [source.key for source in self.sources] if self.sources else None
                 ),
                 "endpoint": self.endpoint.key if self.endpoint else None,
+                "errorStream": self.error_stream.key if self.error_stream else None,
                 **self.properties,
             }
         )
@@ -1090,6 +1319,7 @@ class Service:
     name: str
     programming_language: str
     module_path: str
+    appearance: Appearance = field(default_factory=Appearance)
     properties: dict[str, Any] = field(default_factory=dict)
     pipelines: dict[str, Pipeline] = field(default_factory=dict)
     links: dict[str, Link] = field(default_factory=dict)
@@ -1099,7 +1329,7 @@ class Service:
         value = Pipeline(pipeline_key, name, self)
         return _insert_unique(self.pipelines, pipeline_key, value, "pipeline")
 
-    def link(
+    def _link(
         self,
         source: Stream,
         target: Stream,
@@ -1139,12 +1369,14 @@ class Service:
 
     def to_document(self) -> dict[str, Any]:
         service_properties = dict(self.properties)
-        color = service_properties.pop("color", "#4A90D9")
         appearance = {
-            "color": color,
+            "color": self.appearance.color or "#4A90D9",
             "pipelines": {
                 pipeline.key: {
-                    key: {"x": stream.x, "y": stream.y}
+                    key: {
+                        "x": stream.appearance.x if stream.appearance.x is not None else 0,
+                        "y": stream.appearance.y if stream.appearance.y is not None else 0,
+                    }
                     for key, stream in pipeline.streams.items()
                 }
                 for pipeline in self.pipelines.values()
@@ -1199,12 +1431,14 @@ class Project:
         name: str,
         data_type: DataType | str,
         *,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
         **properties: Any,
     ) -> TypeDefinition:
+        if isinstance(module, LocalType):
+            module = NULL
         if module is not None and module is not NULL and not isinstance(module, Module):
-            raise DslValidationError("Type.module must be a Module, NULL, or None")
+            raise DslValidationError("Type.module must be a Module, LocalType, or None")
         if package is not None and not isinstance(package, Package):
             raise DslValidationError("Type.package must be a Package or None")
         type_key = _key(None, name)
@@ -1224,7 +1458,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._type(
@@ -1244,7 +1478,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1264,7 +1498,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1284,7 +1518,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1304,7 +1538,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1324,7 +1558,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1344,7 +1578,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1364,7 +1598,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1384,7 +1618,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1404,7 +1638,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1424,7 +1658,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1444,7 +1678,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1464,7 +1698,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1484,7 +1718,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1504,7 +1738,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1524,7 +1758,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1544,7 +1778,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1564,7 +1798,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1584,7 +1818,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1604,7 +1838,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1624,7 +1858,7 @@ class Project:
         use_alias: bool | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
@@ -1643,7 +1877,7 @@ class Project:
         *,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
         transfer_by_value: bool | None = None,
         definition_format: TypeDefinitionFormat | None = None,
@@ -1670,7 +1904,7 @@ class Project:
         value_type: TypeDefinition | DataType,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._type(
@@ -1691,7 +1925,7 @@ class Project:
         value_type: TypeDefinition | DataType,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
     ) -> TypeDefinition:
         return self._type(
@@ -1713,7 +1947,7 @@ class Project:
         type_import: str | None = None,
         description: str | None = None,
         public_type: bool | None = None,
-        module: Module | _ExplicitNull | None = None,
+        module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
         definition_format: TypeDefinitionFormat | None = None,
     ) -> TypeDefinition:
@@ -1880,15 +2114,10 @@ class Project:
         self,
         name: str,
         *,
-        brokers: str,
-        version: str | None = None,
-        dial_timeout: float | None = None,
+        cluster: KafkaCluster,
+        security: KafkaSecurity | None = None,
         use_partitioner: bool | None = None,
         async_: bool | None = None,
-        security_protocol: KafkaSecurityProtocol | None = None,
-        sasl_mechanism: KafkaSaslMechanism | None = None,
-        username: str | None = None,
-        password: str | None = None,
         go_implementation: (
             DataConnectorImplementation | None
         ) = DataConnectorImplementation.IBM_SARAMA,
@@ -1908,19 +2137,18 @@ class Project:
             DataConnectorImplementation | None
         ) = DataConnectorImplementation.CONFLUENT_KAFKA_JAVASCRIPT,
     ) -> KafkaConnector:
+        if not isinstance(cluster, KafkaCluster):
+            raise DslValidationError("Kafka cluster must be a KafkaCluster")
+        if security is not None and not isinstance(security, KafkaSecurity):
+            raise DslValidationError("Kafka security must be KafkaSecurity or None")
         return self._connector(
             name,
             ConnectorType.KAFKA,
             connector_class=KafkaConnector,
-            brokers=brokers,
-            version=version,
-            dial_timeout=dial_timeout,
             use_partitioner=use_partitioner,
             async_=async_,
-            security_protocol=security_protocol,
-            sasl_mechanism=sasl_mechanism,
-            username=username,
-            password=password,
+            **cluster.to_properties(),
+            **(security.to_properties() if security else {}),
             go_implementation=go_implementation,
             cpp_userver_implementation=cpp_userver_implementation,
             cpp_boost_implementation=cpp_boost_implementation,
@@ -2026,10 +2254,60 @@ class Project:
         self,
         name: str,
         *,
-        programming_language: ProgrammingLanguage | str,
-        module_path: str,
+        language: ServiceLanguage,
+        module: ServiceModule,
+        appearance: Appearance | None = None,
+        http_server: HttpServer | None = None,
+        grpc_server: GrpcServer | None = None,
+        observability: Observability | None = None,
+        kubernetes: Kubernetes | None = None,
         **properties: Any,
     ) -> Service:
+        if not isinstance(language, ServiceLanguage):
+            raise DslValidationError(
+                "Service language must be Golang, CppUserver, CppBoost, Python, Rust, or TypeScript"
+            )
+        if not isinstance(module, ServiceModule):
+            raise DslValidationError("Service module must be a ServiceModule")
+        if appearance is not None and not isinstance(appearance, Appearance):
+            raise DslValidationError("Service appearance must be an Appearance")
+        if "color" in properties:
+            raise DslValidationError(
+                "Service color must be provided as appearance=Appearance(color=...)"
+            )
+        groups = (
+            ("http_server", http_server, HttpServer),
+            ("grpc_server", grpc_server, GrpcServer),
+            ("observability", observability, Observability),
+            ("kubernetes", kubernetes, Kubernetes),
+        )
+        for group_name, group, expected_type in groups:
+            if group is not None and not isinstance(group, expected_type):
+                raise DslValidationError(
+                    f"Service {group_name} must be a {expected_type.__name__}"
+                )
+        grouped_properties = {
+            "programming_language",
+            "module_path",
+            "golang_version",
+            "http_host",
+            "http_port",
+            "grpc_host",
+            "grpc_port",
+            "default_grpc_timeout",
+            "metrics_handler",
+            "status_handler",
+            "startup_handler",
+            "readiness_handler",
+            "liveness_handler",
+            "kubernetes_workload_type",
+        }
+        direct_grouped_properties = grouped_properties.intersection(properties)
+        if direct_grouped_properties:
+            names = ", ".join(sorted(direct_grouped_properties))
+            raise DslValidationError(
+                f"Grouped service properties must use their configuration objects: {names}"
+            )
         service_key = _key(None, name)
         defaults = {
             "default_call_semantics": CallSemantics.FUNCTION_CALL,
@@ -2046,15 +2324,19 @@ class Project:
             "startup_handler": "health/startup",
             "readiness_handler": "health/ready",
             "liveness_handler": "health/live",
-            "color": "#4A90D9",
         }
         defaults.update(properties)
+        defaults.update(language.to_properties())
+        for group in (http_server, grpc_server, observability, kubernetes):
+            if group is not None:
+                defaults.update(group.to_properties())
         value = Service(
-            service_key,
-            name,
-            str(_enum_value(programming_language)),
-            module_path,
-            _properties(defaults),
+            key=service_key,
+            name=name,
+            programming_language=str(_enum_value(language.programming_language)),
+            module_path=module.path,
+            appearance=appearance or Appearance(),
+            properties=_properties(defaults),
         )
         return _insert_unique(self.services, service_key, value, "service")
 

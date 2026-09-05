@@ -4,10 +4,9 @@ from processorder.packages.endpoint import endpoint_package
 
 from sa_dsl import (
     Function,
-    HTTPMethodType,
 )
 
-process_order = connector_order_service_api.route(
+process_order = connector_order_service_api.post(
     "Process Order",
     function=Function(
         name="ProcessOrder",
@@ -24,6 +23,5 @@ process_order = connector_order_service_api.route(
         "Calculate the total from processed item prices, falling back to the submitted total when "
         "no item result arrived, and include individual item failures in the response.\n",
     ),
-    method=HTTPMethodType.POST,
     path="/v1/processorder",
 )

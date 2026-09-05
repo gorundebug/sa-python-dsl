@@ -215,15 +215,14 @@ Pools are declared once under `pools/` and passed as objects to explicit links:
 ```python
 split_activity_a_result >> call_fan_out_activity_c
 
-split_activity_a_result.link(
+split_activity_a_result.priority_task_pool_call(
     call_fan_out_activity_c,
-    call_semantics=CallSemantics.PRIORITY_TASK_POOL,
     pool=default_pool,
     priority=7,
 )
 ```
 
-The graph edge must exist before `link()` is called. If link semantics equal the Service
+The graph edge must exist before a semantic call method is used. If link semantics equal the Service
 default, no explicit Link is needed and the YAML importer does not generate one.
 
 ## Directory structure

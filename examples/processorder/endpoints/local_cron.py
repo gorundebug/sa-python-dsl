@@ -3,6 +3,7 @@ from processorder.connectors.local_cron import local_cron
 from processorder.packages.cron import cron_package
 
 from sa_dsl import (
+    CronSchedule,
     Function,
     ScheduleMissedRunPolicy,
     ScheduleOverlapPolicy,
@@ -18,10 +19,7 @@ analytics_schedule = local_cron.schedule(
     ),
     enabled=True,
     tracing_enabled=False,
-    schedule="*/5 * * * *",
-    timezone="UTC",
-    overlap_policy=ScheduleOverlapPolicy.SKIP,
-    missed_run_policy=ScheduleMissedRunPolicy.FIRE_ONCE,
+    trigger=CronSchedule(expression="*/5 * * * *", timezone="UTC", overlap_policy=ScheduleOverlapPolicy.SKIP, missed_run_policy=ScheduleMissedRunPolicy.FIRE_ONCE),
 )
 
 local_schedule = local_cron.schedule(
@@ -34,8 +32,5 @@ local_schedule = local_cron.schedule(
     ),
     enabled=True,
     tracing_enabled=False,
-    schedule="*/5 * * * *",
-    timezone="UTC",
-    overlap_policy=ScheduleOverlapPolicy.SKIP,
-    missed_run_policy=ScheduleMissedRunPolicy.FIRE_ONCE,
+    trigger=CronSchedule(expression="*/5 * * * *", timezone="UTC", overlap_policy=ScheduleOverlapPolicy.SKIP, missed_run_policy=ScheduleMissedRunPolicy.FIRE_ONCE),
 )

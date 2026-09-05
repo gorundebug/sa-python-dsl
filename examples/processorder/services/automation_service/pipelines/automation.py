@@ -3,6 +3,7 @@ from processorder.services.automation_service.service import automation_service
 from processorder.pools.default import default_pool
 
 from sa_dsl import (
+    Appearance,
     Function,
     LOCAL_MODULE,
 )
@@ -31,37 +32,32 @@ from processorder.types.automation import automation_job
 stream_local_schedule = automation_pipeline.input(
     "Local Schedule",
     endpoint=local_schedule,
-    x=-1250,
-    y=500,
+    appearance=Appearance(x=-1250, y=500),
     value_type=automation_job,
 )
 
 split_on_demand_jobs = automation_pipeline.split(
     "Split On-Demand Jobs",
-    x=-1010,
-    y=500,
+    appearance=Appearance(x=-1010, y=500),
 )
 
 submit_activity_job = automation_pipeline.sink(
     "Submit Activity Job",
     endpoint=activity_job,
-    x=-760,
-    y=350,
+    appearance=Appearance(x=-760, y=350),
     value_type=automation_job,
 )
 
 consume_activity_job = automation_pipeline.input(
     "Consume Activity Job",
     endpoint=activity_job,
-    x=-500,
-    y=350,
+    appearance=Appearance(x=-500, y=350),
     value_type=automation_job,
 )
 
 activity_pause = automation_pipeline.delay(
     "Activity Pause",
-    x=-251,
-    y=219,
+    appearance=Appearance(x=-251, y=219),
     function=Function(
         package=automation_package,
         name="ActivityPause",
@@ -73,8 +69,7 @@ activity_pause = automation_pipeline.delay(
 
 process_activity_job = automation_pipeline.map(
     "Process Activity Job",
-    x=10,
-    y=350,
+    appearance=Appearance(x=10, y=350),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -86,8 +81,7 @@ process_activity_job = automation_pipeline.map(
 
 observe_activity_result = automation_pipeline.map(
     "Observe Activity Result",
-    x=-500,
-    y=500,
+    appearance=Appearance(x=-500, y=500),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -100,23 +94,20 @@ observe_activity_result = automation_pipeline.map(
 submit_workflow_job = automation_pipeline.sink(
     "Submit Workflow Job",
     endpoint=workflow_job,
-    x=-807,
-    y=629,
+    appearance=Appearance(x=-807, y=629),
     value_type=automation_job,
 )
 
 consume_workflow_job = automation_pipeline.input(
     "Consume Workflow Job",
     endpoint=workflow_job,
-    x=-515,
-    y=635,
+    appearance=Appearance(x=-515, y=635),
     value_type=automation_job,
 )
 
 workflow_pause = automation_pipeline.delay(
     "Workflow Pause",
-    x=-233,
-    y=504,
+    appearance=Appearance(x=-233, y=504),
     function=Function(
         package=automation_package,
         name="WorkflowPause",
@@ -129,23 +120,20 @@ workflow_pause = automation_pipeline.delay(
 call_sequential_activity_a = automation_pipeline.sink(
     "Call Sequential Activity A",
     endpoint=sequential_activity_a,
-    x=49,
-    y=473,
+    appearance=Appearance(x=49, y=473),
     value_type=automation_job,
 )
 
 call_sequential_activity_b = automation_pipeline.sink(
     "Call Sequential Activity B",
     endpoint=sequential_activity_b,
-    x=270,
-    y=650,
+    appearance=Appearance(x=270, y=650),
     value_type=automation_job,
 )
 
 process_workflow_job = automation_pipeline.map(
     "Process Workflow Job",
-    x=-59,
-    y=654,
+    appearance=Appearance(x=-59, y=654),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -157,8 +145,7 @@ process_workflow_job = automation_pipeline.map(
 
 observe_workflow_result = automation_pipeline.map(
     "Observe Workflow Result",
-    x=-650,
-    y=788,
+    appearance=Appearance(x=-650, y=788),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -171,15 +158,13 @@ observe_workflow_result = automation_pipeline.map(
 consume_sequential_activity_a = automation_pipeline.input(
     "Consume Sequential Activity A",
     endpoint=sequential_activity_a,
-    x=302,
-    y=489,
+    appearance=Appearance(x=302, y=489),
     value_type=automation_job,
 )
 
 process_sequential_activity_a = automation_pipeline.map(
     "Process Sequential Activity A",
-    x=568,
-    y=486,
+    appearance=Appearance(x=568, y=486),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -192,15 +177,13 @@ process_sequential_activity_a = automation_pipeline.map(
 consume_sequential_activity_b = automation_pipeline.input(
     "Consume Sequential Activity B",
     endpoint=sequential_activity_b,
-    x=503,
-    y=658,
+    appearance=Appearance(x=503, y=658),
     value_type=automation_job,
 )
 
 process_sequential_activity_b = automation_pipeline.map(
     "Process Sequential Activity B",
-    x=804,
-    y=660,
+    appearance=Appearance(x=804, y=660),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -213,15 +196,13 @@ process_sequential_activity_b = automation_pipeline.map(
 consume_fan_out_activity_a = automation_pipeline.input(
     "Consume Fan-Out Activity A",
     endpoint=fan_out_activity_a,
-    x=-277,
-    y=1051,
+    appearance=Appearance(x=-277, y=1051),
     value_type=automation_job,
 )
 
 process_fan_out_activity_a = automation_pipeline.map(
     "Process Fan-Out Activity A",
-    x=-268,
-    y=819,
+    appearance=Appearance(x=-268, y=819),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -234,15 +215,13 @@ process_fan_out_activity_a = automation_pipeline.map(
 consume_fan_out_activity_b = automation_pipeline.input(
     "Consume Fan-Out Activity B",
     endpoint=fan_out_activity_b,
-    x=295,
-    y=996,
+    appearance=Appearance(x=295, y=996),
     value_type=automation_job,
 )
 
 process_fan_out_activity_b = automation_pipeline.map(
     "Process Fan-Out Activity B",
-    x=705,
-    y=1001,
+    appearance=Appearance(x=705, y=1001),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -255,15 +234,13 @@ process_fan_out_activity_b = automation_pipeline.map(
 consume_fan_out_activity_c = automation_pipeline.input(
     "Consume Fan-Out Activity C",
     endpoint=fan_out_activity_c,
-    x=553,
-    y=1503,
+    appearance=Appearance(x=553, y=1503),
     value_type=automation_job,
 )
 
 process_fan_out_activity_c = automation_pipeline.map(
     "Process Fan-Out Activity C",
-    x=931,
-    y=1493,
+    appearance=Appearance(x=931, y=1493),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -276,45 +253,39 @@ process_fan_out_activity_c = automation_pipeline.map(
 submit_fan_out_workflow_job = automation_pipeline.sink(
     "Submit Fan-Out Workflow Job",
     endpoint=fan_out_workflow_job,
-    x=-967,
-    y=1034,
+    appearance=Appearance(x=-967, y=1034),
     value_type=automation_job,
 )
 
 consume_fan_out_workflow_job = automation_pipeline.input(
     "Consume Fan-Out Workflow Job",
     endpoint=fan_out_workflow_job,
-    x=-635,
-    y=1287,
+    appearance=Appearance(x=-635, y=1287),
     value_type=automation_job,
 )
 
 call_fan_out_activity_a = automation_pipeline.sink(
     "Call Fan-Out Activity A",
     endpoint=fan_out_activity_a,
-    x=-271,
-    y=1284,
+    appearance=Appearance(x=-271, y=1284),
     value_type=automation_job,
 )
 
 split_activity_a_result = automation_pipeline.split(
     "Split Activity A Result",
-    x=40,
-    y=1312,
+    appearance=Appearance(x=40, y=1312),
 )
 
 call_fan_out_activity_b = automation_pipeline.sink(
     "Call Fan-Out Activity B",
     endpoint=fan_out_activity_b,
-    x=7,
-    y=990,
+    appearance=Appearance(x=7, y=990),
     value_type=automation_job,
 )
 
 observe_fan_out_activity_b = automation_pipeline.map(
     "Observe Fan-Out Activity B",
-    x=-11,
-    y=793,
+    appearance=Appearance(x=-11, y=793),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -327,15 +298,13 @@ observe_fan_out_activity_b = automation_pipeline.map(
 call_fan_out_activity_c = automation_pipeline.sink(
     "Call Fan-Out Activity C",
     endpoint=fan_out_activity_c,
-    x=317,
-    y=1313,
+    appearance=Appearance(x=317, y=1313),
     value_type=automation_job,
 )
 
 observe_fan_out_activity_c = automation_pipeline.map(
     "Observe Fan-Out Activity C",
-    x=587,
-    y=1121,
+    appearance=Appearance(x=587, y=1121),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -348,15 +317,13 @@ observe_fan_out_activity_c = automation_pipeline.map(
 stream_temporal_activity_schedule = automation_pipeline.input(
     "Temporal Activity Schedule",
     endpoint=temporal_activity_schedule,
-    x=-1917,
-    y=639,
+    appearance=Appearance(x=-1917, y=639),
     value_type=automation_job,
 )
 
 scheduled_activity_pause = automation_pipeline.delay(
     "Scheduled Activity Pause",
-    x=-1661,
-    y=402,
+    appearance=Appearance(x=-1661, y=402),
     function=Function(
         package=automation_package,
         name="ScheduledActivityPause",
@@ -368,8 +335,7 @@ scheduled_activity_pause = automation_pipeline.delay(
 
 process_scheduled_activity = automation_pipeline.map(
     "Process Scheduled Activity",
-    x=-1442,
-    y=655,
+    appearance=Appearance(x=-1442, y=655),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -382,15 +348,13 @@ process_scheduled_activity = automation_pipeline.map(
 stream_temporal_workflow_schedule = automation_pipeline.input(
     "Temporal Workflow Schedule",
     endpoint=temporal_workflow_schedule,
-    x=-1906,
-    y=846,
+    appearance=Appearance(x=-1906, y=846),
     value_type=automation_job,
 )
 
 scheduled_workflow_pause = automation_pipeline.delay(
     "Scheduled Workflow Pause",
-    x=-1684,
-    y=1167,
+    appearance=Appearance(x=-1684, y=1167),
     function=Function(
         package=automation_package,
         name="ScheduledWorkflowPause",
@@ -402,8 +366,7 @@ scheduled_workflow_pause = automation_pipeline.delay(
 
 process_scheduled_workflow = automation_pipeline.map(
     "Process Scheduled Workflow",
-    x=-1411,
-    y=856,
+    appearance=Appearance(x=-1411, y=856),
     value_type=automation_job,
     function=Function(
         package=automation_package,
@@ -433,22 +396,19 @@ process_activity_job >> consume_activity_job >> activity_pause >> process_activi
     >> process_workflow_job
 )
 
-call_sequential_activity_b.link(
+call_sequential_activity_b.task_pool_call(
     process_workflow_job,
-    call_semantics=CallSemantics.TASK_POOL,
     pool=default_pool,
 )
 
-call_sequential_activity_a.link(
+call_sequential_activity_a.priority_task_pool_call(
     call_sequential_activity_b,
-    call_semantics=CallSemantics.PRIORITY_TASK_POOL,
     pool=default_pool,
     priority=2,
 )
 
-workflow_pause.link(
+workflow_pause.task_pool_call(
     call_sequential_activity_a,
-    call_semantics=CallSemantics.TASK_POOL,
     pool=default_pool,
 )
 
@@ -474,26 +434,23 @@ split_on_demand_jobs >> submit_fan_out_workflow_job
 
 consume_fan_out_workflow_job >> call_fan_out_activity_a >> split_activity_a_result
 
-consume_fan_out_workflow_job.link(
+consume_fan_out_workflow_job.task_pool_call(
     call_fan_out_activity_a,
-    call_semantics=CallSemantics.TASK_POOL,
     pool=default_pool,
 )
 
 split_activity_a_result >> call_fan_out_activity_b >> observe_fan_out_activity_b
 
-split_activity_a_result.link(
+split_activity_a_result.priority_task_pool_call(
     call_fan_out_activity_b,
-    call_semantics=CallSemantics.PRIORITY_TASK_POOL,
     pool=default_pool,
     priority=2,
 )
 
 split_activity_a_result >> call_fan_out_activity_c >> observe_fan_out_activity_c
 
-split_activity_a_result.link(
+split_activity_a_result.priority_task_pool_call(
     call_fan_out_activity_c,
-    call_semantics=CallSemantics.PRIORITY_TASK_POOL,
     pool=default_pool,
     priority=7,
 )

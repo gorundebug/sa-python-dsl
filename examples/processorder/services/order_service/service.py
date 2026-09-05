@@ -1,32 +1,20 @@
 from sa_dsl import (
-    CallSemantics,
-    Environment,
-    KubernetesWorkloadType,
-    ProgrammingLanguage,
+    Appearance,
+    Golang,
+    GrpcServer,
+    HttpServer,
+    ServiceModule,
 )
 
 from processorder.project.processorder import project
 
 order_service = project.service(
     "Order Service",
-    programming_language=ProgrammingLanguage.GO,
-    module_path="github.com/gorundebug/orderservice",
-    color="#FF5C00",
-    default_call_semantics=CallSemantics.FUNCTION_CALL,
-    http_port=9091,
-    http_host="0.0.0.0",
-    metrics_handler="metrics",
-    status_handler="status",
-    startup_handler="health/startup",
-    readiness_handler="health/ready",
-    liveness_handler="health/live",
-    kubernetes_workload_type=KubernetesWorkloadType.DEPLOYMENT,
-    grpc_port=9201,
-    grpc_host="0.0.0.0",
-    default_grpc_timeout=0,
-    shutdown_timeout=30000,
-    environment=Environment.UNDEFINED,
-    golang_version="1.25.4",
+    language=Golang(version="1.25.4"),
+    module=ServiceModule(path="github.com/gorundebug/orderservice"),
+    appearance=Appearance(color="#FF5C00"),
+    http_server=HttpServer(port=9091),
+    grpc_server=GrpcServer(port=9201, default_timeout=0),
 )
 
 order_pipeline = order_service.pipeline("order")
@@ -63,3 +51,5 @@ from processorder.services.order_service.pipelines.order import (
 )
 
 stream_process_order_item >> process_order_item_error
+
+stream_process_order_item | process_order_item_error

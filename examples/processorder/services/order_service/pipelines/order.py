@@ -3,6 +3,7 @@ from processorder.services.order_service.service import order_service
 from processorder.pools.default import default_pool
 
 from sa_dsl import (
+    Appearance,
     Function,
     LOCAL_MODULE,
 )
@@ -28,21 +29,18 @@ from processorder.types.order import (
 stream_process_order = order_pipeline.input(
     "Process Order",
     endpoint=process_order,
-    x=-760,
-    y=-367,
+    appearance=Appearance(x=-760, y=-367),
     value_type=order,
 )
 
 split_pipeline = order_pipeline.split(
     "Split Pipeline",
-    x=-640,
-    y=-597,
+    appearance=Appearance(x=-640, y=-597),
 )
 
 soft_deadline = order_pipeline.delay(
     "Soft Deadline",
-    x=-477,
-    y=-444,
+    appearance=Appearance(x=-477, y=-444),
     function=Function(
         package=order_package,
         name="SoftDeadline",
@@ -57,8 +55,7 @@ soft_deadline = order_pipeline.delay(
 
 map_to_order_state = order_pipeline.map(
     "Map to Order State",
-    x=-368,
-    y=-227,
+    appearance=Appearance(x=-368, y=-227),
     value_type=order_state,
     function=Function(
         package=order_package,
@@ -72,28 +69,24 @@ map_to_order_state = order_pipeline.map(
 
 merge_results = order_pipeline.merge(
     "Merge Results",
-    x=-228,
-    y=130,
+    appearance=Appearance(x=-228, y=130),
 )
 
 split_order_result = order_pipeline.split(
     "Split Order Result",
-    x=-671,
-    y=-129,
+    appearance=Appearance(x=-671, y=-129),
 )
 
 publish_order_processed = order_pipeline.sink(
     "Publish Order Processed",
     endpoint=endpoint_order_processed,
-    x=-944,
-    y=-255,
+    appearance=Appearance(x=-944, y=-255),
     value_type=order_processed,
 )
 
 process_order_items = order_pipeline.flat_map(
     "Process Order Items",
-    x=-198,
-    y=-662,
+    appearance=Appearance(x=-198, y=-662),
     value_type=order_item,
     function=Function(
         package=order_package,
@@ -107,16 +100,13 @@ process_order_items = order_pipeline.flat_map(
 stream_process_order_item = order_pipeline.sink(
     "Process Order Item",
     endpoint=process_order_item,
-    x=-60,
-    y=-375,
-    error_stream="processOrderItemError",
+    appearance=Appearance(x=-60, y=-375),
     value_type=order_item_result,
 )
 
 map_order_item_result_to_order_state = order_pipeline.map(
     "Map Order Item Result To Order State",
-    x=103,
-    y=-52,
+    appearance=Appearance(x=103, y=-52),
     value_type=order_state,
     function=Function(
         package=order_package,
@@ -130,8 +120,7 @@ map_order_item_result_to_order_state = order_pipeline.map(
 
 map_to_order_processed = order_pipeline.map(
     "MapToOrderProcessed",
-    x=-821,
-    y=-26,
+    appearance=Appearance(x=-821, y=-26),
     value_type=order_processed,
     function=Function(
         package=order_package,
@@ -151,14 +140,12 @@ map_to_order_processed = order_pipeline.map(
     >> map_to_order_state
 )
 
-split_pipeline.link(
+split_pipeline.parallel_call(
     soft_deadline,
-    call_semantics=CallSemantics.PARALLEL_CALL,
 )
 
-stream_process_order.link(
+stream_process_order.priority_task_pool_call(
     split_pipeline,
-    call_semantics=CallSemantics.PRIORITY_TASK_POOL,
     pool=default_pool,
     priority=1,
 )
@@ -167,9 +154,8 @@ merge_results >> split_order_result >> map_to_order_processed >> publish_order_p
 
 split_pipeline >> process_order_items >> stream_process_order_item
 
-split_pipeline.link(
+split_pipeline.parallel_call(
     process_order_items,
-    call_semantics=CallSemantics.PARALLEL_CALL,
 )
 
 stream_process_order_item >> map_order_item_result_to_order_state

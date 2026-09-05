@@ -6,10 +6,9 @@ from processorder.packages.endpoint import endpoint_package
 
 from sa_dsl import (
     Function,
-    GrpcMethodType,
 )
 
-process_order_item = connector_inventory_service_api.method(
+process_order_item = connector_inventory_service_api.unary_method(
     "Process Order Item",
     function=Function(
         name="ProcessOrderItem",
@@ -21,6 +20,5 @@ process_order_item = connector_inventory_service_api.method(
         "with the failure message.\n",
         public=False,
     ),
-    method_type=GrpcMethodType.NO_STREAMING,
     method_name="ProcessOrderItem",
 )
