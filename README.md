@@ -36,6 +36,11 @@ The graph is the source of truth. The visual designer, canonical YAML, and typed
 API are three interfaces over the same architecture. A validated Project can be sent to
 the asynchronous generation backend to download complete target-language projects.
 
+The bundled MCP server also exposes `designer_view`. Codex can open the exact exported
+revision as a read-only graph, either as an MCP Apps embedded resource or through a
+short-lived loopback URL when the host does not support embedded UI. The hosted frontend
+assets are versioned; project YAML remains local and is supplied by the MCP response.
+
 ## Explore the product
 
 | Resource | Description |

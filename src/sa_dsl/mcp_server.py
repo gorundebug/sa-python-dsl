@@ -1,18 +1,78 @@
 from __future__ import annotations
 
+import argparse
+import os
 from pathlib import Path
 from typing import Any
 
 from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 
+from .designer import DesignerSnapshotServer, designer_document, make_snapshot, validate_asset_base
 from .execution import execute_project, write_canonical_yaml
 from .generation import generate_project_archive
 from .manifest import ManifestError, load_manifest
 from .migration import import_yaml_project as import_yaml_project_application
+from .mcp_workspace import WorkspaceBoundary, WorkspaceBoundaryError
 
 
 mcp = MCPServer("Service Architect")
+UI_RESOURCE_URI = "ui://service-architect/designer"
+_workspace = WorkspaceBoundary(Path.cwd())
+_snapshot_server: DesignerSnapshotServer | None = None
+
+
+def configure_workspace(path: str | Path) -> None:
+    global _workspace
+    _workspace = WorkspaceBoundary(path)
+
+
+def _project_path(path: str) -> Path:
+    return _workspace.resolve(path)
+
+
+def _asset_base() -> str:
+    return validate_asset_base(
+        os.getenv("SERVICE_ARCHITECT_DESIGNER_ASSET_BASE", "https://gorundebug.com/mcp-ui/0.1.0")
+    )
+
+
+def _asset_origin() -> str:
+    from urllib.parse import urlparse
+
+    parsed = urlparse(_asset_base())
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _designer_server() -> DesignerSnapshotServer:
+    global _snapshot_server
+    if _snapshot_server is None:
+        _snapshot_server = DesignerSnapshotServer(asset_base=_asset_base())
+    return _snapshot_server
+
+
+@mcp.resource(
+    UI_RESOURCE_URI,
+    name="Service Architect Designer",
+    description="Read-only visual Service Architect graph for an exact canonical revision.",
+    mime_type="text/html;profile=mcp-app",
+    meta={
+        "ui": {
+            "prefersBorder": False,
+            "csp": {
+                "resourceDomains": [_asset_origin()],
+                "connectDomains": [],
+            },
+        },
+        "openai/widgetDescription": "Read-only Service Architect graph and object inspector.",
+        "openai/widgetCSP": {
+            "resource_domains": [_asset_origin()],
+            "connect_domains": [],
+        },
+    },
+)
+def designer_ui() -> str:
+    return designer_document(_asset_base())
 
 
 @mcp.tool(
@@ -27,8 +87,8 @@ def inspect_project(project_path: str = ".") -> dict[str, Any]:
     """
 
     try:
-        return load_manifest(Path(project_path)).inspect_payload()
-    except ManifestError as error:
+        return load_manifest(_project_path(project_path)).inspect_payload()
+    except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("inspect", error)
 
 
@@ -40,8 +100,8 @@ def validate_project(project_path: str = ".") -> dict[str, Any]:
     """Execute the declared typed Python model and return validation diagnostics."""
 
     try:
-        manifest = load_manifest(Path(project_path))
-    except ManifestError as error:
+        manifest = load_manifest(_project_path(project_path))
+    except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("validate", error)
     return execute_project(manifest, "validate").to_payload()
 
@@ -60,8 +120,8 @@ def export_project(
     """Validate typed Python and atomically write its canonical YAML artifact."""
 
     try:
-        manifest = load_manifest(Path(project_path))
-    except ManifestError as error:
+        manifest = load_manifest(_project_path(project_path))
+    except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("export", error)
     result = execute_project(manifest, "export")
     if not result.succeeded:
@@ -105,8 +165,8 @@ def generate_project(
     """
 
     try:
-        manifest = load_manifest(Path(project_path))
-    except ManifestError as error:
+        manifest = load_manifest(_project_path(project_path))
+    except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("generate", error)
     return generate_project_archive(
         manifest, output=output, env_file=env_file
@@ -132,17 +192,72 @@ def import_yaml_project(
     populate a non-empty output directory.
     """
 
-    return import_yaml_project_application(
-        workspace_path, source, output
-    ).to_payload()
+    try:
+        workspace = _project_path(workspace_path)
+    except WorkspaceBoundaryError as error:
+        return _manifest_failure("import", error)
+    return import_yaml_project_application(workspace, source, output).to_payload()
 
 
-def _manifest_failure(operation: str, error: ManifestError) -> dict[str, Any]:
+@mcp.tool(
+    title="Open Service Architect Designer",
+    annotations=ToolAnnotations(
+        read_only_hint=True,
+        open_world_hint=False,
+    ),
+    meta={
+        "ui": {"resourceUri": UI_RESOURCE_URI},
+        "openai/outputTemplate": UI_RESOURCE_URI,
+    },
+)
+def designer_view(project_path: str = ".") -> dict[str, Any]:
+    """Return an immutable canonical snapshot and local read-only Designer URL."""
+
+    try:
+        manifest = load_manifest(_project_path(project_path))
+    except (ManifestError, WorkspaceBoundaryError) as error:
+        return _manifest_failure("designer-view", error)
+    result = execute_project(manifest, "export")
+    if not result.succeeded:
+        payload = result.to_payload()
+        payload["operation"] = "designer-view"
+        return payload
+    if result.rendered_yaml is None:
+        return _failure(
+            "designer-view",
+            "SA_EXECUTION_PROTOCOL_ERROR",
+            "Python authoring succeeded without returning canonical YAML",
+            "$.authoring.entrypoint",
+        )
+    snapshot = make_snapshot(manifest.name, result.rendered_yaml)
+    fallback_url = _designer_server().publish(snapshot)
+    return {
+        "schemaVersion": "1.0",
+        "operation": "designer-view",
+        "status": "success",
+        "project": {"name": manifest.name},
+        "snapshot": snapshot,
+        "ui": {
+            "resourceUri": UI_RESOURCE_URI,
+            "fallbackUrl": fallback_url,
+            "mode": "read-only",
+        },
+        "diagnostics": [],
+    }
+
+
+def _manifest_failure(operation: str, error: Exception) -> dict[str, Any]:
+    diagnostic = error.to_diagnostic() if isinstance(error, ManifestError) else {
+        "code": "SA_WORKSPACE_BOUNDARY_VIOLATION",
+        "severity": "error",
+        "path": "$",
+        "message": str(error),
+    }
     return {
         "schemaVersion": "1.0",
         "operation": operation,
         "status": "failed",
-        "diagnostics": [error.to_diagnostic()],
+        "diagnostics": [diagnostic],
     }
 
 
@@ -165,7 +280,19 @@ def _failure(
 
 
 def main() -> None:
-    mcp.run()
+    parser = argparse.ArgumentParser(description="Service Architect MCP server")
+    parser.add_argument(
+        "--workspace",
+        required=True,
+        help="Only workspace root that MCP tools may access",
+    )
+    args = parser.parse_args()
+    configure_workspace(args.workspace)
+    try:
+        mcp.run()
+    finally:
+        if _snapshot_server is not None:
+            _snapshot_server.close()
 
 
 if __name__ == "__main__":
