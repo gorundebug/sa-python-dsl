@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -86,16 +87,18 @@ def execute_project(
             str(result_path),
         ]
         try:
-            completed = subprocess.run(
+            process = subprocess.Popen(
                 command,
                 cwd=manifest.workspace,
                 env=_worker_environment(),
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=timeout_seconds,
-                check=False,
+                start_new_session=True,
             )
+            stdout, stderr = process.communicate(timeout=timeout_seconds)
         except subprocess.TimeoutExpired:
+            _terminate_process_group(process)
             return _execution_failure(
                 manifest,
                 operation,
@@ -111,7 +114,7 @@ def execute_project(
             )
 
         if not result_path.is_file():
-            detail = completed.stderr.strip() or completed.stdout.strip()
+            detail = stderr.strip() or stdout.strip()
             message = "Python authoring process did not produce a result"
             if detail:
                 message = f"{message}: {_bounded_text(detail)}"
@@ -153,7 +156,7 @@ def execute_project(
             "SA_EXECUTION_PROTOCOL_ERROR",
             "Python authoring returned an invalid status",
         )
-    if completed.returncode != 0 and status == "success":
+    if process.returncode != 0 and status == "success":
         return _execution_failure(
             manifest,
             operation,
@@ -198,6 +201,17 @@ def _worker_environment() -> dict[str, str]:
     environment["PYTHONNOUSERSITE"] = "1"
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     return environment
+
+
+def _terminate_process_group(process: subprocess.Popen[str]) -> None:
+    try:
+        if os.name == "posix":
+            os.killpg(process.pid, signal.SIGKILL)
+        else:
+            process.kill()
+    except ProcessLookupError:
+        pass
+    process.communicate()
 
 
 def _execution_failure(

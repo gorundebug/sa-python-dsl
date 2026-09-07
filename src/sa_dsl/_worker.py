@@ -10,6 +10,29 @@ from typing import Any
 from .model import Project
 
 
+_DENIED_AUDIT_EVENTS = frozenset(
+    {
+        "ctypes.dlopen",
+        "os.posix_spawn",
+        "os.spawn",
+        "os.system",
+        "socket.bind",
+        "socket.connect",
+        "subprocess.Popen",
+    }
+)
+
+
+def _install_authoring_policy() -> None:
+    def reject(event: str, _arguments: tuple[object, ...]) -> None:
+        if event in _DENIED_AUDIT_EVENTS:
+            raise PermissionError(
+                f"operation {event!r} is disabled while evaluating architecture source"
+            )
+
+    sys.addaudithook(reject)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--operation", choices=("validate", "export"), required=True)
@@ -18,6 +41,7 @@ def main() -> None:
     parser.add_argument("--project-name", required=True)
     parser.add_argument("--result", type=Path, required=True)
     args = parser.parse_args()
+    _install_authoring_policy()
 
     payload: dict[str, Any]
     exit_code = 0
