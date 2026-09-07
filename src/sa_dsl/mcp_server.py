@@ -11,6 +11,7 @@ from mcp.types import ToolAnnotations
 from .designer import DesignerSnapshotServer, designer_document, make_snapshot, validate_asset_base
 from .execution import execute_project, write_canonical_yaml
 from .generation import generate_project_archive
+from .generation_transaction import apply_generation_transaction, preview_generation_transaction
 from .manifest import ManifestError, load_manifest
 from .migration import import_yaml_project as import_yaml_project_application
 from .mcp_workspace import WorkspaceBoundary, WorkspaceBoundaryError
@@ -172,6 +173,57 @@ def generate_project(
     return generate_project_archive(
         manifest, output=output, env_file=env_file
     ).to_payload()
+
+
+@mcp.tool(
+    title="Preview ServiceGen project generation",
+    annotations=ToolAnnotations(
+        read_only_hint=True,
+        open_world_hint=True,
+    ),
+)
+def preview_generation(
+    project_path: str = ".",
+    env_file: str = ".env",
+    remove_stale: bool = False,
+) -> dict[str, Any]:
+    """Generate an immutable archive and preview the exact ServiceGen merge."""
+
+    try:
+        manifest = load_manifest(_project_path(project_path))
+    except (ManifestError, WorkspaceBoundaryError) as error:
+        return _manifest_failure("preview-generation", error)
+    return preview_generation_transaction(
+        manifest,
+        env_file=env_file,
+        remove_stale=remove_stale,
+    )
+
+
+@mcp.tool(
+    title="Apply an immutable ServiceGen generation preview",
+    annotations=ToolAnnotations(
+        open_world_hint=False,
+        destructive_hint=True,
+        idempotent_hint=False,
+    ),
+)
+def apply_generation(
+    preview_id: str,
+    preview_revision: str,
+    project_path: str = ".",
+) -> dict[str, Any]:
+    """Apply only an unexpired preview whose workspace revision is unchanged."""
+
+    try:
+        manifest = load_manifest(_project_path(project_path))
+    except (ManifestError, WorkspaceBoundaryError) as error:
+        return _manifest_failure("apply-generation", error)
+    return apply_generation_transaction(
+        manifest,
+        preview_id=preview_id,
+        preview_revision=preview_revision,
+    )
 
 
 @mcp.tool(
