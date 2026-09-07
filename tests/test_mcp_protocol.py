@@ -88,6 +88,12 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                     ui = await session.read_resource("ui://service-architect/designer")
                     self.assertIn("/mcp-ui/0.1.0/designer.js", ui.contents[0].text)
 
+                    templates = await session.list_resource_templates()
+                    template_uris = {str(item.uri_template) for item in templates.resource_templates}
+                    self.assertIn("servicegen://semantics/{topic}", template_uris)
+                    semantics = await session.read_resource("servicegen://semantics/operators")
+                    self.assertIn("MultiJoin", semantics.contents[0].text)
+
                     inspected = tool_payload(await session.call_tool("inspect_project", {"project_path": "."}))
                     self.assertEqual("Protocol Test", inspected["project"]["name"])
 

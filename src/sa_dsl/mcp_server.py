@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+import yaml
 from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 
@@ -16,6 +17,7 @@ from .generation_transaction import apply_generation_transaction, preview_genera
 from .manifest import ManifestError, load_manifest
 from .migration import import_yaml_project as import_yaml_project_application
 from .mcp_workspace import WorkspaceBoundary, WorkspaceBoundaryError
+from .mcp_resources import catalog_resource, json_resource
 from .semantic_diff import SemanticDiffError, preview_architecture_diff as build_architecture_diff
 
 
@@ -76,6 +78,56 @@ def _designer_server() -> DesignerSnapshotServer:
 )
 def designer_ui() -> str:
     return designer_document(_asset_base())
+
+
+@mcp.resource("servicegen://semantics/{topic}")
+def semantics_resource(topic: str) -> str:
+    return catalog_resource("semantics", topic)
+
+
+@mcp.resource("servicegen://authoring/{topic}")
+def authoring_resource(topic: str) -> str:
+    return catalog_resource("authoring", topic)
+
+
+@mcp.resource("servicegen://schema/{topic}")
+def schema_resource(topic: str) -> str:
+    return catalog_resource("schema", topic)
+
+
+@mcp.resource("servicegen://examples/{topic}")
+def examples_resource(topic: str) -> str:
+    return catalog_resource("examples", topic)
+
+
+@mcp.resource("servicegen://patterns/{topic}")
+def patterns_resource(topic: str) -> str:
+    return catalog_resource("patterns", topic)
+
+
+@mcp.resource("servicegen://workspace/current/source")
+def workspace_source_resource() -> str:
+    return json_resource(load_manifest(_workspace.root).inspect_payload())
+
+
+@mcp.resource("servicegen://workspace/current/dsl")
+def workspace_dsl_resource() -> str:
+    manifest = load_manifest(_workspace.root)
+    return _canonical_path(manifest.workspace, manifest.canonical.output).read_text(encoding="utf-8")
+
+
+@mcp.resource("servicegen://workspace/current/graph")
+def workspace_graph_resource() -> str:
+    document = yaml.safe_load(workspace_dsl_resource())
+    if not isinstance(document, dict):
+        raise ValueError("canonical YAML must contain an object")
+    return json_resource(document)
+
+
+@mcp.resource("servicegen://workspace/current/tasks")
+def workspace_tasks_resource() -> str:
+    manifest = load_manifest(_workspace.root)
+    return json_resource(inspect_tasks(manifest.workspace))
 
 
 @mcp.tool(
