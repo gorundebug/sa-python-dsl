@@ -61,6 +61,8 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                             "generate_project",
                             "preview_generation",
                             "apply_generation",
+                            "inspect_business_tasks",
+                            "run_verification",
                             "import_yaml_project",
                             "preview_architecture_diff",
                             "designer_view",

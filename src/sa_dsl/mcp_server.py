@@ -8,6 +8,7 @@ from typing import Any
 from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 
+from .business_tasks import BusinessTaskError, inspect_business_tasks as inspect_tasks, run_verification as execute_verification
 from .designer import DesignerSnapshotServer, designer_document, make_snapshot, validate_asset_base
 from .execution import execute_project, write_canonical_yaml
 from .generation import generate_project_archive
@@ -224,6 +225,77 @@ def apply_generation(
         preview_id=preview_id,
         preview_revision=preview_revision,
     )
+
+
+@mcp.tool(
+    title="Inspect generated business implementation tasks",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
+)
+def inspect_business_tasks(project_path: str = ".") -> dict[str, Any]:
+    """Return generated function tasks, completion state, and safe verification IDs."""
+
+    try:
+        manifest = load_manifest(_project_path(project_path))
+        result = inspect_tasks(manifest.workspace)
+    except (ManifestError, WorkspaceBoundaryError) as error:
+        return _manifest_failure("inspect-business-tasks", error)
+    except OSError as error:
+        return _failure(
+            "inspect-business-tasks", "SA_TASK_INSPECTION_FAILED", str(error), "$.spec"
+        )
+    return {
+        "schemaVersion": "1.0",
+        "operation": "inspect-business-tasks",
+        "status": "success",
+        "project": {"name": manifest.name},
+        "summary": result["summary"],
+        "tasks": result["tasks"],
+        "migrations": result["migrations"],
+        "verifications": result["verifications"],
+        "diagnostics": [],
+    }
+
+
+@mcp.tool(
+    title="Run an allow-listed generated verification",
+    annotations=ToolAnnotations(
+        open_world_hint=False,
+        destructive_hint=False,
+        idempotent_hint=False,
+    ),
+)
+def run_verification(
+    verification: str,
+    project_path: str = ".",
+) -> dict[str, Any]:
+    """Run one generated verification target; arbitrary commands are not accepted."""
+
+    try:
+        manifest = load_manifest(_project_path(project_path))
+        result = execute_verification(manifest.workspace, verification)
+    except (ManifestError, WorkspaceBoundaryError) as error:
+        return _manifest_failure("run-verification", error)
+    except BusinessTaskError as error:
+        return _failure("run-verification", error.code, str(error), error.path)
+    except OSError as error:
+        return _failure(
+            "run-verification", "SA_VERIFICATION_FAILED", str(error), "$.verification"
+        )
+    return {
+        "schemaVersion": "1.0",
+        "operation": "run-verification",
+        "status": result["status"],
+        "project": {"name": manifest.name},
+        "result": result,
+        "diagnostics": [] if result["status"] == "success" else [
+            {
+                "code": "SA_VERIFICATION_FAILED",
+                "severity": "error",
+                "path": "$.verification",
+                "message": f"verification exited with code {result['exitCode']}",
+            }
+        ],
+    }
 
 
 @mcp.tool(
