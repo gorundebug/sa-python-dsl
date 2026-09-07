@@ -1,168 +1,167 @@
-from processorder.connectors.temporal import temporal
-
-from processorder.packages.activity import activity_package
-from processorder.packages.workflow import workflow_package
-
 from sa_dsl import (
     ActivityTimeouts,
     ActivityWorker,
+    Function,
+    ScheduleMissedRunPolicy,
+    ScheduleOverlapPolicy,
     RetryPolicy,
     TemporalSchedule,
     WorkflowTimeouts,
     WorkflowWorker,
-    Function,
-    ScheduleMissedRunPolicy,
-    ScheduleOverlapPolicy,
 )
 
-temporal_activity_schedule = temporal.activity(
-    "Temporal Activity Schedule",
-    function=Function(
-        name="TemporalActivitySchedule",
-        package=activity_package,
-        description="Create an Activity job message identifying the durable scheduled firing.\n",
-        public=False,
-    ),
-    worker=ActivityWorker(task_queue="automation-activity-schedules", max_concurrent=2),
-    timeouts=ActivityTimeouts(start_to_close=30000, heartbeat=5000, workflow_execution=60000),
-    retry=RetryPolicy(maximum_attempts=3),
-    schedule=TemporalSchedule(expression="*/10 * * * *", id="example-automation-activity-schedule", timezone="UTC", overlap_policy=ScheduleOverlapPolicy.SKIP, missed_run_policy=ScheduleMissedRunPolicy.FIRE_ONCE),
+from processorder.connectors.temporal import connector_temporal
+from processorder.packages.activity import activity_package
+from processorder.packages.workflow import workflow_package
+
+endpoint_temporal_activity_schedule = connector_temporal.activity(
+    'Temporal Activity Schedule',
     enabled=True,
     tracing_enabled=False,
-)
-
-activity_job = temporal.activity(
-    "Activity Job",
     function=Function(
-        name="ActivityJobEndpoint",
+        name='TemporalActivitySchedule',
         package=activity_package,
-        description="",
         public=False,
+        description='Create an Activity job message identifying the durable scheduled firing.\n',
     ),
-    worker=ActivityWorker(task_queue="automation-activity-jobs", max_concurrent=2),
+    worker=ActivityWorker(task_queue='automation-activity-schedules', max_concurrent=2),
     timeouts=ActivityTimeouts(start_to_close=30000, heartbeat=5000, workflow_execution=60000),
     retry=RetryPolicy(maximum_attempts=3),
-    enabled=True,
-    tracing_enabled=False,
+    schedule=TemporalSchedule(expression='*/10 * * * *', id='example-automation-activity-schedule', timezone='UTC', overlap_policy=ScheduleOverlapPolicy.SKIP, missed_run_policy=ScheduleMissedRunPolicy.FIRE_ONCE),
 )
 
-sequential_activity_a = temporal.activity(
-    "Sequential Activity A",
+endpoint_activity_job = connector_temporal.activity(
+    'Activity Job',
+    enabled=True,
+    tracing_enabled=False,
     function=Function(
-        name="SequentialActivityAEndpoint",
+        name='ActivityJobEndpoint',
         package=activity_package,
-        description="",
         public=False,
+        description='',
     ),
-    worker=ActivityWorker(task_queue="automation-activity-jobs", max_concurrent=2),
+    worker=ActivityWorker(task_queue='automation-activity-jobs', max_concurrent=2),
     timeouts=ActivityTimeouts(start_to_close=30000, heartbeat=5000, workflow_execution=60000),
     retry=RetryPolicy(maximum_attempts=3),
-    enabled=True,
-    tracing_enabled=False,
 )
 
-sequential_activity_b = temporal.activity(
-    "Sequential Activity B",
+endpoint_sequential_activity_a = connector_temporal.activity(
+    'Sequential Activity A',
+    enabled=True,
+    tracing_enabled=False,
     function=Function(
-        name="SequentialActivityBEndpoint",
+        name='SequentialActivityAEndpoint',
         package=activity_package,
-        description="",
         public=False,
+        description='',
     ),
-    worker=ActivityWorker(task_queue="automation-activity-jobs", max_concurrent=2),
+    worker=ActivityWorker(task_queue='automation-activity-jobs', max_concurrent=2),
     timeouts=ActivityTimeouts(start_to_close=30000, heartbeat=5000, workflow_execution=60000),
     retry=RetryPolicy(maximum_attempts=3),
-    enabled=True,
-    tracing_enabled=False,
 )
 
-fan_out_activity_a = temporal.activity(
-    "Fan-Out Activity A",
+endpoint_sequential_activity_b = connector_temporal.activity(
+    'Sequential Activity B',
+    enabled=True,
+    tracing_enabled=False,
     function=Function(
-        name="FanoutActivityAEndpoint",
+        name='SequentialActivityBEndpoint',
         package=activity_package,
-        description="",
         public=False,
+        description='',
     ),
-    worker=ActivityWorker(task_queue="automation-activity-jobs", max_concurrent=2),
+    worker=ActivityWorker(task_queue='automation-activity-jobs', max_concurrent=2),
     timeouts=ActivityTimeouts(start_to_close=30000, heartbeat=5000, workflow_execution=60000),
     retry=RetryPolicy(maximum_attempts=3),
-    enabled=True,
-    tracing_enabled=False,
 )
 
-fan_out_activity_b = temporal.activity(
-    "Fan-Out Activity B",
+endpoint_fan_out_activity_a = connector_temporal.activity(
+    'Fan-Out Activity A',
+    enabled=True,
+    tracing_enabled=False,
     function=Function(
-        name="FanoutActivityBEndpoint",
+        name='FanoutActivityAEndpoint',
         package=activity_package,
-        description="",
         public=False,
+        description='',
     ),
-    worker=ActivityWorker(task_queue="automation-activity-jobs", max_concurrent=2),
+    worker=ActivityWorker(task_queue='automation-activity-jobs', max_concurrent=2),
     timeouts=ActivityTimeouts(start_to_close=30000, heartbeat=5000, workflow_execution=60000),
     retry=RetryPolicy(maximum_attempts=3),
-    enabled=True,
-    tracing_enabled=False,
 )
 
-fan_out_activity_c = temporal.activity(
-    "Fan-Out Activity C",
+endpoint_fan_out_activity_b = connector_temporal.activity(
+    'Fan-Out Activity B',
+    enabled=True,
+    tracing_enabled=False,
     function=Function(
-        name="FanoutActivityCEndpoint",
+        name='FanoutActivityBEndpoint',
         package=activity_package,
-        description="",
         public=False,
+        description='',
     ),
-    worker=ActivityWorker(task_queue="automation-heavy-activities", max_concurrent=1),
+    worker=ActivityWorker(task_queue='automation-activity-jobs', max_concurrent=2),
     timeouts=ActivityTimeouts(start_to_close=30000, heartbeat=5000, workflow_execution=60000),
     retry=RetryPolicy(maximum_attempts=3),
-    enabled=True,
-    tracing_enabled=False,
 )
 
-workflow_job = temporal.workflow(
-    "Workflow Job",
+endpoint_fan_out_activity_c = connector_temporal.activity(
+    'Fan-Out Activity C',
+    enabled=True,
+    tracing_enabled=False,
     function=Function(
-        name="WorkflowJobEndpoint",
+        name='FanoutActivityCEndpoint',
+        package=activity_package,
+        public=False,
+        description='',
+    ),
+    worker=ActivityWorker(task_queue='automation-heavy-activities', max_concurrent=1),
+    timeouts=ActivityTimeouts(start_to_close=30000, heartbeat=5000, workflow_execution=60000),
+    retry=RetryPolicy(maximum_attempts=3),
+)
+
+endpoint_workflow_job = connector_temporal.workflow(
+    'Workflow Job',
+    enabled=True,
+    tracing_enabled=False,
+    function=Function(
+        name='WorkflowJobEndpoint',
         package=workflow_package,
-        description="",
         public=False,
+        description='',
     ),
-    worker=WorkflowWorker(task_queue="automation-workflow-jobs", max_concurrent=4),
+    worker=WorkflowWorker(task_queue='automation-workflow-jobs', max_concurrent=4),
     timeouts=WorkflowTimeouts(execution=60000),
     retry=RetryPolicy(maximum_attempts=3),
-    enabled=True,
-    tracing_enabled=False,
 )
 
-fan_out_workflow_job = temporal.workflow(
-    "Fan-Out Workflow Job",
-    function=Function(
-        name="FanoutWorkflowJobEndpoint",
-        package=workflow_package,
-        description="",
-        public=False,
-    ),
-    worker=WorkflowWorker(task_queue="automation-workflow-jobs", max_concurrent=4),
-    timeouts=WorkflowTimeouts(execution=60000),
-    retry=RetryPolicy(maximum_attempts=3),
+endpoint_fan_out_workflow_job = connector_temporal.workflow(
+    'Fan-Out Workflow Job',
     enabled=True,
     tracing_enabled=False,
+    function=Function(
+        name='FanoutWorkflowJobEndpoint',
+        package=workflow_package,
+        public=False,
+        description='',
+    ),
+    worker=WorkflowWorker(task_queue='automation-workflow-jobs', max_concurrent=4),
+    timeouts=WorkflowTimeouts(execution=60000),
+    retry=RetryPolicy(maximum_attempts=3),
 )
 
-temporal_workflow_schedule = temporal.workflow(
-    "Temporal Workflow Schedule",
-    function=Function(
-        name="TemporalWorkflowSchedule",
-        package=workflow_package,
-        description="Create a Workflow job message identifying the durable scheduled firing.\n",
-        public=False,
-    ),
-    worker=WorkflowWorker(task_queue="automation-workflow-schedules", max_concurrent=4),
-    timeouts=WorkflowTimeouts(execution=60000),
-    retry=RetryPolicy(maximum_attempts=3),
-    schedule=TemporalSchedule(expression="*/10 * * * *", id="example-automation-workflow-schedule", timezone="UTC", overlap_policy=ScheduleOverlapPolicy.SKIP, missed_run_policy=ScheduleMissedRunPolicy.FIRE_ONCE),
+endpoint_temporal_workflow_schedule = connector_temporal.workflow(
+    'Temporal Workflow Schedule',
     enabled=True,
     tracing_enabled=False,
+    function=Function(
+        name='TemporalWorkflowSchedule',
+        package=workflow_package,
+        public=False,
+        description='Create a Workflow job message identifying the durable scheduled firing.\n',
+    ),
+    worker=WorkflowWorker(task_queue='automation-workflow-schedules', max_concurrent=4),
+    timeouts=WorkflowTimeouts(execution=60000),
+    retry=RetryPolicy(maximum_attempts=3),
+    schedule=TemporalSchedule(expression='*/10 * * * *', id='example-automation-workflow-schedule', timezone='UTC', overlap_policy=ScheduleOverlapPolicy.SKIP, missed_run_policy=ScheduleMissedRunPolicy.FIRE_ONCE),
 )

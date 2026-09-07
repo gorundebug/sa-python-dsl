@@ -29,6 +29,8 @@ def normalized_document(document: dict) -> dict:
                 continue
             normalized_link = dict(link)
             normalized_link.pop("key", None)
+            if semantics == "TaskPool" and "priority" in normalized_link:
+                normalized_link["callSemantics"] = "PriorityTaskPool"
             links.append(normalized_link)
         service["links"] = sorted(
             links,

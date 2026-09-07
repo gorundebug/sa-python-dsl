@@ -1,1 +1,1 @@
-"""Process Order connectors."""
+"""Generated connectors."""

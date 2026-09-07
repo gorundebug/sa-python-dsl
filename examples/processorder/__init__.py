@@ -1,27 +1,36 @@
-"""Canonical Service Architect process-order project."""
+"""Generated Service Architect project."""
 
 from .project.processorder import project
-from .modules import inventory_service_api as _inventory_service_api_module
-from .modules import model as _model_module
-from .modules import order_service_api as _order_service_api_module
-from .pools import default as _default_pool
-from .pools import inventory_priority as _inventory_priority_pool
-from .types import automation as _automation_types
-from .types import common as _common_types
-from .types import order as _order_types
-from .connectors import inventory_service_api as _inventory_service_api_connector
-from .connectors import local_cron as _local_cron_connector
-from .connectors import order_events as _order_events_connector
-from .connectors import order_service_api as _order_service_api_connector
-from .connectors import temporal as _temporal_connector
-from .endpoints import inventory_service_api as _inventory_service_api_endpoints
-from .endpoints import local_cron as _local_cron_endpoints
-from .endpoints import order_events as _order_events_endpoints
-from .endpoints import order_service_api as _order_service_api_endpoints
-from .endpoints import temporal as _temporal_endpoints
-from .services.order_service import service as _order_service
-from .services.inventory_service import service as _inventory_service
-from .services.analytics_service import service as _analytics_service
-from .services.automation_service import service as _automation_service
+from .modules.order_service_api import *
+from .modules.inventory_service_api import *
+from .modules.model import *
+from .pools.default_pool import *
+from .pools.inventory_priority_workers import *
+from .types.analytics_key import *
+from .types.analytics_event import *
+from .types.analytics_result import *
+from .types.automation_job import *
+from .types.order import *
+from .types.order_state import *
+from .types.order_item import *
+from .types.order_item_result import *
+from .types.order_processed import *
+from .types.unknown_type import *
+from .connectors.order_service_api import *
+from .endpoints.order_service_api import *
+from .connectors.inventory_service_api import *
+from .endpoints.inventory_service_api import *
+from .connectors.order_events import *
+from .endpoints.order_events import *
+from .connectors.analytics_functions import *
+from .endpoints.analytics_functions import *
+from .connectors.local_cron import *
+from .endpoints.local_cron import *
+from .connectors.temporal import *
+from .endpoints.temporal import *
+from .services.order_service.service import *
+from .services.inventory_service.service import *
+from .services.analytics_service.service import *
+from .services.automation_service.service import *
 
 __all__ = ["project"]

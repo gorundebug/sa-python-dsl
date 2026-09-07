@@ -1,1 +1,1 @@
-"""Process Order types."""
+"""Generated types."""

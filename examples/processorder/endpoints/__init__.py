@@ -1,1 +1,1 @@
-"""Process Order endpoints."""
+"""Generated endpoints."""
