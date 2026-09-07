@@ -258,6 +258,8 @@ def _enum_value(value: Any) -> Any:
 def _camel(name: str) -> str:
     if name.endswith("_"):
         name = name[:-1]
+    if name == "renew_ttl":
+        return "renewTTL"
     head, *tail = name.split("_")
     return head + "".join(part[:1].upper() + part[1:] for part in tail)
 

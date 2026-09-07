@@ -5,9 +5,9 @@ from sa_dsl import (
 
 from processorder.project.processorder import project
 
-order = project.struct_type(
-    'Order',
-    description='E-commerce order submitted by a customer. Fields: ID string, CustomerID string, Items []OrderItem, CreatedAt time.Time.',
+analytics_result = project.struct_type(
+    'AnalyticsResult',
+    description='Output of the canonical analytics joins. Fields: Key AnalyticsKey, Total int, Kind string.',
     public_type=False,
     transfer_by_value=False,
     definition_format=TypeDefinitionFormat.NATIVE,

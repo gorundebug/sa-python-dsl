@@ -1,1 +1,1 @@
-"""Process Order project configuration."""
+"""Generated project."""

@@ -894,17 +894,20 @@ def yaml_to_python_files(
                             stream_refs[error_stream][2],
                         )
                     )
-                references = ([source] if source else []) + list(sources)
-                for reference in references:
+                references = (
+                    ([(source, False)] if source else [])
+                    + [(reference, True) for reference in sources]
+                )
+                for reference, is_additional in references:
                     if reference not in stream_refs:
                         raise ValueError(f"Unknown stream source {reference!r}")
                     source_pipeline, source_module, source_variable = stream_refs[
                         reference
                     ]
                     expression = (
-                        f"{source_variable} >> {variable}"
-                        if source
-                        else f"{variable} << {source_variable}"
+                        f"{variable} << {source_variable}"
+                        if is_additional
+                        else f"{source_variable} >> {variable}"
                     )
                     edge = (reference, stream_key)
                     if source_pipeline == pipeline_key:

@@ -28,6 +28,8 @@ def normalized_document(document: dict) -> dict:
                 continue
             normalized_link = dict(link)
             normalized_link.pop("key", None)
+            if semantics == "TaskPool" and "priority" in normalized_link:
+                normalized_link["callSemantics"] = "PriorityTaskPool"
             links.append(normalized_link)
         service["links"] = sorted(
             links,
@@ -97,6 +99,37 @@ class YamlRoundTripTest(unittest.TestCase):
             generated.files[
                 "generated_processorder/services/order_service/pipelines/order.py"
             ],
+        )
+
+    def test_join_sources_keep_primary_and_additional_slots(self) -> None:
+        generated = yaml_to_python_files(CANONICAL_YAML, "generated_processorder")
+
+        join_pipeline = generated.files[
+            "generated_processorder/services/analytics_service/pipelines/join_analytics.py"
+        ]
+        self.assertIn(
+            "key_orders_for_join >> join_order_payment_analytics",
+            join_pipeline,
+        )
+        self.assertIn(
+            "join_order_payment_analytics << key_payments_for_join",
+            join_pipeline,
+        )
+
+        multi_join_pipeline = generated.files[
+            "generated_processorder/services/analytics_service/pipelines/multi_join_analytics.py"
+        ]
+        self.assertIn(
+            "key_orders_for_multi_join >> multi_join_analytics_events",
+            multi_join_pipeline,
+        )
+        self.assertIn(
+            "multi_join_analytics_events << key_payments_for_multi_join",
+            multi_join_pipeline,
+        )
+        self.assertIn(
+            "multi_join_analytics_events << key_shipments_for_multi_join",
+            multi_join_pipeline,
         )
 
     def test_generated_python_project_serializes_to_equivalent_yaml(self) -> None:

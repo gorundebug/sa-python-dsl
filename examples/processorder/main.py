@@ -1,5 +1,3 @@
-"""Compatibility entry point for the modular canonical example."""
-
 import sys
 from pathlib import Path
 
