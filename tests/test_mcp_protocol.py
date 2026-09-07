@@ -60,6 +60,7 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                             "export_project",
                             "generate_project",
                             "import_yaml_project",
+                            "preview_architecture_diff",
                             "designer_view",
                         },
                         {tool.name for tool in tools.tools},
@@ -85,6 +86,20 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
 
                     inspected = tool_payload(await session.call_tool("inspect_project", {"project_path": "."}))
                     self.assertEqual("Protocol Test", inspected["project"]["name"])
+
+                    preview = tool_payload(
+                        await session.call_tool(
+                            "preview_architecture_diff", {"project_path": "."}
+                        )
+                    )
+                    self.assertEqual("success", preview["status"])
+                    self.assertFalse(preview["preview"]["hasBaseline"])
+                    self.assertTrue(
+                        preview["preview"]["candidateRevision"].startswith("sha256:")
+                    )
+                    self.assertFalse(
+                        (workspace / ".service-architect/build/architecture.yaml").exists()
+                    )
 
                     rejected = tool_payload(await session.call_tool("inspect_project", {"project_path": "../outside"}))
                     self.assertEqual("failed", rejected["status"])

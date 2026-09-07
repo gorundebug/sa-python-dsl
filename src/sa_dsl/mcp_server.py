@@ -14,6 +14,7 @@ from .generation import generate_project_archive
 from .manifest import ManifestError, load_manifest
 from .migration import import_yaml_project as import_yaml_project_application
 from .mcp_workspace import WorkspaceBoundary, WorkspaceBoundaryError
+from .semantic_diff import SemanticDiffError, preview_architecture_diff as build_architecture_diff
 
 
 mcp = MCPServer("Service Architect")
@@ -200,6 +201,75 @@ def import_yaml_project(
 
 
 @mcp.tool(
+    title="Preview semantic Service Architect changes",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
+)
+def preview_architecture_diff(
+    project_path: str = ".",
+    expected_baseline_revision: str | None = None,
+) -> dict[str, Any]:
+    """Compare current typed Python with the last exported canonical revision.
+
+    The operation executes validation/export in an isolated child process but
+    does not write canonical YAML or modify the workspace.
+    """
+
+    try:
+        manifest = load_manifest(_project_path(project_path))
+        baseline_path = _canonical_path(manifest.workspace, manifest.canonical.output)
+        baseline_yaml = baseline_path.read_text(encoding="utf-8") if baseline_path.is_file() else None
+    except (ManifestError, WorkspaceBoundaryError) as error:
+        return _manifest_failure("preview-architecture-diff", error)
+    except (OSError, ValueError) as error:
+        return _failure(
+            "preview-architecture-diff",
+            "SA_CANONICAL_READ_FAILED",
+            str(error),
+            "$.canonical.output",
+        )
+
+    result = execute_project(manifest, "export")
+    if not result.succeeded:
+        payload = result.to_payload()
+        payload["operation"] = "preview-architecture-diff"
+        return payload
+    if result.rendered_yaml is None:
+        return _failure(
+            "preview-architecture-diff",
+            "SA_EXECUTION_PROTOCOL_ERROR",
+            "Python authoring succeeded without returning canonical YAML",
+            "$.authoring.entrypoint",
+        )
+    try:
+        preview = build_architecture_diff(baseline_yaml, result.rendered_yaml)
+    except SemanticDiffError as error:
+        return _failure(
+            "preview-architecture-diff",
+            "SA_CANONICAL_INVALID",
+            str(error),
+            "$.canonical.output",
+        )
+    if (
+        expected_baseline_revision is not None
+        and preview["baselineRevision"] != expected_baseline_revision
+    ):
+        return _failure(
+            "preview-architecture-diff",
+            "SA_STALE_BASELINE_REVISION",
+            "canonical baseline changed; request a new architecture preview",
+            "$.expected_baseline_revision",
+        )
+    return {
+        "schemaVersion": "1.0",
+        "operation": "preview-architecture-diff",
+        "status": "success",
+        "project": {"name": manifest.name},
+        "preview": preview,
+        "diagnostics": [],
+    }
+
+
+@mcp.tool(
     title="Open Service Architect Designer",
     annotations=ToolAnnotations(
         read_only_hint=True,
@@ -277,6 +347,14 @@ def _failure(
             }
         ],
     }
+
+
+def _canonical_path(workspace: Path, relative_path: str) -> Path:
+    root = workspace.resolve()
+    candidate = (root / relative_path).resolve(strict=False)
+    if candidate != root and root not in candidate.parents:
+        raise ValueError("canonical output resolves outside the project workspace")
+    return candidate
 
 
 def main() -> None:
