@@ -43,6 +43,7 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                 ),
                 encoding="utf-8",
             )
+            (workspace / "Makefile").write_text("test:\n\t@true\n", encoding="utf-8")
             server = StdioServerParameters(
                 command=sys.executable,
                 args=["-m", "sa_dsl.mcp_server", "--workspace", str(workspace)],
@@ -124,6 +125,22 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual("read-only", view["snapshot"]["mode"])
                     self.assertTrue(view["snapshot"]["revision"].startswith("sha256:"))
                     self.assertTrue(view["ui"]["fallbackUrl"].startswith("http://127.0.0.1:"))
+
+                    progress = []
+                    async def capture_progress(value, total, message):
+                        progress.append((value, total, message))
+
+                    verified = tool_payload(
+                        await session.call_tool(
+                            "run_verification",
+                            {"project_path": ".", "verification": "test"},
+                            progress_callback=capture_progress,
+                        )
+                    )
+                    self.assertEqual("success", verified["status"])
+                    self.assertGreaterEqual(len(progress), 2)
+                    audit = await session.read_resource("servicegen://workspace/current/audit")
+                    self.assertIn("run-verification", audit.contents[0].text)
 
 
 if __name__ == "__main__":

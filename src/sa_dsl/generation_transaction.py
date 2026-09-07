@@ -365,6 +365,8 @@ def _workspace_revision(workspace: Path) -> str:
             relative = relative_directory / filename
             if relative == Path(".servicegen/merge.log"):
                 continue
+            if relative == Path(".service-architect/audit.jsonl"):
+                continue
             path = root / relative
             digest.update(relative.as_posix().encode("utf-8") + b"\0")
             if path.is_symlink():

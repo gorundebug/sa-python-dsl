@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import argparse
 import os
+import time
 from pathlib import Path
 from typing import Any
 
+import anyio
 import yaml
 from mcp.server import MCPServer
+from mcp.server.mcpserver import Context
 from mcp.types import ToolAnnotations
 
 from .business_tasks import BusinessTaskError, inspect_business_tasks as inspect_tasks, run_verification as execute_verification
@@ -19,6 +22,7 @@ from .manifest import ManifestError, load_manifest
 from .migration import import_yaml_project as import_yaml_project_application
 from .mcp_workspace import WorkspaceBoundary, WorkspaceBoundaryError
 from .mcp_resources import catalog_resource, json_resource
+from .operation_audit import read_audit, record_operation
 from .semantic_diff import SemanticDiffError, preview_architecture_diff as build_architecture_diff
 
 
@@ -129,6 +133,12 @@ def workspace_graph_resource() -> str:
 def workspace_tasks_resource() -> str:
     manifest = load_manifest(_workspace.root)
     return json_resource(inspect_tasks(manifest.workspace))
+
+
+@mcp.resource("servicegen://workspace/current/audit")
+def workspace_audit_resource() -> str:
+    manifest = load_manifest(_workspace.root)
+    return json_resource(read_audit(manifest.workspace))
 
 
 @mcp.tool(
@@ -250,7 +260,8 @@ def generate_project(
         open_world_hint=True,
     ),
 )
-def preview_generation(
+async def preview_generation(
+    ctx: Context,
     project_path: str = ".",
     env_file: str = ".env",
     remove_stale: bool = False,
@@ -261,11 +272,16 @@ def preview_generation(
         manifest = load_manifest(_project_path(project_path))
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("preview-generation", error)
-    return preview_generation_transaction(
-        manifest,
-        env_file=env_file,
-        remove_stale=remove_stale,
+    started = time.monotonic()
+    await ctx.report_progress(0, 3, "Exporting and validating architecture")
+    result = await anyio.to_thread.run_sync(
+        lambda: preview_generation_transaction(
+            manifest, env_file=env_file, remove_stale=remove_stale
+        )
     )
+    await ctx.report_progress(3, 3, "Generation preview ready")
+    record_operation(manifest.workspace, "preview-generation", result, started)
+    return result
 
 
 @mcp.tool(
@@ -276,7 +292,8 @@ def preview_generation(
         idempotent_hint=False,
     ),
 )
-def apply_generation(
+async def apply_generation(
+    ctx: Context,
     preview_id: str,
     preview_revision: str,
     project_path: str = ".",
@@ -287,11 +304,16 @@ def apply_generation(
         manifest = load_manifest(_project_path(project_path))
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("apply-generation", error)
-    return apply_generation_transaction(
-        manifest,
-        preview_id=preview_id,
-        preview_revision=preview_revision,
+    started = time.monotonic()
+    await ctx.report_progress(0, 2, "Checking immutable preview and workspace revision")
+    result = await anyio.to_thread.run_sync(
+        lambda: apply_generation_transaction(
+            manifest, preview_id=preview_id, preview_revision=preview_revision
+        )
     )
+    await ctx.report_progress(2, 2, "Generation apply finished")
+    record_operation(manifest.workspace, "apply-generation", result, started)
+    return result
 
 
 @mcp.tool(
@@ -331,7 +353,8 @@ def inspect_business_tasks(project_path: str = ".") -> dict[str, Any]:
         idempotent_hint=False,
     ),
 )
-def run_verification(
+async def run_verification(
+    ctx: Context,
     verification: str,
     project_path: str = ".",
 ) -> dict[str, Any]:
@@ -339,7 +362,11 @@ def run_verification(
 
     try:
         manifest = load_manifest(_project_path(project_path))
-        result = execute_verification(manifest.workspace, verification)
+        started = time.monotonic()
+        await ctx.report_progress(0, 1, f"Running {verification}")
+        result = await anyio.to_thread.run_sync(
+            lambda: execute_verification(manifest.workspace, verification)
+        )
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("run-verification", error)
     except BusinessTaskError as error:
@@ -348,7 +375,7 @@ def run_verification(
         return _failure(
             "run-verification", "SA_VERIFICATION_FAILED", str(error), "$.verification"
         )
-    return {
+    payload = {
         "schemaVersion": "1.0",
         "operation": "run-verification",
         "status": result["status"],
@@ -363,6 +390,9 @@ def run_verification(
             }
         ],
     }
+    await ctx.report_progress(1, 1, f"{verification} finished")
+    record_operation(manifest.workspace, "run-verification", payload, started)
+    return payload
 
 
 @mcp.tool(
