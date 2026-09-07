@@ -11,6 +11,7 @@ from mcp.types import ToolAnnotations
 
 from .business_tasks import BusinessTaskError, inspect_business_tasks as inspect_tasks, run_verification as execute_verification
 from .designer import DesignerSnapshotServer, designer_document, make_snapshot, validate_asset_base
+from .doctor import diagnose_project
 from .execution import execute_project, write_canonical_yaml
 from .generation import generate_project_archive
 from .generation_transaction import apply_generation_transaction, preview_generation_transaction
@@ -145,6 +146,20 @@ def inspect_project(project_path: str = ".") -> dict[str, Any]:
         return load_manifest(_project_path(project_path)).inspect_payload()
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("inspect", error)
+
+
+@mcp.tool(
+    title="Check Service Architect project integration",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
+)
+def doctor(project_path: str = ".", env_file: str = ".env") -> dict[str, Any]:
+    """Check package, manifest, credentials and merge compatibility without executing Python."""
+
+    try:
+        project = _project_path(project_path)
+    except WorkspaceBoundaryError as error:
+        return _manifest_failure("doctor", error)
+    return {"operation": "doctor", **diagnose_project(project, env_file=env_file)}
 
 
 @mcp.tool(

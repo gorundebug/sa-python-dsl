@@ -56,6 +56,7 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(
                         {
                             "inspect_project",
+                            "doctor",
                             "validate_project",
                             "export_project",
                             "generate_project",
