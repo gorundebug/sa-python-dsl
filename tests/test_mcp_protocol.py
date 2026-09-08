@@ -59,6 +59,7 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                             "inspect_project",
                             "doctor",
                             "refresh_capabilities",
+                            "refresh_validation_contract",
                             "validate_project",
                             "export_project",
                             "generate_project",
@@ -95,12 +96,20 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                     template_uris = {str(item.uri_template) for item in templates.resource_templates}
                     self.assertIn("servicegen://semantics/{topic}", template_uris)
                     self.assertIn("servicegen://capabilities/{language}", template_uris)
+                    self.assertIn("servicegen://validation/rules/{code}", template_uris)
                     semantics = await session.read_resource("servicegen://semantics/operators")
                     self.assertIn("MultiJoin", semantics.contents[0].text)
                     capabilities = await session.read_resource(
                         "servicegen://workspace/current/capabilities"
                     )
                     self.assertIn("refresh_capabilities", capabilities.contents[0].text)
+                    validation_contract = await session.read_resource(
+                        "servicegen://workspace/current/validation-contract"
+                    )
+                    self.assertIn(
+                        "refresh_validation_contract",
+                        validation_contract.contents[0].text,
+                    )
 
                     inspected = tool_payload(await session.call_tool("inspect_project", {"project_path": "."}))
                     self.assertEqual("Protocol Test", inspected["project"]["name"])
