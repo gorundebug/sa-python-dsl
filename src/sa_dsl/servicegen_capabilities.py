@@ -39,7 +39,7 @@ class _Response(Protocol):
     def __exit__(self, *args: object) -> None: ...
 
 
-def capability_url(base_url: str | None = None) -> str:
+def public_api_url(base_url: str | None = None) -> str:
     root = (
         base_url
         or os.getenv("SERVICE_ARCHITECT_API_URL")
@@ -48,10 +48,14 @@ def capability_url(base_url: str | None = None) -> str:
     parsed = urllib.parse.urlparse(root)
     local = parsed.hostname in {"127.0.0.1", "localhost", "::1"}
     if parsed.scheme != "https" and not (parsed.scheme == "http" and local):
-        raise CapabilityError("capability API URL must use HTTPS (HTTP is allowed only for localhost)")
+        raise CapabilityError("Service Architect API URL must use HTTPS (HTTP is allowed only for localhost)")
     if not parsed.netloc:
-        raise CapabilityError("capability API URL must be absolute")
-    return root + CAPABILITIES_PATH
+        raise CapabilityError("Service Architect API URL must be absolute")
+    return root
+
+
+def capability_url(base_url: str | None = None) -> str:
+    return public_api_url(base_url) + CAPABILITIES_PATH
 
 
 def fetch_capabilities(

@@ -74,6 +74,7 @@ The `sa-dsl-mcp` command starts the local stdio server. It exposes:
 | --- | --- | --- |
 | `inspect_project` | Reads the manifest only | Discover project metadata without running Python. |
 | `refresh_capabilities` | Calls the public backend and writes compatibility metadata | Cache the exact ServiceGen language and runtime capability revision. |
+| `refresh_validation_contract` | Calls the public backend and writes diagnostic metadata | Cache exact conditions and remediation for every public `SG_*` code. |
 | `validate_project` | Executes trusted project Python | Return stable model diagnostics. |
 | `export_project` | Writes canonical YAML | Produce deterministic interchange for Designer or backend use. |
 | `generate_project` | Calls the backend and writes ZIP | Download generated target-language projects. |
@@ -97,6 +98,14 @@ at `servicegen://workspace/current/capabilities` or one language at
 `servicegen://capabilities/{language}`. `doctor` checks the capability schema and every
 manifest generation target, and reports the ServiceGen, API, and matrix revisions. Do not
 infer support from a similar adapter name and do not hand-edit the cache.
+
+Call `refresh_validation_contract` after refreshing capabilities or changing the
+backend environment. It writes `.service-architect/validation-contract.json`.
+The contract is linked to the capability revision; `doctor` reports an error if
+the two caches describe different deployments. Read a returned diagnostic's
+`validationRuleUri` before changing the model. The rule explains the condition
+and remediation, but `evaluation: servicegen` means the agent must still use
+`validate_project` rather than reproducing the predicate itself.
 
 `preview_generation` stores the exact generated ZIP under `.service-architect/previews/`
 with canonical, archive and workspace hashes and a 15-minute expiry. `apply_generation`

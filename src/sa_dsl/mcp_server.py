@@ -32,6 +32,14 @@ from .servicegen_capabilities import (
     load_cached_capabilities,
     save_capabilities,
 )
+from .servicegen_validation import (
+    ValidationContractError,
+    attach_remediation,
+    diagnostic_descriptor,
+    fetch_validation_contract,
+    load_validation_contract,
+    save_validation_contract,
+)
 
 
 mcp = MCPServer("Service Architect")
@@ -136,6 +144,31 @@ def language_capabilities_resource(language: str) -> str:
     return json_resource(
         language_capability(load_cached_capabilities(_workspace.root), language)
     )
+
+
+@mcp.resource("servicegen://workspace/current/validation-contract")
+def workspace_validation_contract_resource() -> str:
+    try:
+        return json_resource(load_validation_contract(_workspace.root))
+    except ValidationContractError as error:
+        return json_resource({
+            "schemaVersion": "1.0",
+            "status": "unavailable",
+            "message": str(error),
+            "refreshTool": "refresh_validation_contract",
+        })
+
+
+@mcp.resource("servicegen://validation/rules/{code}")
+def validation_rule_resource(code: str) -> str:
+    contract = load_validation_contract(_workspace.root)
+    return json_resource({
+        "schemaVersion": contract["schemaVersion"],
+        "servicegenVersion": contract["servicegenVersion"],
+        "contractRevision": contract["revision"],
+        "capabilityRevision": contract["capabilityRevision"],
+        "diagnostic": diagnostic_descriptor(contract, code),
+    })
 
 
 @mcp.resource("servicegen://workspace/current/source")
@@ -244,6 +277,50 @@ def refresh_capabilities(
 
 
 @mcp.tool(
+    title="Refresh ServiceGen validation contract",
+    annotations=ToolAnnotations(
+        open_world_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+    ),
+)
+def refresh_validation_contract(
+    project_path: str = ".",
+    base_url: str | None = None,
+) -> dict[str, Any]:
+    """Fetch and atomically cache public ServiceGen diagnostic metadata."""
+
+    try:
+        manifest = load_manifest(_project_path(project_path))
+        document = fetch_validation_contract(base_url)
+        output = save_validation_contract(manifest.workspace, document)
+    except (ManifestError, WorkspaceBoundaryError) as error:
+        return _manifest_failure("refresh-validation-contract", error)
+    except (ValidationContractError, OSError) as error:
+        return _failure(
+            "refresh-validation-contract",
+            "SA_VALIDATION_CONTRACT_REFRESH_FAILED",
+            str(error),
+            "$.servicegen.validationContract",
+        )
+    return {
+        "schemaVersion": "1.0",
+        "operation": "refresh-validation-contract",
+        "status": "success",
+        "output": output.relative_to(manifest.workspace).as_posix(),
+        "contract": {
+            "schemaVersion": document["schemaVersion"],
+            "servicegenVersion": document["servicegenVersion"],
+            "diagnosticSchemaVersion": document["diagnosticSchemaVersion"],
+            "capabilityRevision": document["capabilityRevision"],
+            "revision": document["revision"],
+            "diagnostics": len(document["diagnostics"]),
+        },
+        "diagnostics": [],
+    }
+
+
+@mcp.tool(
     title="Validate Service Architect project",
     annotations=ToolAnnotations(open_world_hint=False, destructive_hint=False),
 )
@@ -254,7 +331,9 @@ def validate_project(project_path: str = ".") -> dict[str, Any]:
         manifest = load_manifest(_project_path(project_path))
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("validate", error)
-    return execute_project(manifest, "validate").to_payload()
+    return attach_remediation(
+        execute_project(manifest, "validate").to_payload(), manifest.workspace
+    )
 
 
 @mcp.tool(

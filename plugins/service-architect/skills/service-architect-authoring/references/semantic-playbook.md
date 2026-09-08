@@ -199,3 +199,15 @@ other bounded-progress rule; an unbounded feedback loop is not a complete design
 
 Validation proves that a graph is legal. The intent card and semantic diff prove
 that the legal graph is the graph the user asked for.
+## Service and connector boundaries
+
+Treat the following as topology invariants, not style preferences:
+
+- A persisted stream-to-stream edge may connect streams only when both streams belong to the same service. Never model a direct edge or `Link` across service boundaries.
+- Model every cross-service flow through a data connector endpoint: the producing service writes through a Sink stream and the consuming service reads through an Input stream. The connector is the explicit transport or API boundary between those services.
+- Reuse one data connector object for the same external system, broker, database, or API. Do not create separate connector objects merely because one stream writes and another stream reads.
+- Reuse one endpoint object for the same logical connector destination or operation. Do not create separate "source" and "sink" endpoints for the two directions of one logical input/output merely to attach different stream roles.
+- Streams attached to the same endpoint must use compatible public value types. For a producer/consumer pair, the Sink input type, endpoint value type, and Input output type must match exactly unless the connector contract explicitly defines a supported conversion.
+- If two services appear to require a direct stream edge, stop and introduce or reuse the appropriate connector and endpoint instead. If two endpoint declarations identify the same connector operation, consolidate them before adding streams.
+
+Before exporting, verify each edge is service-local and trace every cross-service path as `producer stream -> Sink -> connector endpoint -> Input -> consumer stream`. Treat a duplicated connector/endpoint or a type mismatch along that path as a modeling error.

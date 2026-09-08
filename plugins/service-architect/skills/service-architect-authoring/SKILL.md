@@ -48,6 +48,13 @@ Do not hand-edit `.service-architect/capabilities.json`. For a known architectur
 shape, select a recipe from `servicegen://patterns/index` and read
 that recipe's decisions and anti-patterns before editing.
 
+Keep validation metadata synchronized with capabilities. If
+`servicegen://workspace/current/validation-contract` is unavailable or `doctor`
+reports a revision mismatch, call `refresh_validation_contract`. For every
+returned `SG_*` diagnostic, read its `validationRuleUri` before repairing the
+model. Apply the catalog remediation to the reported path and details, but never
+reimplement or bypass a rule whose evaluator is `servicegen`.
+
 Treat typed Python as the editable source of truth. Treat the canonical YAML path
 reported by the manifest as a generated interchange artifact; do not edit it to
 make an architectural change.
