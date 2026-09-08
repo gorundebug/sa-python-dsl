@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 from typing import Any, Mapping
 
+from .api_catalog import build_connector_capabilities, build_typed_api_catalog
+from .architecture_patterns import PATTERN_CATALOG, REVIEW_CHECKLIST
+
 
 RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
     "semantics": {
@@ -33,8 +36,162 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
             "schedule": "Cron uses portable five-field expressions; Temporal schedules also require a stable schedule ID.",
         },
         "call-semantics": {
-            "values": ["Inherited", "FunctionCall", "TaskPool", "PriorityTaskPool", "ParallelCall"],
-            "rule": "Omit a link override when it equals the service default call semantics.",
+            "values": {
+                "Inherited": {
+                    "meaning": "Use the owning service default call semantics.",
+                    "api": "ordinary graph connection",
+                    "requires": [],
+                },
+                "FunctionCall": {
+                    "meaning": "Invoke the downstream stream directly; async_ is the only optional link property for this mode.",
+                    "api": "source.function_call(target, async_=None)",
+                    "requires": [],
+                    "optional": ["async_"],
+                    "doesNotMean": ["worker queue", "collection fan-out"],
+                },
+                "TaskPool": {
+                    "meaning": "Enqueue the downstream invocation in a named FIFO worker pool.",
+                    "api": "source.task_pool_call(target, pool=pool)",
+                    "requires": ["pool"],
+                    "doesNotMean": ["priority ordering", "collection fan-out"],
+                },
+                "PriorityTaskPool": {
+                    "meaning": "Enqueue the downstream invocation in a named priority worker pool; larger priorities run first.",
+                    "api": "source.priority_task_pool_call(target, pool=pool, priority=priority)",
+                    "requires": ["pool", "priority"],
+                    "priorityRange": [0, 255],
+                    "doesNotMean": ["collection fan-out", "independent parallel branch"],
+                },
+                "ParallelCall": {
+                    "meaning": "Dispatch every incoming message using runtime parallel-call semantics without a pool.",
+                    "api": "source.parallel_call(target)",
+                    "requires": [],
+                    "doesNotMean": ["iterable expansion", "new graph branch", "worker-pool selection"],
+                },
+            },
+            "selectionRules": [
+                "Choose graph topology before invocation semantics.",
+                "Do not infer a method from the word parallel alone.",
+                "Declare the graph edge before calling a typed call-semantics method.",
+                "Omit a link override when it equals the service default call semantics.",
+                "Declare the specialized link where the graph connection is added.",
+                "A persisted Link must correspond to a real stream connection.",
+            ],
+        },
+        "intent-model": {
+            "requiredAxes": [
+                "trigger",
+                "cardinality",
+                "ordering",
+                "completion",
+                "execution",
+                "durability",
+                "correlation",
+                "failure",
+                "schedule",
+            ],
+            "ambiguityRule": "Ask one focused question when a missing answer changes graph shape; otherwise state the assumption.",
+            "proof": ["validate_project", "preview_architecture_diff"],
+        },
+        "fan-out": {
+            "intent": "Expand iterable or callback-produced items, optionally broadcast each item, process them, and optionally aggregate keyed results.",
+            "shape": ["FlatMapIterable or FlatMap", "Optional KeyBy", "Optional Split broadcast", "Worker stream", "Error decision", "Optional Join or MultiJoin"],
+            "rules": [
+                "FlatMapIterable expands an iterable without a Function; FlatMap uses a Function to emit zero or more values.",
+                "Split broadcasts each existing message and does not expand an iterable.",
+                "ParallelCall and PriorityTaskPool do not expand an iterable.",
+                "Choose correlation before Join or MultiJoin.",
+                "Model fan-out topology separately from worker-edge call semantics.",
+            ],
+        },
+        "conditional-routing": {
+            "operator": "Case When",
+            "rules": [
+                "Use for conditionally selected branches, not unconditional fan-out.",
+                "Define unmatched or default behavior.",
+                "Keep branch result types compatible with their consumers.",
+            ],
+        },
+        "aggregation": {
+            "Join": "Combine exactly two KeyValue inputs; supports Inner, Left, Right, or Outer join type.",
+            "MultiJoin": "Combine one primary and one or more ordered additional KeyValue inputs; the typed API has no join_type argument.",
+            "storage": ["HashMap", "RocksDB", "Aerospike"],
+            "rules": [
+                "All inputs use the same comparable key type; MultiJoin value types may differ.",
+                "Arrival order is not correlation.",
+                "Positive TTL bounds retained state and renewTTL extends it on arrivals while the callback keeps the key.",
+                "Decide partial-failure behavior before connecting error paths.",
+            ],
+        },
+        "error-handling": {
+            "rules": [
+                "Only Input, Process, and Sink expose a dedicated Error output.",
+                "Declare the owner-to-Error graph edge before owner.on_error(error_stream).",
+                "An owner has at most one Error consumer and both streams belong to the same service.",
+                "Separate domain failure flow from transport or runtime retries.",
+                "For fan-out, decide fail-fast versus collected partial failures.",
+                "For Temporal, separate Activity retry from Workflow compensation.",
+            ],
+        },
+        "temporal-orchestration": {
+            "Workflow": "Durable orchestration of steps, retries, waiting, and compensation.",
+            "Activity": "Externally executed operation called by Temporal orchestration.",
+            "onDemand": "A Temporal Sink submission path does not imply a schedule.",
+            "scheduled": "Supply a five-field cron expression and a stable Temporal schedule ID.",
+            "ordinaryCron": "Cron requires a schedule expression and does not use Temporal schedule ID.",
+        },
+        "authoring-api": {
+            "connectionMethods": [
+                "function_call(target, async_=None)",
+                "task_pool_call(target, pool=pool)",
+                "priority_task_pool_call(target, pool=pool, priority=priority)",
+                "parallel_call(target)",
+            ],
+            "wiring": {
+                "source >> target": "Set the target primary source and return target.",
+                "target << source": "Append an additional source and return target.",
+                "target.from_sources(*sources)": "Replace the complete multi-source list.",
+                "typed call method": "Annotate an already declared graph edge; does not create the edge.",
+            },
+            "factoryRule": "Use the concrete factory for the entity type and only parameters exposed by its typed signature.",
+            "referenceRule": "Pass project-owned objects for types, modules, packages, pools, pipelines, endpoints, connectors, and streams; do not recreate serialized keys.",
+        },
+        "operator-selection": {
+            "Map": "Transform one input into one output.",
+            "Filter": "Retain or discard the input.",
+            "Process": "Execute or collect with a dedicated error output; do not choose it from the business verb process alone.",
+            "FlatMap": "Use a Function to emit zero or more outputs.",
+            "FlatMapIterable": "Expand an iterable input without a Function.",
+            "KeyBy": "Produce KeyValue<K,V>; K must be comparable and enables keyed operations.",
+            "Merge": "Combine compatible sources without a user callback.",
+            "Split": "Broadcast every existing message to multiple consumers.",
+            "Case": "Return the zero-based index of exactly one ordered When branch.",
+            "Delay": "Defer delivery using duration and delay Function semantics.",
+            "CycleLink": "Close an intentional feedback loop while keeping the ordinary graph acyclic.",
+        },
+        "process-patterns": {
+            "Execute": "Perform a side effect and synchronously emit zero or more results.",
+            "Collect": "Accumulate results and emit them in a batch.",
+        },
+        "pools": {
+            "TaskPool": "Named FIFO worker queue.",
+            "PriorityTaskPool": "Named priority worker queue; larger priority values run first.",
+            "executorsCount": "Positive worker concurrency.",
+            "queueCapacity": "Positive initial queue capacity; defaults to 256.",
+            "priorityRange": [0, 255],
+        },
+        "boundaries": {
+            "Input": "Admit messages from a concrete connector Endpoint.",
+            "Sink": "Submit messages through a concrete connector Endpoint.",
+            "HTTP": "GET or POST with a required path unique within the connector.",
+            "gRPC": "Requires a contract Module and explicit unary/client/server/bidirectional streaming method; Sink usage also requires address.",
+            "Kafka": "Requires brokers and topic; Input usage also requires consumer group; credentials are runtime-only.",
+            "disabledEndpoint": "Remains in the graph but does not start its transport or scheduler integration.",
+            "endpointIdentity": "Endpoint names are globally unique.",
+        },
+        "cycles": {
+            "rule": "Use CycleLink for intentional feedback; do not create an ordinary graph cycle.",
+            "designRequirement": "State the termination, delay, deadline, or bounded-progress mechanism.",
         },
     },
     "authoring": {
@@ -78,6 +235,16 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
         }
     },
 }
+
+
+RESOURCE_CATALOG["authoring"].update(
+    {
+        "typed-api": build_typed_api_catalog(),
+        "connector-capabilities": build_connector_capabilities(),
+        "review-checklist": REVIEW_CHECKLIST,
+    }
+)
+RESOURCE_CATALOG["patterns"].update(PATTERN_CATALOG)
 
 
 def catalog_resource(category: str, topic: str) -> str:

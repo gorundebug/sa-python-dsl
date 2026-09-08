@@ -7,6 +7,15 @@ from typing import Any
 
 from .auth import load_env
 from .manifest import ManifestError, load_manifest
+from .servicegen_capabilities import (
+    CapabilityError,
+    compatibility_diagnostics,
+    load_cached_capabilities,
+)
+from .servicegen_validation import (
+    ValidationContractError,
+    load_validation_contract,
+)
 
 
 def diagnose_project(project: Path, *, env_file: str = ".env") -> dict[str, Any]:
@@ -29,6 +38,58 @@ def diagnose_project(project: Path, *, env_file: str = ".env") -> dict[str, Any]
         _check(checks, "manifest", "error", f"{error.path}: {error}")
         return _payload(checks)
     _check(checks, "manifest", "pass", f"manifest v{manifest.version}: {manifest.name}")
+
+    capability_revision: str | None = None
+    try:
+        capabilities = load_cached_capabilities(manifest.workspace)
+        capability_revision = capabilities["revision"]
+        compatibility = compatibility_diagnostics(
+            capabilities, manifest.generation.targets
+        )
+        if compatibility:
+            for diagnostic in compatibility:
+                _check(checks, "capabilities", "error", diagnostic["message"])
+        else:
+            _check(
+                checks,
+                "capabilities",
+                "pass",
+                (
+                    f"schema {capabilities['schemaVersion']}; ServiceGen "
+                    f"{capabilities['servicegenVersion']}; API {capabilities['apiRevision']}; "
+                    f"revision {capabilities['revision']}"
+                ),
+            )
+    except CapabilityError as error:
+        status = "warning" if "cache is missing" in str(error) else "error"
+        _check(checks, "capabilities", status, str(error))
+
+    try:
+        validation_contract = load_validation_contract(manifest.workspace)
+        if (
+            capability_revision is not None
+            and validation_contract["capabilityRevision"] != capability_revision
+        ):
+            _check(
+                checks,
+                "validationContract",
+                "error",
+                "validation contract and capability cache describe different ServiceGen revisions",
+            )
+        else:
+            _check(
+                checks,
+                "validationContract",
+                "pass",
+                (
+                    f"schema {validation_contract['schemaVersion']}; ServiceGen "
+                    f"{validation_contract['servicegenVersion']}; revision "
+                    f"{validation_contract['revision']}"
+                ),
+            )
+    except ValidationContractError as error:
+        status = "warning" if "cache is missing" in str(error) else "error"
+        _check(checks, "validationContract", status, str(error))
 
     canonical = manifest.workspace / manifest.canonical.output
     _check(

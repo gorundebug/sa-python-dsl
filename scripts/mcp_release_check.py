@@ -74,13 +74,15 @@ async def verify_mcp(source: str) -> None:
         "inspect_project",
         "preview_architecture_diff",
         "preview_generation",
+        "refresh_capabilities",
+        "refresh_validation_contract",
         "run_verification",
         "validate_project",
     }
     missing = sorted(required - tool_names)
     if missing:
         raise RuntimeError(f"installed MCP server is missing tools: {missing}")
-    if len(resources.resources) < 6:
+    if len(resources.resources) < 8:
         raise RuntimeError("installed MCP server did not expose expected resources")
     print(
         f"MCP conformance passed: {len(tool_names)} tools, "
