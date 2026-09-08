@@ -90,7 +90,7 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual("text/html;profile=mcp-app", designer_resource.mime_type)
                     self.assertIn("resourceDomains", designer_resource.meta["ui"]["csp"])
                     ui = await session.read_resource("ui://service-architect/designer")
-                    self.assertIn("/mcp-ui/0.1.0/designer.js", ui.contents[0].text)
+                    self.assertIn("/mcp-ui/0.1.1/designer.js", ui.contents[0].text)
 
                     templates = await session.list_resource_templates()
                     template_uris = {str(item.uri_template) for item in templates.resource_templates}

@@ -59,7 +59,7 @@ def _project_path(path: str) -> Path:
 
 def _asset_base() -> str:
     return validate_asset_base(
-        os.getenv("SERVICE_ARCHITECT_DESIGNER_ASSET_BASE", "https://gorundebug.com/mcp-ui/0.1.0")
+        os.getenv("SERVICE_ARCHITECT_DESIGNER_ASSET_BASE", "https://gorundebug.com/mcp-ui/0.1.1")
     )
 
 
