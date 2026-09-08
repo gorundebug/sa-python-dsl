@@ -13,7 +13,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 
-DEFAULT_ASSET_BASE = "https://gorundebug.com/mcp-ui/0.1.0"
+DEFAULT_ASSET_BASE = "https://gorundebug.com/mcp-ui/0.1.1"
 DEFAULT_SNAPSHOT_TTL_SECONDS = 15 * 60
 MAX_SNAPSHOTS = 32
 

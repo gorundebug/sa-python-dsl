@@ -43,9 +43,9 @@ class DesignerViewTest(unittest.TestCase):
         self.assertEqual("read-only", first["mode"])
 
     def test_ui_document_loads_only_versioned_remote_assets(self) -> None:
-        document = designer_document("https://gorundebug.com/mcp-ui/0.1.0")
-        self.assertIn("https://gorundebug.com/mcp-ui/0.1.0/designer.js", document)
-        self.assertIn("https://gorundebug.com/mcp-ui/0.1.0/designer.css", document)
+        document = designer_document("https://gorundebug.com/mcp-ui/0.1.1")
+        self.assertIn("https://gorundebug.com/mcp-ui/0.1.1/designer.js", document)
+        self.assertIn("https://gorundebug.com/mcp-ui/0.1.1/designer.css", document)
         self.assertNotIn("canonicalYaml", document)
 
     def test_loopback_snapshot_url_is_unguessable_and_not_cached(self) -> None:
