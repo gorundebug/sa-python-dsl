@@ -73,6 +73,8 @@ The `sa-dsl-mcp` command starts the local stdio server. It exposes:
 | Tool | Side effects | Purpose |
 | --- | --- | --- |
 | `inspect_project` | Reads the manifest only | Discover project metadata without running Python. |
+| `refresh_capabilities` | Calls the public backend and writes compatibility metadata | Cache the exact ServiceGen language and runtime capability revision. |
+| `refresh_validation_contract` | Calls the public backend and writes diagnostic metadata | Cache exact conditions and remediation for every public `SG_*` code. |
 | `validate_project` | Executes trusted project Python | Return stable model diagnostics. |
 | `export_project` | Writes canonical YAML | Produce deterministic interchange for Designer or backend use. |
 | `generate_project` | Calls the backend and writes ZIP | Download generated target-language projects. |
@@ -85,8 +87,25 @@ The `sa-dsl-mcp` command starts the local stdio server. It exposes:
 | `designer_view` | Executes trusted project Python and starts a local snapshot view | Inspect the exact exported revision as a read-only graph. |
 
 The server also exposes focused `servicegen://` resources for semantics, authoring,
-schemas, examples, patterns, the last exported graph, generated tasks and the local
-operation audit. Passive workspace resources never execute project Python.
+schemas, examples, patterns, the last exported graph, generated tasks, the local
+operation audit, and cached generator capabilities. Passive workspace resources never
+execute project Python and never perform hidden network requests.
+
+Call `refresh_capabilities` explicitly before choosing adapters or generating against a
+new backend deployment. It fetches the unauthenticated `/v1/capabilities` contract and
+atomically writes `.service-architect/capabilities.json`. Read the complete cached matrix
+at `servicegen://workspace/current/capabilities` or one language at
+`servicegen://capabilities/{language}`. `doctor` checks the capability schema and every
+manifest generation target, and reports the ServiceGen, API, and matrix revisions. Do not
+infer support from a similar adapter name and do not hand-edit the cache.
+
+Call `refresh_validation_contract` after refreshing capabilities or changing the
+backend environment. It writes `.service-architect/validation-contract.json`.
+The contract is linked to the capability revision; `doctor` reports an error if
+the two caches describe different deployments. Read a returned diagnostic's
+`validationRuleUri` before changing the model. The rule explains the condition
+and remediation, but `evaluation: servicegen` means the agent must still use
+`validate_project` rather than reproducing the predicate itself.
 
 `preview_generation` stores the exact generated ZIP under `.service-architect/previews/`
 with canonical, archive and workspace hashes and a 15-minute expiry. `apply_generation`

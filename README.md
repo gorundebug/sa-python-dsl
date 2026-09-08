@@ -41,6 +41,11 @@ revision as a read-only graph, either as an MCP Apps embedded resource or throug
 short-lived loopback URL when the host does not support embedded UI. The hosted frontend
 assets are versioned; project YAML remains local and is supplied by the MCP response.
 
+Before selecting a runtime adapter, Codex can call `refresh_capabilities` to cache the
+public ServiceGen capability matrix at `.service-architect/capabilities.json`. The
+cache contains no credentials. Passive MCP resources expose the complete matrix or one
+language, and `doctor` checks the manifest targets against the exact generator revision.
+
 ## Explore the product
 
 | Resource | Description |
@@ -279,6 +284,41 @@ stable `SG_*` diagnostic families for schema, semantic and capability failures a
 settings, modules, types, pools, services, connectors, endpoints, streams and links.
 ServiceGen remains authoritative; when its validation contract changes, this port must be
 synchronized with `servicegen/internal/codegenerator/validation.go`.
+
+## Generator capability discovery
+
+Capability discovery is separate from code generation and does not require an API key:
+
+```text
+refresh_capabilities
+servicegen://workspace/current/capabilities
+servicegen://capabilities/GoLang
+```
+
+The cached document identifies `schemaVersion`, `servicegenVersion`, `apiRevision`, and
+the content-addressed matrix `revision`. It declares supported languages, connector
+implementations, endpoint kinds, streams, call semantics, and runtime feature constraints.
+Treat it as generated compatibility metadata: refresh it when the backend changes, never
+hand-edit it, and use `doctor` before generation. It may be committed when a project wants
+to lock review and CI to a known ServiceGen capability revision.
+
+## Validation contract and remediation
+
+ServiceGen remains the only authoritative evaluator of graph rules. The Python
+package can explicitly cache its versioned diagnostic metadata without sending
+credentials:
+
+```text
+refresh_validation_contract
+servicegen://workspace/current/validation-contract
+servicegen://validation/rules/SG_SEMANTIC_TYPE_MISMATCH
+```
+
+Every `validate_project` diagnostic includes `validationRuleUri`. When the cache
+is present, the result also includes the exact contract revision, condition,
+remediation, evaluator, and whether the issue is user-correctable. This lets an
+agent repair the owning typed declaration without inventing validation rules.
+The cache is generated metadata and must not be hand-edited.
 
 ## Explicit links
 

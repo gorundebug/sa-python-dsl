@@ -6,7 +6,12 @@ from pathlib import Path
 import yaml
 
 from sa_dsl.mcp_resources import catalog_resource
-from sa_dsl.mcp_server import configure_workspace, workspace_dsl_resource, workspace_source_resource
+from sa_dsl.mcp_server import (
+    configure_workspace,
+    workspace_capabilities_resource,
+    workspace_dsl_resource,
+    workspace_source_resource,
+)
 
 
 class McpResourcesTest(unittest.TestCase):
@@ -44,6 +49,10 @@ class McpResourcesTest(unittest.TestCase):
 
             self.assertEqual("Resources", source["project"]["name"])
             self.assertIn("name: Resources", rendered)
+            self.assertFalse(marker.exists())
+
+            capabilities = json.loads(workspace_capabilities_resource())
+            self.assertEqual("unavailable", capabilities["status"])
             self.assertFalse(marker.exists())
 
 
