@@ -34,6 +34,14 @@ state the ambiguity and ask one focused question before editing. Do not silently
 invent ordering, delivery, correlation, retry, compensation, or scheduling
 semantics.
 
+For an unfamiliar factory or method, read
+`servicegen://authoring/typed-api` instead of guessing its signature. Before
+choosing a connector for a target language, read
+`servicegen://authoring/connector-capabilities`; absence of a language adapter
+is not permission to substitute a similarly named implementation. For a known
+architecture shape, select a recipe from `servicegen://patterns/index` and read
+that recipe's decisions and anti-patterns before editing.
+
 Treat typed Python as the editable source of truth. Treat the canonical YAML path
 reported by the manifest as a generated interchange artifact; do not edit it to
 make an architectural change.
@@ -54,6 +62,7 @@ succeeds.
 After a complex edit, call `preview_architecture_diff` and review the semantic
 entities and links against the user's intent. Validation proves model integrity;
 it does not prove that the selected topology implements the intended behavior.
+Use `servicegen://authoring/review-checklist` for the final architecture review.
 
 For a YAML-only architecture, call `import_yaml_project` with workspace-relative
 source and output paths. The output must be absent or empty. Treat the resulting

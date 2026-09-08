@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 from typing import Any, Mapping
 
+from .api_catalog import build_connector_capabilities, build_typed_api_catalog
+from .architecture_patterns import PATTERN_CATALOG, REVIEW_CHECKLIST
+
 
 RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
     "semantics": {
@@ -232,6 +235,16 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
         }
     },
 }
+
+
+RESOURCE_CATALOG["authoring"].update(
+    {
+        "typed-api": build_typed_api_catalog(),
+        "connector-capabilities": build_connector_capabilities(),
+        "review-checklist": REVIEW_CHECKLIST,
+    }
+)
+RESOURCE_CATALOG["patterns"].update(PATTERN_CATALOG)
 
 
 def catalog_resource(category: str, topic: str) -> str:

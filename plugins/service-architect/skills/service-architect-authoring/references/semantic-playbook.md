@@ -4,6 +4,13 @@ Use this playbook before creating or changing a non-trivial Service Architect
 topology. The goal is to translate business intent into explicit graph semantics
 instead of guessing an API from words in the prompt.
 
+Do not guess Python names or keyword arguments. Read
+`servicegen://authoring/typed-api` for signatures and
+`servicegen://authoring/connector-capabilities` before selecting a connector for
+a target language. When a matching recipe exists in
+`servicegen://patterns/index`, use its decisions and anti-patterns as additional
+constraints, not as a graph macro.
+
 ## 1. Build an intent card
 
 Record these decisions before editing:
@@ -185,7 +192,8 @@ other bounded-progress rule; an unbounded feedback loop is not a complete design
 4. Edit only typed Python declarations.
 5. Validate the project.
 6. Preview the semantic architecture diff.
-7. Compare entities, links, errors, schedules, and call semantics with the intent
+7. Read `servicegen://authoring/review-checklist` and compare entities, links,
+   types, cardinality, capacity, retained state, errors, schedules, cycles, and call semantics with the intent
    card. Correct the Python model when they differ.
 8. Export canonical YAML only after the semantic review succeeds.
 
