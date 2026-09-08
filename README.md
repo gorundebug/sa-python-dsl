@@ -302,6 +302,24 @@ Treat it as generated compatibility metadata: refresh it when the backend change
 hand-edit it, and use `doctor` before generation. It may be committed when a project wants
 to lock review and CI to a known ServiceGen capability revision.
 
+## Validation contract and remediation
+
+ServiceGen remains the only authoritative evaluator of graph rules. The Python
+package can explicitly cache its versioned diagnostic metadata without sending
+credentials:
+
+```text
+refresh_validation_contract
+servicegen://workspace/current/validation-contract
+servicegen://validation/rules/SG_SEMANTIC_TYPE_MISMATCH
+```
+
+Every `validate_project` diagnostic includes `validationRuleUri`. When the cache
+is present, the result also includes the exact contract revision, condition,
+remediation, evaluator, and whether the issue is user-correctable. This lets an
+agent repair the owning typed declaration without inventing validation rules.
+The cache is generated metadata and must not be hand-edited.
+
 ## Explicit links
 
 The ordinary data-flow relationship is expressed by a stream's `source` or `sources`.
