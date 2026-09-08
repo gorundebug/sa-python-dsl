@@ -9,18 +9,25 @@ Start by calling `inspect_project` on the project root. Use its entrypoint and
 manifest metadata to locate the Python model. Do not execute project Python just
 to discover its structure.
 
-For any change involving more than one stream, concurrency, fan-out/fan-in,
+For any change involving more than one stream, cardinality changes, concurrency, fan-out/fan-in,
 conditional routing, task pools, errors, schedules, Temporal, or cross-service
 communication, read `references/semantic-playbook.md` before editing. Also read
 the relevant `servicegen://semantics/{topic}` resources. Do not select an API
 method from a keyword alone: classify the trigger, cardinality, execution
 boundary, completion behavior, durability, correlation, and failure path first.
 
-Separate topology from invocation semantics. `PriorityTaskPool` selects a
-priority worker queue; it does not create collection fan-out. `ParallelCall`
-describes an independent downstream call; it does not partition a collection.
-Represent collection parallelism explicitly with split/fan-out, worker, and
-join/multi-join stages, then choose the call semantics for each invocation.
+Separate cardinality, topology, and invocation semantics. `FlatMap` or
+`FlatMapIterable` expands one value into multiple values. `Split` broadcasts
+each existing value to multiple graph consumers. `PriorityTaskPool` selects a
+priority worker queue, while `ParallelCall` dispatches each incoming message
+without a pool; neither operation expands a collection. Model each concern
+explicitly, then choose the call semantics for each existing graph edge.
+
+Declare a graph edge before assigning specialized call metadata. First use
+`source >> target`, `target << source`, a factory `source`/`sources` argument, or
+`from_sources()`. Only then call `source.function_call(target, ...)`,
+`task_pool_call`, `priority_task_pool_call`, or `parallel_call`. These methods
+validate and annotate an existing edge; they do not create it.
 
 When a requirement has multiple materially different graph interpretations,
 state the ambiguity and ask one focused question before editing. Do not silently
