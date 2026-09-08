@@ -37,9 +37,15 @@ semantics.
 For an unfamiliar factory or method, read
 `servicegen://authoring/typed-api` instead of guessing its signature. Before
 choosing a connector for a target language, read
-`servicegen://authoring/connector-capabilities`; absence of a language adapter
-is not permission to substitute a similarly named implementation. For a known
-architecture shape, select a recipe from `servicegen://patterns/index` and read
+`servicegen://authoring/connector-capabilities`, then read the authoritative
+cached backend contract at `servicegen://capabilities/{language}`. If the cache
+is unavailable or `doctor` reports a capability incompatibility, call
+`refresh_capabilities` and read it again before editing. This refresh is an
+explicit public network operation; passive resource reads never perform it.
+Absence of a connector, endpoint kind, implementation, stream operator, call
+semantics, or feature is not permission to substitute a similarly named value.
+Do not hand-edit `.service-architect/capabilities.json`. For a known architecture
+shape, select a recipe from `servicegen://patterns/index` and read
 that recipe's decisions and anti-patterns before editing.
 
 Treat typed Python as the editable source of truth. Treat the canonical YAML path

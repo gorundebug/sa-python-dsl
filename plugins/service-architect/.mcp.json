@@ -4,7 +4,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/gorundebug/sa-python-dsl.git@708c04fbc2c143d7746b18d1550f6bd0db5ef4c3",
+        "git+https://github.com/gorundebug/sa-python-dsl.git@0db1e105f21137508c4f047035390766b5958064",
         "sa-dsl-mcp",
         "--workspace",
         "."
