@@ -7,6 +7,11 @@ from typing import Any
 
 from .auth import load_env
 from .manifest import ManifestError, load_manifest
+from .servicegen_capabilities import (
+    CapabilityError,
+    compatibility_diagnostics,
+    load_cached_capabilities,
+)
 
 
 def diagnose_project(project: Path, *, env_file: str = ".env") -> dict[str, Any]:
@@ -29,6 +34,29 @@ def diagnose_project(project: Path, *, env_file: str = ".env") -> dict[str, Any]
         _check(checks, "manifest", "error", f"{error.path}: {error}")
         return _payload(checks)
     _check(checks, "manifest", "pass", f"manifest v{manifest.version}: {manifest.name}")
+
+    try:
+        capabilities = load_cached_capabilities(manifest.workspace)
+        compatibility = compatibility_diagnostics(
+            capabilities, manifest.generation.targets
+        )
+        if compatibility:
+            for diagnostic in compatibility:
+                _check(checks, "capabilities", "error", diagnostic["message"])
+        else:
+            _check(
+                checks,
+                "capabilities",
+                "pass",
+                (
+                    f"schema {capabilities['schemaVersion']}; ServiceGen "
+                    f"{capabilities['servicegenVersion']}; API {capabilities['apiRevision']}; "
+                    f"revision {capabilities['revision']}"
+                ),
+            )
+    except CapabilityError as error:
+        status = "warning" if "cache is missing" in str(error) else "error"
+        _check(checks, "capabilities", status, str(error))
 
     canonical = manifest.workspace / manifest.canonical.output
     _check(

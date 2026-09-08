@@ -24,6 +24,14 @@ from .mcp_workspace import WorkspaceBoundary, WorkspaceBoundaryError
 from .mcp_resources import catalog_resource, json_resource
 from .operation_audit import read_audit, record_operation
 from .semantic_diff import SemanticDiffError, preview_architecture_diff as build_architecture_diff
+from .servicegen_capabilities import (
+    CACHE_RELATIVE_PATH,
+    CapabilityError,
+    fetch_capabilities,
+    language_capability,
+    load_cached_capabilities,
+    save_capabilities,
+)
 
 
 mcp = MCPServer("Service Architect")
@@ -110,6 +118,26 @@ def patterns_resource(topic: str) -> str:
     return catalog_resource("patterns", topic)
 
 
+@mcp.resource("servicegen://workspace/current/capabilities")
+def workspace_capabilities_resource() -> str:
+    try:
+        return json_resource(load_cached_capabilities(_workspace.root))
+    except CapabilityError as error:
+        return json_resource({
+            "schemaVersion": "1.0",
+            "status": "unavailable",
+            "message": str(error),
+            "refreshTool": "refresh_capabilities",
+        })
+
+
+@mcp.resource("servicegen://capabilities/{language}")
+def language_capabilities_resource(language: str) -> str:
+    return json_resource(
+        language_capability(load_cached_capabilities(_workspace.root), language)
+    )
+
+
 @mcp.resource("servicegen://workspace/current/source")
 def workspace_source_resource() -> str:
     return json_resource(load_manifest(_workspace.root).inspect_payload())
@@ -170,6 +198,49 @@ def doctor(project_path: str = ".", env_file: str = ".env") -> dict[str, Any]:
     except WorkspaceBoundaryError as error:
         return _manifest_failure("doctor", error)
     return {"operation": "doctor", **diagnose_project(project, env_file=env_file)}
+
+
+@mcp.tool(
+    title="Refresh ServiceGen capabilities",
+    annotations=ToolAnnotations(
+        open_world_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+    ),
+)
+def refresh_capabilities(
+    project_path: str = ".",
+    base_url: str | None = None,
+) -> dict[str, Any]:
+    """Fetch and atomically cache the public ServiceGen capability matrix."""
+
+    try:
+        manifest = load_manifest(_project_path(project_path))
+        document = fetch_capabilities(base_url)
+        output = save_capabilities(manifest.workspace, document)
+    except (ManifestError, WorkspaceBoundaryError) as error:
+        return _manifest_failure("refresh-capabilities", error)
+    except (CapabilityError, OSError) as error:
+        return _failure(
+            "refresh-capabilities",
+            "SA_CAPABILITY_REFRESH_FAILED",
+            str(error),
+            "$.servicegen.capabilities",
+        )
+    return {
+        "schemaVersion": "1.0",
+        "operation": "refresh-capabilities",
+        "status": "success",
+        "output": output.relative_to(manifest.workspace).as_posix(),
+        "capabilities": {
+            "schemaVersion": document["schemaVersion"],
+            "servicegenVersion": document["servicegenVersion"],
+            "apiRevision": document["apiRevision"],
+            "revision": document["revision"],
+            "languages": [item["name"] for item in document["languages"]],
+        },
+        "diagnostics": [],
+    }
 
 
 @mcp.tool(
