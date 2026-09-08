@@ -43,6 +43,7 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                 ),
                 encoding="utf-8",
             )
+            (workspace / "Makefile").write_text("test:\n\t@true\n", encoding="utf-8")
             server = StdioServerParameters(
                 command=sys.executable,
                 args=["-m", "sa_dsl.mcp_server", "--workspace", str(workspace)],
@@ -56,10 +57,16 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(
                         {
                             "inspect_project",
+                            "doctor",
                             "validate_project",
                             "export_project",
                             "generate_project",
+                            "preview_generation",
+                            "apply_generation",
+                            "inspect_business_tasks",
+                            "run_verification",
                             "import_yaml_project",
+                            "preview_architecture_diff",
                             "designer_view",
                         },
                         {tool.name for tool in tools.tools},
@@ -83,8 +90,28 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                     ui = await session.read_resource("ui://service-architect/designer")
                     self.assertIn("/mcp-ui/0.1.0/designer.js", ui.contents[0].text)
 
+                    templates = await session.list_resource_templates()
+                    template_uris = {str(item.uri_template) for item in templates.resource_templates}
+                    self.assertIn("servicegen://semantics/{topic}", template_uris)
+                    semantics = await session.read_resource("servicegen://semantics/operators")
+                    self.assertIn("MultiJoin", semantics.contents[0].text)
+
                     inspected = tool_payload(await session.call_tool("inspect_project", {"project_path": "."}))
                     self.assertEqual("Protocol Test", inspected["project"]["name"])
+
+                    preview = tool_payload(
+                        await session.call_tool(
+                            "preview_architecture_diff", {"project_path": "."}
+                        )
+                    )
+                    self.assertEqual("success", preview["status"])
+                    self.assertFalse(preview["preview"]["hasBaseline"])
+                    self.assertTrue(
+                        preview["preview"]["candidateRevision"].startswith("sha256:")
+                    )
+                    self.assertFalse(
+                        (workspace / ".service-architect/build/architecture.yaml").exists()
+                    )
 
                     rejected = tool_payload(await session.call_tool("inspect_project", {"project_path": "../outside"}))
                     self.assertEqual("failed", rejected["status"])
@@ -98,6 +125,22 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual("read-only", view["snapshot"]["mode"])
                     self.assertTrue(view["snapshot"]["revision"].startswith("sha256:"))
                     self.assertTrue(view["ui"]["fallbackUrl"].startswith("http://127.0.0.1:"))
+
+                    progress = []
+                    async def capture_progress(value, total, message):
+                        progress.append((value, total, message))
+
+                    verified = tool_payload(
+                        await session.call_tool(
+                            "run_verification",
+                            {"project_path": ".", "verification": "test"},
+                            progress_callback=capture_progress,
+                        )
+                    )
+                    self.assertEqual("success", verified["status"])
+                    self.assertGreaterEqual(len(progress), 2)
+                    audit = await session.read_resource("servicegen://workspace/current/audit")
+                    self.assertIn("run-verification", audit.contents[0].text)
 
 
 if __name__ == "__main__":

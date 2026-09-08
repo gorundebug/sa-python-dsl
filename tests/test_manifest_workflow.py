@@ -125,6 +125,43 @@ class ManifestWorkflowTest(unittest.TestCase):
             self.assertEqual(".service-architect/build/architecture.yaml", output)
             self.assertTrue((workspace / output).is_file())
 
+    def test_authoring_worker_blocks_network_and_process_spawning(self) -> None:
+        sources = (
+            "import socket\nsocket.create_connection(('127.0.0.1', 9))\n",
+            "import subprocess\nsubprocess.run(['true'])\n",
+        )
+        for source in sources:
+            with self.subTest(source=source.splitlines()[1]):
+                with tempfile.TemporaryDirectory(prefix="sa-dsl-policy-") as temporary:
+                    workspace = Path(temporary)
+                    (workspace / "architecture.py").write_text(
+                        source + "from sa_dsl import Project\nproject = Project('Sample')\n",
+                        encoding="utf-8",
+                    )
+                    write_manifest(workspace)
+
+                    result = execute_project(load_manifest(workspace), "validate")
+
+                    self.assertFalse(result.succeeded)
+                    self.assertEqual("SA_AUTHORING_EXCEPTION", result.diagnostics[0]["code"])
+                    self.assertIn("disabled", result.diagnostics[0]["message"])
+
+    def test_authoring_timeout_terminates_worker(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="sa-dsl-timeout-") as temporary:
+            workspace = Path(temporary)
+            (workspace / "architecture.py").write_text(
+                "import time\ntime.sleep(60)\n",
+                encoding="utf-8",
+            )
+            write_manifest(workspace)
+
+            result = execute_project(
+                load_manifest(workspace), "validate", timeout_seconds=0.1
+            )
+
+            self.assertFalse(result.succeeded)
+            self.assertEqual("SA_EXECUTION_TIMEOUT", result.diagnostics[0]["code"])
+
     def test_import_creates_immediately_valid_manifest_project(self) -> None:
         with tempfile.TemporaryDirectory(prefix="sa-dsl-import-") as temporary:
             workspace = Path(temporary)

@@ -76,8 +76,23 @@ The `sa-dsl-mcp` command starts the local stdio server. It exposes:
 | `validate_project` | Executes trusted project Python | Return stable model diagnostics. |
 | `export_project` | Writes canonical YAML | Produce deterministic interchange for Designer or backend use. |
 | `generate_project` | Calls the backend and writes ZIP | Download generated target-language projects. |
+| `preview_architecture_diff` | Executes trusted project Python without writing | Compare current topology with the last canonical revision. |
+| `preview_generation` | Calls the backend and stores an immutable preview | Report exact ServiceGen merge actions and revisions. |
+| `apply_generation` | Applies one immutable preview | Merge only when preview, archive and workspace hashes still match. |
+| `inspect_business_tasks` | Reads generated task files | Return implementation files, types, completion and verification IDs. |
+| `run_verification` | Runs one allow-listed Make target | Execute `test`, `lint`, `integration-test`, or `merge-validate`. |
 | `import_yaml_project` | Creates a new project directory | Migrate canonical YAML into modular typed Python and create its manifest. |
 | `designer_view` | Executes trusted project Python and starts a local snapshot view | Inspect the exact exported revision as a read-only graph. |
+
+The server also exposes focused `servicegen://` resources for semantics, authoring,
+schemas, examples, patterns, the last exported graph, generated tasks and the local
+operation audit. Passive workspace resources never execute project Python.
+
+`preview_generation` stores the exact generated ZIP under `.service-architect/previews/`
+with canonical, archive and workspace hashes and a 15-minute expiry. `apply_generation`
+accepts only the returned preview ID and revision. It rejects changed workspaces, modified
+archives, expired or replayed previews, and unsafe ZIP paths. File ownership decisions and
+hooks come from the generated ServiceGen merge engine's versioned JSON report.
 
 All tools return a `schemaVersion`, operation, status, and diagnostics. Diagnostics contain
 a stable code, severity, model path, and message so an agent can repair the owning Python
@@ -111,7 +126,7 @@ URL containing the compatible versioned `designer.js` and `designer.css` bundle.
 ## Codex plugin
 
 The plugin is under `plugins/service-architect`. Its MCP configuration uses `uvx` to run
-`sa-dsl-mcp` directly from the public `gorundebug/sa-python-dsl` repository, so it does
+`sa-dsl-mcp` from an immutable commit of the public `gorundebug/sa-python-dsl` repository, so it does
 not depend on a cloned repository, activated virtual environment, or absolute local path.
 Its skills teach Codex the authoring, validation, export, and generation boundaries.
 
@@ -150,12 +165,20 @@ export canonical YAML ----> Designer interchange
       |
       v
 generate project ZIP -----> Go / C++ / Python / Rust / TypeScript
+      |
+      v
+preview merge -----------> immutable revisions + file actions
+      |
+      v
+apply exact preview -----> preserved business files + generated updates
 ```
 
 ## Execution boundary
 
 Project discovery never executes Python. Validation and export intentionally do, because a
 Python authoring project is executable code. The child-process boundary supplies a timeout,
-isolated interpreter mode, filtered environment, captured output, and a file-based result
-protocol. It is fault containment, not a security sandbox. Only execute projects from a
-trusted workspace; stronger isolation should use a container or restricted worker.
+isolated interpreter mode, filtered environment, captured output, a file-based result
+protocol, process-group termination, and Python audit rules that reject socket operations,
+subprocess spawning and ctypes loading. This is hardened fault containment, not a complete
+OS security sandbox. Only execute projects from a trusted workspace; stronger isolation
+should use a container or restricted worker.

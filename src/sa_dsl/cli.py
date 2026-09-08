@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .execution import execute_project, write_canonical_yaml
+from .doctor import diagnose_project
 from .generation import generate_project_archive
 from .manifest import ManifestError, load_manifest
 from .migration import import_yaml_project
@@ -42,6 +43,13 @@ def main() -> None:
         default=Path("."),
         help="Project directory or project.yaml path",
     )
+
+    doctor = subparsers.add_parser(
+        "doctor", help="Check local installation and project integration without executing Python"
+    )
+    doctor.add_argument("--project", type=Path, default=Path("."))
+    doctor.add_argument("--env-file", default=".env")
+    doctor.add_argument("--format", choices=("human", "json"), default="human")
     inspect.add_argument(
         "--format",
         choices=("human", "json"),
@@ -112,6 +120,17 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+    if args.command == "doctor":
+        result = diagnose_project(args.project, env_file=args.env_file)
+        if args.format == "json":
+            print(json.dumps({"operation": "doctor", **result}, indent=2))
+        else:
+            for check in result["checks"]:
+                print(f"{check['status'].upper():7} {check['id']}: {check['message']}")
+        if result["status"] != "success":
+            raise SystemExit(1)
+        return
+
     if args.command == "inspect":
         try:
             manifest = load_manifest(args.project)
