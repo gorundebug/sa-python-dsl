@@ -9,6 +9,24 @@ Start by calling `inspect_project` on the project root. Use its entrypoint and
 manifest metadata to locate the Python model. Do not execute project Python just
 to discover its structure.
 
+For any change involving more than one stream, concurrency, fan-out/fan-in,
+conditional routing, task pools, errors, schedules, Temporal, or cross-service
+communication, read `references/semantic-playbook.md` before editing. Also read
+the relevant `servicegen://semantics/{topic}` resources. Do not select an API
+method from a keyword alone: classify the trigger, cardinality, execution
+boundary, completion behavior, durability, correlation, and failure path first.
+
+Separate topology from invocation semantics. `PriorityTaskPool` selects a
+priority worker queue; it does not create collection fan-out. `ParallelCall`
+describes an independent downstream call; it does not partition a collection.
+Represent collection parallelism explicitly with split/fan-out, worker, and
+join/multi-join stages, then choose the call semantics for each invocation.
+
+When a requirement has multiple materially different graph interpretations,
+state the ambiguity and ask one focused question before editing. Do not silently
+invent ordering, delivery, correlation, retry, compensation, or scheduling
+semantics.
+
 Treat typed Python as the editable source of truth. Treat the canonical YAML path
 reported by the manifest as a generated interchange artifact; do not edit it to
 make an architectural change.
@@ -25,6 +43,10 @@ relationships in the owning service module.
 
 After an edit, use `validate_project`. Export canonical YAML only after validation
 succeeds.
+
+After a complex edit, call `preview_architecture_diff` and review the semantic
+entities and links against the user's intent. Validation proves model integrity;
+it does not prove that the selected topology implements the intended behavior.
 
 For a YAML-only architecture, call `import_yaml_project` with workspace-relative
 source and output paths. The output must be absent or empty. Treat the resulting

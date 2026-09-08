@@ -33,8 +33,107 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
             "schedule": "Cron uses portable five-field expressions; Temporal schedules also require a stable schedule ID.",
         },
         "call-semantics": {
-            "values": ["Inherited", "FunctionCall", "TaskPool", "PriorityTaskPool", "ParallelCall"],
-            "rule": "Omit a link override when it equals the service default call semantics.",
+            "values": {
+                "Inherited": {
+                    "meaning": "Use the owning service default call semantics.",
+                    "api": "ordinary graph connection",
+                    "requires": [],
+                },
+                "FunctionCall": {
+                    "meaning": "Invoke the downstream stream using function-call semantics.",
+                    "api": "source.function_call(target)",
+                    "requires": [],
+                    "doesNotMean": ["worker queue", "collection fan-out"],
+                },
+                "TaskPool": {
+                    "meaning": "Submit the downstream invocation to a worker pool.",
+                    "api": "source.task_pool_call(target, pool=pool)",
+                    "requires": ["pool"],
+                    "doesNotMean": ["priority ordering", "collection fan-out"],
+                },
+                "PriorityTaskPool": {
+                    "meaning": "Submit the downstream invocation to a prioritized worker queue.",
+                    "api": "source.priority_task_pool_call(target, pool=pool, priority=priority)",
+                    "requires": ["pool", "priority"],
+                    "doesNotMean": ["collection fan-out", "independent parallel branch"],
+                },
+                "ParallelCall": {
+                    "meaning": "Dispatch an independent downstream call using parallel-call semantics.",
+                    "api": "source.parallel_call(target)",
+                    "requires": [],
+                    "doesNotMean": ["collection partitioning", "worker-pool selection"],
+                },
+            },
+            "selectionRules": [
+                "Choose graph topology before invocation semantics.",
+                "Do not infer a method from the word parallel alone.",
+                "Omit a link override when it equals the service default call semantics.",
+                "Declare the specialized link where the graph connection is added.",
+                "A persisted Link must correspond to a real stream connection.",
+            ],
+        },
+        "intent-model": {
+            "requiredAxes": [
+                "trigger",
+                "cardinality",
+                "ordering",
+                "completion",
+                "execution",
+                "durability",
+                "correlation",
+                "failure",
+                "schedule",
+            ],
+            "ambiguityRule": "Ask one focused question when a missing answer changes graph shape; otherwise state the assumption.",
+            "proof": ["validate_project", "preview_architecture_diff"],
+        },
+        "fan-out": {
+            "intent": "Process each element of a collection, potentially concurrently, and optionally aggregate results.",
+            "shape": ["Split collection", "Optional KeyBy", "Worker stream", "Error decision", "Optional Join or MultiJoin"],
+            "rules": [
+                "ParallelCall does not split a collection.",
+                "PriorityTaskPool does not split a collection.",
+                "Choose correlation before Join or MultiJoin.",
+                "Model fan-out topology separately from worker-edge call semantics.",
+            ],
+        },
+        "conditional-routing": {
+            "operator": "Case When",
+            "rules": [
+                "Use for conditionally selected branches, not unconditional fan-out.",
+                "Define unmatched or default behavior.",
+                "Keep branch result types compatible with their consumers.",
+            ],
+        },
+        "aggregation": {
+            "Join": "Combine the defined paired inputs using an explicit correlation strategy.",
+            "MultiJoin": "Collect multiple named branches using an explicit correlation strategy.",
+            "rules": ["Arrival order is not correlation.", "Decide partial-failure behavior before connecting error paths."],
+        },
+        "error-handling": {
+            "rules": [
+                "Use the supported Error connection only with an Error stream.",
+                "Separate domain failure flow from transport or runtime retries.",
+                "For fan-out, decide fail-fast versus collected partial failures.",
+                "For Temporal, separate Activity retry from Workflow compensation.",
+            ],
+        },
+        "temporal-orchestration": {
+            "Workflow": "Durable orchestration of steps, retries, waiting, and compensation.",
+            "Activity": "Externally executed operation called by Temporal orchestration.",
+            "onDemand": "A Temporal Sink submission path does not imply a schedule.",
+            "scheduled": "Supply a five-field cron expression and a stable Temporal schedule ID.",
+            "ordinaryCron": "Cron requires a schedule expression and does not use Temporal schedule ID.",
+        },
+        "authoring-api": {
+            "connectionMethods": [
+                "function_call(target)",
+                "task_pool_call(target, pool=pool)",
+                "priority_task_pool_call(target, pool=pool, priority=priority)",
+                "parallel_call(target)",
+            ],
+            "factoryRule": "Use the concrete factory for the entity type and only parameters exposed by its typed signature.",
+            "referenceRule": "Pass project-owned objects for types, modules, packages, pools, pipelines, endpoints, connectors, and streams; do not recreate serialized keys.",
         },
     },
     "authoring": {
