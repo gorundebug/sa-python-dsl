@@ -25,6 +25,8 @@ join_analytics_pipeline = analytics_service.pipeline('joinAnalytics')
 
 multi_join_analytics_pipeline = analytics_service.pipeline('multiJoinAnalytics')
 
+cycle_analytics_pipeline = analytics_service.pipeline('cycleAnalytics')
+
 from processorder.services.analytics_service.pipelines import analytics as _analytics_pipeline
 
 from processorder.services.analytics_service.pipelines import analytics_sources as _analytics_sources_pipeline
@@ -32,6 +34,8 @@ from processorder.services.analytics_service.pipelines import analytics_sources 
 from processorder.services.analytics_service.pipelines import join_analytics as _join_analytics_pipeline
 
 from processorder.services.analytics_service.pipelines import multi_join_analytics as _multi_join_analytics_pipeline
+
+from processorder.services.analytics_service.pipelines import cycle_analytics as _cycle_analytics_pipeline
 
 from processorder.services.analytics_service.pipelines.analytics_sources import analytics_shipments
 

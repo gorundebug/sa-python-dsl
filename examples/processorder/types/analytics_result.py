@@ -1,4 +1,5 @@
 from sa_dsl import (
+    LocalType,
     ROOT_PACKAGE,
     TypeDefinitionFormat,
 )
@@ -11,5 +12,6 @@ analytics_result = project.struct_type(
     public_type=False,
     transfer_by_value=False,
     definition_format=TypeDefinitionFormat.NATIVE,
+    module=LocalType(),
     package=ROOT_PACKAGE,
 )

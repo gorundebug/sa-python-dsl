@@ -15,7 +15,7 @@ analytics_schedule = analytics_pipeline.input(
     'Analytics Schedule',
     endpoint=endpoint_analytics_schedule,
     value_type=automation_job,
-    appearance=Appearance(x=-1592, y=-167),
+    appearance=Appearance(x=-1600, y=-205),
 )
 
 consume_order_processed = analytics_pipeline.input(
