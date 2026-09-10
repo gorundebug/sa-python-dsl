@@ -23,7 +23,7 @@ key_orders_for_multi_join = multi_join_analytics_pipeline.key_by(
     ),
     value_type=analytics_event,
     key_type=analytics_key,
-    appearance=Appearance(x=-1160, y=570),
+    appearance=Appearance(x=-1325, y=-1256),
 )
 
 key_payments_for_multi_join = multi_join_analytics_pipeline.key_by(
@@ -36,7 +36,7 @@ key_payments_for_multi_join = multi_join_analytics_pipeline.key_by(
     ),
     value_type=analytics_event,
     key_type=analytics_key,
-    appearance=Appearance(x=-1160, y=740),
+    appearance=Appearance(x=-1984, y=-1293),
 )
 
 key_shipments_for_multi_join = multi_join_analytics_pipeline.key_by(
@@ -49,7 +49,7 @@ key_shipments_for_multi_join = multi_join_analytics_pipeline.key_by(
     ),
     value_type=analytics_event,
     key_type=analytics_key,
-    appearance=Appearance(x=-1160, y=910),
+    appearance=Appearance(x=-365, y=-1315),
 )
 
 multi_join_analytics_events = multi_join_analytics_pipeline.multi_join(
@@ -64,7 +64,7 @@ multi_join_analytics_events = multi_join_analytics_pipeline.multi_join(
         module=LOCAL_MODULE,
     ),
     value_type=analytics_result,
-    appearance=Appearance(x=-900, y=740),
+    appearance=Appearance(x=-812, y=-1446),
 )
 
 route_analytics_result = multi_join_analytics_pipeline.case(
@@ -75,33 +75,33 @@ route_analytics_result = multi_join_analytics_pipeline.case(
         description='Route high-value analytics results to the first branch and all others to the second branch.',
         module=LOCAL_MODULE,
     ),
-    appearance=Appearance(x=-650, y=740),
+    appearance=Appearance(x=-89, y=-1589),
 )
 
 high_value_analytics = multi_join_analytics_pipeline.when(
     'High Value Analytics',
     value_type=analytics_result,
-    appearance=Appearance(x=-400, y=650),
+    appearance=Appearance(x=398, y=-1650),
 )
 
 standard_analytics = multi_join_analytics_pipeline.when(
     'Standard Analytics',
     value_type=analytics_result,
-    appearance=Appearance(x=-400, y=830),
+    appearance=Appearance(x=463, y=-1449),
 )
 
 write_high_value_analytics = multi_join_analytics_pipeline.sink(
     'Write High Value Analytics',
     endpoint=endpoint_high_value_analytics,
     value_type=analytics_result,
-    appearance=Appearance(x=-130, y=650),
+    appearance=Appearance(x=820, y=-1669),
 )
 
 write_standard_analytics = multi_join_analytics_pipeline.sink(
     'Write Standard Analytics',
     endpoint=endpoint_standard_analytics,
     value_type=analytics_result,
-    appearance=Appearance(x=-130, y=830),
+    appearance=Appearance(x=966, y=-1453),
 )
 
 key_orders_for_multi_join >> multi_join_analytics_events

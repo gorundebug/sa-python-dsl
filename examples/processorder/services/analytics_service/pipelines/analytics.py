@@ -15,14 +15,14 @@ analytics_schedule = analytics_pipeline.input(
     'Analytics Schedule',
     endpoint=endpoint_analytics_schedule,
     value_type=automation_job,
-    appearance=Appearance(x=-1600, y=-205),
+    appearance=Appearance(x=-1905, y=-497),
 )
 
 consume_order_processed = analytics_pipeline.input(
     'Consume Order Processed',
     endpoint=endpoint_order_processed,
     value_type=order_processed,
-    appearance=Appearance(x=-1190, y=-205),
+    appearance=Appearance(x=-1453, y=-510),
 )
 
 count_order_processed = analytics_pipeline.process(
@@ -34,7 +34,7 @@ count_order_processed = analytics_pipeline.process(
         module=LOCAL_MODULE,
     ),
     value_type=order_processed,
-    appearance=Appearance(x=-1390, y=-19),
+    appearance=Appearance(x=-1695, y=-518),
 )
 
 count_order_processed >> consume_order_processed
