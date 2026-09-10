@@ -1,6 +1,6 @@
 {
   "name": "service-architect",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Author, validate, export, and generate Service Architect projects from typed Python.",
   "author": {
     "name": "Sergey Alexeev"
