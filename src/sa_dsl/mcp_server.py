@@ -13,7 +13,7 @@ from mcp.server.mcpserver import Context
 from mcp.types import ToolAnnotations
 
 from .business_tasks import BusinessTaskError, inspect_business_tasks as inspect_tasks, run_verification as execute_verification
-from .designer import DesignerSnapshotServer, designer_document, make_snapshot, validate_asset_base
+from .designer import DEFAULT_ASSET_BASE, DesignerSnapshotServer, designer_document, make_snapshot, validate_asset_base
 from .doctor import diagnose_project
 from .execution import execute_project, write_canonical_yaml
 from .generation import generate_project_archive
@@ -22,7 +22,7 @@ from .manifest import ManifestError, load_manifest
 from .migration import import_yaml_project as import_yaml_project_application
 from .mcp_workspace import WorkspaceBoundary, WorkspaceBoundaryError
 from .mcp_resources import catalog_resource, json_resource
-from .operation_audit import read_audit, record_operation
+from .operation_audit import read_audit, record_operation_safely
 from .semantic_diff import SemanticDiffError, preview_architecture_diff as build_architecture_diff
 from .servicegen_capabilities import (
     CACHE_RELATIVE_PATH,
@@ -59,7 +59,7 @@ def _project_path(path: str) -> Path:
 
 def _asset_base() -> str:
     return validate_asset_base(
-        os.getenv("SERVICE_ARCHITECT_DESIGNER_ASSET_BASE", "https://gorundebug.com/mcp-ui/0.1.1")
+        os.getenv("SERVICE_ARCHITECT_DESIGNER_ASSET_BASE", DEFAULT_ASSET_BASE)
     )
 
 
@@ -430,7 +430,7 @@ async def preview_generation(
         )
     )
     await ctx.report_progress(3, 3, "Generation preview ready")
-    record_operation(manifest.workspace, "preview-generation", result, started)
+    record_operation_safely(manifest.workspace, "preview-generation", result, started)
     return result
 
 
@@ -462,7 +462,7 @@ async def apply_generation(
         )
     )
     await ctx.report_progress(2, 2, "Generation apply finished")
-    record_operation(manifest.workspace, "apply-generation", result, started)
+    record_operation_safely(manifest.workspace, "apply-generation", result, started)
     return result
 
 
@@ -541,7 +541,7 @@ async def run_verification(
         ],
     }
     await ctx.report_progress(1, 1, f"{verification} finished")
-    record_operation(manifest.workspace, "run-verification", payload, started)
+    record_operation_safely(manifest.workspace, "run-verification", payload, started)
     return payload
 
 

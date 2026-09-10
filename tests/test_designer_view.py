@@ -43,10 +43,25 @@ class DesignerViewTest(unittest.TestCase):
         self.assertEqual("read-only", first["mode"])
 
     def test_ui_document_loads_only_versioned_remote_assets(self) -> None:
-        document = designer_document("https://gorundebug.com/mcp-ui/0.1.1")
-        self.assertIn("https://gorundebug.com/mcp-ui/0.1.1/designer.js", document)
-        self.assertIn("https://gorundebug.com/mcp-ui/0.1.1/designer.css", document)
+        document = designer_document("https://gorundebug.com/mcp-ui/0.1.2")
+        self.assertIn("https://gorundebug.com/mcp-ui/0.1.2/designer.js", document)
+        self.assertIn("https://gorundebug.com/mcp-ui/0.1.2/designer.css", document)
         self.assertNotIn("canonicalYaml", document)
+
+    def test_published_snapshot_is_isolated_from_caller_mutations(self) -> None:
+        server = DesignerSnapshotServer()
+        try:
+            snapshot = make_snapshot("Original", "name: Original\n")
+            token = server.publish(snapshot).rsplit("/", 1)[-1]
+            snapshot["project"]["name"] = "Changed"
+            snapshot["canonicalYaml"] = "name: Changed\n"
+            retrieved = server.get(token)
+            self.assertEqual("Original", retrieved["project"]["name"])
+            self.assertEqual("name: Original\n", retrieved["canonicalYaml"])
+            retrieved["project"]["name"] = "Changed again"
+            self.assertEqual("Original", server.get(token)["project"]["name"])
+        finally:
+            server.close()
 
     def test_loopback_snapshot_url_is_unguessable_and_not_cached(self) -> None:
         server = DesignerSnapshotServer(ttl_seconds=60)

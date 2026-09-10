@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from .manifest import ProjectManifest
+from .process_runner import run_bounded
 
 
 Operation = Literal["validate", "export"]
@@ -87,18 +88,9 @@ def execute_project(
             str(result_path),
         ]
         try:
-            process = subprocess.Popen(
-                command,
-                cwd=manifest.workspace,
-                env=_worker_environment(),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                start_new_session=True,
-            )
-            stdout, stderr = process.communicate(timeout=timeout_seconds)
+            process = run_bounded(command, cwd=manifest.workspace, env=_worker_environment(), timeout=timeout_seconds)
+            stdout, stderr = process.stdout, process.stderr
         except subprocess.TimeoutExpired:
-            _terminate_process_group(process)
             return _execution_failure(
                 manifest,
                 operation,
@@ -178,9 +170,14 @@ def write_canonical_yaml(
     relative_output = output or manifest.canonical.output
     destination = _workspace_path(manifest.workspace, relative_output)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary = destination.with_name(f".{destination.name}.tmp")
-    temporary.write_text(rendered_yaml, encoding="utf-8")
-    temporary.replace(destination)
+    descriptor, filename = tempfile.mkstemp(prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent)
+    temporary = Path(filename)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(rendered_yaml)
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
     return relative_output
 
 

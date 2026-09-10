@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import hashlib
 import html
 import json
@@ -13,7 +14,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 
-DEFAULT_ASSET_BASE = "https://gorundebug.com/mcp-ui/0.1.1"
+DEFAULT_ASSET_BASE = "https://gorundebug.com/mcp-ui/0.1.2"
 DEFAULT_SNAPSHOT_TTL_SECONDS = 15 * 60
 MAX_SNAPSHOTS = 32
 
@@ -120,6 +121,7 @@ class DesignerSnapshotServer:
         return f"http://{host}:{port}"
 
     def publish(self, snapshot: dict[str, Any]) -> str:
+        snapshot = deepcopy(snapshot)
         now = time.monotonic()
         token = secrets.token_urlsafe(24)
         with self._lock:
@@ -135,7 +137,7 @@ class DesignerSnapshotServer:
         with self._lock:
             self._prune(now)
             stored = self._snapshots.get(token)
-            return stored.value if stored else None
+            return deepcopy(stored.value) if stored else None
 
     def close(self) -> None:
         self._server.shutdown()

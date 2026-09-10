@@ -40,6 +40,12 @@ The bundled MCP server also exposes `designer_view`. Codex can open the exact ex
 revision as a read-only graph, either as an MCP Apps embedded resource or through a
 short-lived loopback URL when the host does not support embedded UI. The hosted frontend
 assets are versioned; project YAML remains local and is supplied by the MCP response.
+The current server targets `/mcp-ui/0.1.2/`, including separated reciprocal arrows in
+vis-network. Publish the matching frontend assets before releasing this server version.
+For staging, `SERVICE_ARCHITECT_DESIGNER_ASSET_BASE` can select another HTTPS asset base.
+The renderer is shared with the website (`embedded/` in `service_architect_vue3`), so
+visual fixes belong there rather than in a separate plugin renderer.
+
 
 Before selecting a runtime adapter, Codex can call `refresh_capabilities` to cache the
 public ServiceGen capability matrix at `.service-architect/capabilities.json`. The
@@ -367,3 +373,27 @@ pipeline files; persisted links and cross-pipeline connections are emitted in se
 
 The importer reconstructs the declarative graph. Python-only control flow, helper functions
 and abstractions from a previous Python source cannot be recovered from YAML.
+
+## Concurrent operations and command logs
+
+Generation apply is exclusive per workspace across processes. A competing apply returns
+`SA_GENERATION_BUSY`; after the active operation finishes, replaying its preview returns
+`SA_PREVIEW_ALREADY_APPLIED`. Other projects remain independent. The persistent lock file
+`.service-architect/generation.lock` must not be deleted while a server is using it.
+
+Canonical exports use unique temporary files and an atomic rename. Concurrent exports
+produce one complete document (the last completed replacement wins).
+
+Verification and merge commands write their full stdout/stderr to private files under
+`.service-architect/logs/`; verification responses include the relative paths. Only a
+bounded tail is returned to the agent. Logs are local and can be removed after the command
+finishes; there is no automatic retention policy. Logs and the lock file are excluded from
+workspace revision hashing. On timeout, the runner terminates the process group on POSIX
+(and uses tree termination on Windows). Windows behavior is not covered by the local tests.
+
+A failed audit write adds an `SA_AUDIT_WRITE_FAILED` warning without replacing the result
+of an already completed operation.
+
+The embedded Designer supports stream name/function search, service filtering, focusing
+a selected stream and restoring the entire graph. Filtering affects presentation only;
+the canonical snapshot and its revision are unchanged.

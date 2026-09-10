@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 
+from .process_runner import run_bounded
+
+
 VERIFICATIONS: Mapping[str, tuple[str, ...]] = {
     "test": ("make", "test"),
     "lint": ("make", "lint"),
@@ -74,7 +77,7 @@ def run_verification(
     verification: str,
     *,
     timeout_seconds: int = DEFAULT_VERIFICATION_TIMEOUT_SECONDS,
-    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    runner: Callable[..., subprocess.CompletedProcess[str]] = run_bounded,
     monotonic: Callable[[], float] = time.monotonic,
 ) -> dict[str, Any]:
     command = VERIFICATIONS.get(verification)
@@ -96,6 +99,12 @@ def run_verification(
     }
     started = monotonic()
     try:
+        extra = {}
+        if runner is run_bounded:
+            logs = (workspace / ".service-architect/logs").resolve()
+            if not logs.is_relative_to(workspace.resolve()):
+                raise OSError("command log path escapes workspace")
+            extra["log_directory"] = logs
         completed = runner(
             list(command),
             cwd=workspace,
@@ -104,6 +113,7 @@ def run_verification(
             text=True,
             timeout=timeout_seconds,
             check=False,
+            **extra,
         )
     except subprocess.TimeoutExpired as error:
         raise BusinessTaskError(
@@ -120,6 +130,9 @@ def run_verification(
         "durationMs": duration_ms,
         "stdout": _bounded(completed.stdout),
         "stderr": _bounded(completed.stderr),
+        **({"logs": {key: str(Path(value).relative_to(workspace.resolve()))
+                     for key, value in completed.log_paths.items()}}
+           if hasattr(completed, "log_paths") else {}),
     }
 
 
@@ -203,4 +216,4 @@ def _migration_tasks(workspace: Path) -> list[dict[str, Any]]:
 def _bounded(value: str) -> str:
     if len(value) <= MAX_VERIFICATION_OUTPUT:
         return value
-    return value[:MAX_VERIFICATION_OUTPUT] + "\n... output truncated ...\n"
+    return "... earlier output truncated ...\n" + value[-MAX_VERIFICATION_OUTPUT:]

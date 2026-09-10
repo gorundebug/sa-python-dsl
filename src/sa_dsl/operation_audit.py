@@ -76,3 +76,14 @@ def read_audit(workspace: Path, *, limit: int = 100) -> dict[str, Any]:
         lines = path.read_text(encoding="utf-8").splitlines()[-max(1, min(limit, 1000)):]
         events = [json.loads(line) for line in lines if line.strip()]
     return {"schemaVersion": "1.0", "events": events}
+
+
+def record_operation_safely(workspace, operation, payload, started):
+    """An audit failure must not obscure an already completed operation."""
+    try:
+        record_operation(workspace, operation, payload, started)
+    except OSError as error:
+        payload.setdefault("diagnostics", []).append({
+            "code": "SA_AUDIT_WRITE_FAILED", "severity": "warning",
+            "path": "$.audit", "message": f"Operation completed but audit could not be written: {error}",
+        })

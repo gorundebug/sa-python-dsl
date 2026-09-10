@@ -17,6 +17,7 @@ import yaml
 
 from .code_generation import CodeGenerationError, GeneratedProjectArchive, ServiceArchitectClient
 from .execution import execute_project
+from .process_runner import run_bounded
 from .manifest import ProjectManifest
 from .semantic_diff import document_revision
 
@@ -152,7 +153,29 @@ def preview_generation_transaction(
     }
 
 
-def apply_generation_transaction(
+def apply_generation_transaction(manifest: ProjectManifest, *, preview_id: str,
+                                 preview_revision: str, now: Callable[[], float] = time.time) -> dict[str, Any]:
+    try:
+        lock_path = _workspace_path(manifest.workspace, ".service-architect/generation.lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        # Keep the lock file: unlinking it would allow competing locks on different inodes.
+        with lock_path.open("a+b") as lock:
+            try:
+                _lock_file(lock)
+            except BlockingIOError:
+                return _failure(manifest, "apply-generation", GenerationTransactionError(
+                    "SA_GENERATION_BUSY", "another generation apply is running for this project"))
+            try:
+                return _apply_generation_transaction(manifest, preview_id=preview_id,
+                                                     preview_revision=preview_revision, now=now)
+            finally:
+                _unlock_file(lock)
+    except OSError as error:
+        return _failure(manifest, "apply-generation", GenerationTransactionError(
+            "SA_GENERATION_APPLY_FAILED", str(error)))
+
+
+def _apply_generation_transaction(
     manifest: ProjectManifest,
     *,
     preview_id: str,
@@ -307,13 +330,14 @@ def _run_merge(
     }
     environment["SERVICEGEN_PROJECT_DIR_OVERRIDE"] = str(workspace.resolve())
     try:
-        completed = subprocess.run(
+        completed = run_bounded(
             command,
             cwd=workspace,
             env=environment,
             capture_output=True,
             text=True,
             timeout=MERGE_TIMEOUT_SECONDS,
+            log_directory=_workspace_path(workspace, ".service-architect/logs"),
             check=False,
         )
     except subprocess.TimeoutExpired as error:
@@ -358,14 +382,14 @@ def _workspace_revision(workspace: Path) -> str:
             if directory not in _IGNORED_DIRECTORIES
             and not (
                 relative_directory == Path(".service-architect")
-                and directory == "previews"
+                and directory in {"previews", "logs"}
             )
         )
         for filename in sorted(files):
             relative = relative_directory / filename
             if relative == Path(".servicegen/merge.log"):
                 continue
-            if relative == Path(".service-architect/audit.jsonl"):
+            if relative in {Path(".service-architect/audit.jsonl"), Path(".service-architect/generation.lock")}:
                 continue
             path = root / relative
             digest.update(relative.as_posix().encode("utf-8") + b"\0")
@@ -477,3 +501,30 @@ def _failure(
 
 def _bounded(value: str, limit: int = 1000) -> str:
     return value if len(value) <= limit else f"{value[:limit]}..."
+
+
+def _lock_file(stream):
+    if os.name == "posix":
+        import fcntl
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    else:
+        import msvcrt
+        stream.seek(0)
+        if not stream.read(1):
+            stream.write(b"0")
+            stream.flush()
+        stream.seek(0)
+        try:
+            msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+        except OSError as error:
+            raise BlockingIOError(str(error)) from error
+
+
+def _unlock_file(stream):
+    if os.name == "posix":
+        import fcntl
+        fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+    else:
+        import msvcrt
+        stream.seek(0)
+        msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)

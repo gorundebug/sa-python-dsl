@@ -129,7 +129,7 @@ opens a floating working copy and never writes graph edits back to Python.
 
 Hosts with MCP Apps support render `ui://service-architect/designer`. The small HTML
 resource loads the pinned frontend bundle from
-`https://gorundebug.com/mcp-ui/0.1.0/`; the graph payload arrives in structured tool
+`https://gorundebug.com/mcp-ui/0.1.2/`; the graph payload arrives in structured tool
 output and is not uploaded to that site. The resource receives no filesystem access,
 API key, Cognito token, `.env` contents or AWS credentials.
 
@@ -139,7 +139,7 @@ with the MCP process. Both presentations are read-only: selection, inspection, p
 zoom, Fit Graph and renderer switching are available, while Build Mode, connecting,
 moving, adding, deleting, saving and generation controls are absent.
 
-For a pinned alternative asset host, set `SERVICE_ARCHITECT_UI_ASSET_BASE` to an HTTPS
+For a pinned alternative asset host, set `SERVICE_ARCHITECT_DESIGNER_ASSET_BASE` to an HTTPS
 URL containing the compatible versioned `designer.js` and `designer.css` bundle.
 
 ## Codex plugin
