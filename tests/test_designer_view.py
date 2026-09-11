@@ -34,6 +34,11 @@ class WorkspaceBoundaryTest(unittest.TestCase):
 
 
 class DesignerViewTest(unittest.TestCase):
+    def test_default_ui_uses_published_version(self) -> None:
+        document = designer_document()
+        self.assertIn("https://gorundebug.com/mcp-ui/0.1.2/designer.js", document)
+        self.assertIn("https://gorundebug.com/mcp-ui/0.1.2/designer.css", document)
+
     def test_snapshot_revision_is_deterministic_and_content_sensitive(self) -> None:
         first = make_snapshot("Example", "name: Example\n")
         same = make_snapshot("Example", "name: Example\n")

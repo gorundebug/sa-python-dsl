@@ -13,7 +13,7 @@ from mcp.server.mcpserver import Context
 from mcp.types import ToolAnnotations
 
 from .business_tasks import BusinessTaskError, inspect_business_tasks as inspect_tasks, run_verification as execute_verification
-from .designer import DesignerSnapshotServer, designer_document, make_snapshot, validate_asset_base
+from .designer import DEFAULT_ASSET_BASE, DesignerSnapshotServer, designer_document, make_snapshot, validate_asset_base
 from .doctor import diagnose_project
 from .execution import execute_project, write_canonical_yaml
 from .generation import generate_project_archive
@@ -59,7 +59,7 @@ def _project_path(path: str) -> Path:
 
 def _asset_base() -> str:
     return validate_asset_base(
-        os.getenv("SERVICE_ARCHITECT_DESIGNER_ASSET_BASE", "https://gorundebug.com/mcp-ui/0.1.1")
+        os.getenv("SERVICE_ARCHITECT_DESIGNER_ASSET_BASE", DEFAULT_ASSET_BASE)
     )
 
 
