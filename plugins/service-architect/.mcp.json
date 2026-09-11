@@ -7,7 +7,7 @@
       },
       "args": [
         "--from",
-        "git+https://github.com/gorundebug/sa-python-dsl.git@98da9f5205151c36628688352828c7829c0a6bdf",
+        "git+https://github.com/gorundebug/sa-python-dsl.git@d75fcb9835839697d5b2a4bf244b4044039c51c9",
         "sa-dsl-mcp",
         "--workspace",
         "."

@@ -9,6 +9,28 @@ from .architecture_patterns import PATTERN_CATALOG, REVIEW_CHECKLIST
 
 RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
     "semantics": {
+        "visual-components": {
+            "purpose": "Group whole pipelines within one service for Designer navigation and collapse/expand.",
+            "runtimeEffect": "None. Components are editor metadata, not runtime operators, services, modules or deployment units.",
+            "apiResources": [
+                "servicegen://authoring/typed-api-Service-component",
+                "servicegen://authoring/typed-api-Service-pipeline",
+                "servicegen://authoring/typed-api-Component-pipeline",
+            ],
+            "rules": [
+                "Create a Component through its owning service and pass that object to service.pipeline(component=...).",
+                "Alternatively use component.pipeline(name) to create a pipeline in that component.",
+                "A component may contain multiple whole pipelines, but all must belong to one service.",
+                "A pipeline belongs to at most one component; do not group individual streams independently.",
+                "Keep component identity stable when changing its display name.",
+                "Do not change stream connections, endpoints, message types or call semantics merely to group the diagram.",
+                "Preserve versioned service appearance.components metadata through editor interchange.",
+                "Exclude component metadata from code-generation requests; preserve it in the source workspace.",
+                "Collapsed/expanded is local view state, not persisted architecture and not Python source.",
+                "Components do not allow persisted links across services; cross-service communication still uses transports.",
+            ],
+            "example": "booking = service.component('Booking')\nvalidation = booking.pipeline('validation')\nreservation = service.pipeline('reservation', component=booking)",
+        },
         "overview": {
             "sourceOfTruth": "typed Python for Python-authored workspaces; canonical YAML is generated IR",
             "rules": [

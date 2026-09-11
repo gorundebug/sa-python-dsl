@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 import yaml
+from .visual_components import normalize_components
 
 
 class DslValidationError(ValueError):
@@ -603,11 +604,26 @@ class Pool:
 
 
 @dataclass(slots=True)
+class Component:
+    """A service-local visual group of whole pipelines, not a runtime unit."""
+
+    key: str
+    name: str
+    service: Service
+    description: str | None = None
+    appearance: Appearance = field(default_factory=Appearance)
+
+    def pipeline(self, name: str) -> Pipeline:
+        return self.service.pipeline(name, component=self)
+
+
+@dataclass(slots=True)
 class Pipeline:
     key: str
     name: str
     service: Service
     streams: dict[str, Stream] = field(default_factory=dict)
+    component: Component | None = None
 
     def _stream(
         self,
@@ -1325,10 +1341,29 @@ class Service:
     properties: dict[str, Any] = field(default_factory=dict)
     pipelines: dict[str, Pipeline] = field(default_factory=dict)
     links: dict[str, Link] = field(default_factory=dict)
+    components: dict[str, Component] = field(default_factory=dict)
 
-    def pipeline(self, name: str) -> Pipeline:
+    def component(
+        self, name: str, *, description: str | None = None,
+        appearance: Appearance | None = None, key: str | None = None,
+    ) -> Component:
+        if key is not None and (not isinstance(key, str) or not key.strip()):
+            raise DslValidationError("Component identity must be a non-empty string")
+        component_key = _key(None, name) if key is None else key
+        value = Component(component_key, name, self, description, appearance or Appearance())
+        group = {"name": name, "description": description}
+        normalize_components({"version": 1, "groups": {component_key: group}, "pipelines": {}}, [])
+        return _insert_unique(self.components, component_key, value, "component")
+
+    def pipeline(self, name: str, *, component: Component | None = None) -> Pipeline:
+        if component is not None and (
+            not isinstance(component, Component)
+            or component.service is not self
+            or self.components.get(component.key) is not component
+        ):
+            raise DslValidationError("Component must be registered in this service")
         pipeline_key = _key(None, name)
-        value = Pipeline(pipeline_key, name, self)
+        value = Pipeline(pipeline_key, name, self, component=component)
         return _insert_unique(self.pipelines, pipeline_key, value, "pipeline")
 
     def _link(
@@ -1384,6 +1419,30 @@ class Service:
                 for pipeline in self.pipelines.values()
             },
         }
+        if self.components or any(p.component is not None for p in self.pipelines.values()):
+            groups = {}
+            memberships = {}
+            for key, component in self.components.items():
+                if component.service is not self or component.key != key:
+                    raise DslValidationError("Component identity or service ownership changed")
+                group = {"name": component.name}
+                if component.description is not None:
+                    group["description"] = component.description
+                position = {axis: getattr(component.appearance, axis) for axis in ("x", "y")
+                            if getattr(component.appearance, axis) is not None}
+                if position:
+                    group["position"] = position
+                groups[key] = group
+            for pipeline in self.pipelines.values():
+                component = pipeline.component
+                if component is not None:
+                    if (not isinstance(component, Component) or component.service is not self
+                            or self.components.get(component.key) is not component):
+                        raise DslValidationError("Pipeline component must belong to its service")
+                    memberships[pipeline.key] = component.key
+            appearance["components"] = normalize_components(
+                {"version": 1, "groups": groups, "pipelines": memberships}, self.pipelines,
+            )
         body = {
             "name": self.name,
             "programmingLanguage": self.programming_language,

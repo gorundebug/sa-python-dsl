@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 import yaml
+from .visual_components import normalize_components
 
 from .model import (
     ActivityTimeouts,
@@ -643,6 +644,7 @@ def yaml_to_python_files(
         links = service_values.pop("links", {}) or {}
         appearance = service_values.pop("appearance", {}) or {}
         coordinates = appearance.get("pipelines", {}) or {}
+        components = normalize_components(appearance.get("components"), pipelines)
         if "color" in appearance:
             service_values["appearance"] = _Code(
                 f"Appearance(color={appearance['color']!r})"
@@ -741,13 +743,26 @@ def yaml_to_python_files(
             _call(service_variable, "project", "service", service_name, service_values)
         ]
         pipeline_variables = {}
+        component_variables = {}
+        for index, (identity, group) in enumerate(components["groups"].items(), start=1):
+            variable = f"{service_variable}_component_{index}"
+            component_variables[identity] = variable
+            values = {"key": identity}
+            if "description" in group:
+                values["description"] = group["description"]
+            if "position" in group:
+                arguments = ", ".join(f"{axis}={value!r}" for axis, value in group["position"].items())
+                values["appearance"] = _Code(f"Appearance({arguments})")
+            service_body.append(_call(variable, service_variable, "component", group["name"], values))
         stream_refs: dict[str, tuple[str, str, str]] = {}
         declared_edges: set[tuple[str, str]] = set()
         for pipeline_key, stream_items in pipelines.items():
             pipeline_variable = f"{_snake(pipeline_key)}_pipeline"
             pipeline_variables[pipeline_key] = pipeline_variable
+            component = components["pipelines"].get(pipeline_key)
+            component_argument = f", component={component_variables[component]}" if component is not None else ""
             service_body.append(
-                f"{pipeline_variable} = {service_variable}.pipeline({pipeline_key!r})"
+                f"{pipeline_variable} = {service_variable}.pipeline({pipeline_key!r}{component_argument})"
             )
             for stream_key in stream_items:
                 stream_refs[stream_key] = (
