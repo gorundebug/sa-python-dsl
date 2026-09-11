@@ -1345,11 +1345,9 @@ class Service:
 
     def component(
         self, name: str, *, description: str | None = None,
-        appearance: Appearance | None = None, key: str | None = None,
+        appearance: Appearance | None = None,
     ) -> Component:
-        if key is not None and (not isinstance(key, str) or not key.strip()):
-            raise DslValidationError("Component identity must be a non-empty string")
-        component_key = _key(None, name) if key is None else key
+        component_key = _key(None, name)
         value = Component(component_key, name, self, description, appearance or Appearance())
         group = {"name": name, "description": description}
         normalize_components({"version": 1, "groups": {component_key: group}, "pipelines": {}}, [])
@@ -1426,20 +1424,23 @@ class Service:
                 if component.service is not self or component.key != key:
                     raise DslValidationError("Component identity or service ownership changed")
                 group = {"name": component.name}
-                if component.description is not None:
+                if component.description:
                     group["description"] = component.description
                 position = {axis: getattr(component.appearance, axis) for axis in ("x", "y")
                             if getattr(component.appearance, axis) is not None}
                 if position:
                     group["position"] = position
-                groups[key] = group
+                output_key = _key(None, component.name)
+                if output_key in groups:
+                    raise DslValidationError(f"Duplicate component: {output_key}")
+                groups[output_key] = group
             for pipeline in self.pipelines.values():
                 component = pipeline.component
                 if component is not None:
                     if (not isinstance(component, Component) or component.service is not self
                             or self.components.get(component.key) is not component):
                         raise DslValidationError("Pipeline component must belong to its service")
-                    memberships[pipeline.key] = component.key
+                    memberships[pipeline.key] = _key(None, component.name)
             appearance["components"] = normalize_components(
                 {"version": 1, "groups": groups, "pipelines": memberships}, self.pipelines,
             )

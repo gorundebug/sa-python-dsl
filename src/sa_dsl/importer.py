@@ -10,6 +10,7 @@ import yaml
 from .visual_components import normalize_components
 
 from .model import (
+    _key,
     ActivityTimeouts,
     ActivityWorker,
     Appearance,
@@ -744,11 +745,13 @@ def yaml_to_python_files(
         ]
         pipeline_variables = {}
         component_variables = {}
-        for index, (identity, group) in enumerate(components["groups"].items(), start=1):
-            variable = f"{service_variable}_component_{index}"
+        for identity, group in components["groups"].items():
+            variable = f"{_key(None, group['name'])}Component"
+            if variable in component_variables.values():
+                raise ValueError(f"Duplicate component name: {group['name']}")
             component_variables[identity] = variable
-            values = {"key": identity}
-            if "description" in group:
+            values = {}
+            if group.get("description"):
                 values["description"] = group["description"]
             if "position" in group:
                 arguments = ", ".join(f"{axis}={value!r}" for axis, value in group["position"].items())
