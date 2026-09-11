@@ -170,6 +170,10 @@ def to_api_document(document: Mapping[str, Any]) -> dict[str, Any]:
             service_value[key] = value
         if "color" in appearance:
             service_value["color"] = appearance["color"]
+        if "components" in appearance:
+            service_value["appearance"] = {"components": normalize_components(
+                appearance["components"], service.get("pipelines") or {},
+            )}
         services.append(service_value)
 
         for pipeline_name, pipeline in (service.get("pipelines") or {}).items():
@@ -382,9 +386,9 @@ class ServiceArchitectClient:
         return self.id_token
 
     def generate_code(self, project: Any) -> GeneratedProjectArchive:
-        if not hasattr(project, "to_document"):
-            raise TypeError("project must provide to_document()")
-        document = yaml_to_api_document(project.to_yaml())
+        if not callable(getattr(project, "to_yaml", None)):
+            raise TypeError("project must provide to_yaml()")
+        document = without_visual_components(yaml_to_api_document(project.to_yaml()))
         if self.api_key is not None:
             return self._generate_async(document)
         return self._generate_legacy(document)
@@ -580,3 +584,4 @@ class ServiceArchitectClient:
                 status_code=status_code,
             )
         return GeneratedProjectArchive(filename=filename, content=archive_content)
+from .visual_components import normalize_components, without_visual_components

@@ -5,6 +5,7 @@ import inspect
 from typing import Any
 
 from .model import (
+    Component,
     CronConnector,
     CustomConnector,
     GrpcConnector,
@@ -12,6 +13,7 @@ from .model import (
     KafkaConnector,
     Pipeline,
     Project,
+    Service,
     Stream,
     TemporalConnector,
 )
@@ -19,6 +21,8 @@ from .model import (
 
 PUBLIC_API_CLASSES = (
     Project,
+    Service,
+    Component,
     Pipeline,
     Stream,
     HttpConnector,

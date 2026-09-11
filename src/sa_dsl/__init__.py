@@ -15,6 +15,7 @@ from .model import (
     ActivityWorker,
     Appearance,
     CallSemantics,
+    Component,
     CppBoost,
     CppUserver,
     CronSchedule,
@@ -89,6 +90,7 @@ from .auth import AuthenticationError, CognitoAuthenticator
 from .browser import python_files_to_yaml
 
 __all__ = [
+    "Component",
     "ActivityTimeouts",
     "ActivityWorker",
     "Appearance",
