@@ -247,12 +247,81 @@ RESOURCE_CATALOG["authoring"].update(
 RESOURCE_CATALOG["patterns"].update(PATTERN_CATALOG)
 
 
+# Keep protocol responses small: clients may truncate the full reflected catalog.
+_TYPED_API = RESOURCE_CATALOG["authoring"]["typed-api"]
+RESOURCE_CATALOG["authoring"]["typed-api"] = {
+    "generated": True,
+    "source": _TYPED_API["source"],
+    "rule": "Read a class index, then its method resource for the complete signature and parameters.",
+    "classes": {
+        name: {"resource": f"servicegen://authoring/typed-api-{name}"}
+        for name in _TYPED_API["classes"]
+    },
+}
+for _class_name, _class in _TYPED_API["classes"].items():
+    RESOURCE_CATALOG["authoring"][f"typed-api-{_class_name}"] = {
+        "generated": True,
+        "methods": {
+            name: {"resource": f"servicegen://authoring/typed-api-{_class_name}-{name}"}
+            for name in _class["methods"]
+        },
+    }
+    for _method_name, _method in _class["methods"].items():
+        RESOURCE_CATALOG["authoring"][f"typed-api-{_class_name}-{_method_name}"] = {
+            "generated": True,
+            "class": _class_name,
+            **_method,
+        }
+
+RESOURCE_CATALOG["semantics"]["http-grpc"] = {
+    "intent": "An HTTP request invokes a unary gRPC operation in another service and receives its result.",
+    "rules": [
+        "Use an HTTP connector route for the public request and one shared gRPC connector endpoint for the internal operation.",
+        "The caller owns the gRPC Sink; the callee owns the gRPC Input. Do not connect streams directly across services.",
+        "The gRPC Sink input type must match the callee Input output type; its result must match the callee response type.",
+        "Connect the service-local response stream back to its request Input as the response source, as shown in the canonical example.",
+        "A gRPC connector requires a contract Module; calling it through a Sink also requires an address.",
+        "Choose explicit failure behavior and bounded request timeouts; transport failures are not successful reservations.",
+        "Topology does not implement business logic: inventory checks, atomic reservation and idempotency belong in user functions.",
+    ],
+    "exampleResource": "servicegen://examples/http-grpc",
+    "apiResource": "servicegen://authoring/typed-api",
+}
+RESOURCE_CATALOG["examples"]["http-grpc"] = {
+    "description": "HTTP Order Service calls the unary Inventory Service API in the canonical processorder project.",
+    "repository": "https://github.com/gorundebug/sa-python-dsl/tree/main/examples/processorder",
+    "paths": [
+        "connectors/order_service_api.py",
+        "connectors/inventory_service_api.py",
+        "endpoints/inventory_service_api.py",
+        "services/inventory_service/pipelines/inventory_item.py",
+    ],
+    "semanticsResource": "servicegen://semantics/http-grpc",
+    "scope": "A guide to the canonical example, not an embedded runnable project.",
+}
+
+
 def catalog_resource(category: str, topic: str) -> str:
     category_values = RESOURCE_CATALOG.get(category)
     value = category_values.get(topic) if category_values else None
+    if topic == "index" and category_values is not None:
+        # Preserve existing index metadata while making every topic discoverable.
+        value = {
+            **(value or {}),
+            "topics": sorted(name for name in category_values if name != "index"),
+            "resources": [
+                f"servicegen://{category}/{name}"
+                for name in sorted(category_values) if name != "index"
+            ],
+        }
     if value is None:
-        available = ", ".join(sorted(category_values or {})) or "none"
-        raise ValueError(f"unknown {category} resource {topic!r}; available: {available}")
+        return json_resource({
+            "schemaVersion": "1.0",
+            "resource": f"servicegen://{category}/{topic}",
+            "status": "not_found",
+            "message": f"Unknown {category} resource {topic!r}; read the index for available topics.",
+            "indexResource": f"servicegen://{category}/index",
+        })
     return json_resource({
         "schemaVersion": "1.0",
         "resource": f"servicegen://{category}/{topic}",

@@ -19,8 +19,16 @@ class McpResourcesTest(unittest.TestCase):
         operators = json.loads(catalog_resource("semantics", "operators"))
         self.assertEqual("1.0", operators["schemaVersion"])
         self.assertIn("MultiJoin", operators["operators"])
-        with self.assertRaisesRegex(ValueError, "available"):
-            catalog_resource("semantics", "missing")
+        missing = json.loads(catalog_resource("semantics", "missing"))
+        self.assertEqual("not_found", missing["status"])
+        self.assertEqual("servicegen://semantics/index", missing["indexResource"])
+
+    def test_http_grpc_resources_are_discoverable(self) -> None:
+        for category in ("semantics", "examples"):
+            index = json.loads(catalog_resource(category, "index"))
+            self.assertIn(f"servicegen://{category}/http-grpc", index["resources"])
+            resource = json.loads(catalog_resource(category, "http-grpc"))
+            self.assertNotIn("status", resource)
 
     def test_workspace_resources_do_not_execute_python(self) -> None:
         with tempfile.TemporaryDirectory(prefix="sa-resource-") as temporary:

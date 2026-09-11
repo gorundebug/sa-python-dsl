@@ -99,6 +99,20 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                     self.assertIn("servicegen://validation/rules/{code}", template_uris)
                     semantics = await session.read_resource("servicegen://semantics/operators")
                     self.assertIn("MultiJoin", semantics.contents[0].text)
+                    for uri in (
+                        "servicegen://semantics/index",
+                        "servicegen://semantics/http-grpc",
+                        "servicegen://examples/http-grpc",
+                        "servicegen://authoring/typed-api",
+                        "servicegen://authoring/typed-api-Project-grpc_connector",
+                    ):
+                        response = await session.read_resource(uri)
+                        document = json.loads(response.contents[0].text)
+                        self.assertNotIn("status", document, uri)
+                    missing = await session.read_resource("servicegen://semantics/missing")
+                    self.assertEqual("not_found", json.loads(missing.contents[0].text)["status"])
+                    language = await session.read_resource("servicegen://capabilities/go")
+                    self.assertEqual("unavailable", json.loads(language.contents[0].text)["status"])
                     capabilities = await session.read_resource(
                         "servicegen://workspace/current/capabilities"
                     )

@@ -141,9 +141,18 @@ def workspace_capabilities_resource() -> str:
 
 @mcp.resource("servicegen://capabilities/{language}")
 def language_capabilities_resource(language: str) -> str:
-    return json_resource(
-        language_capability(load_cached_capabilities(_workspace.root), language)
-    )
+    try:
+        return json_resource(
+            language_capability(load_cached_capabilities(_workspace.root), language)
+        )
+    except CapabilityError as error:
+        return json_resource({
+            "schemaVersion": "1.0",
+            "status": "unavailable",
+            "message": str(error),
+            "refreshTool": "refresh_capabilities",
+            "workspaceResource": "servicegen://workspace/current/capabilities",
+        })
 
 
 @mcp.resource("servicegen://workspace/current/validation-contract")
