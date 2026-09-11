@@ -62,3 +62,23 @@ endpoint_standard_analytics = connector_analytics_functions.endpoint(
         description='Validate and record analytics results routed to the standard Case branch.',
     ),
 )
+
+endpoint_cycle_analytics_input = connector_analytics_functions.endpoint(
+    'Cycle Analytics Input',
+    function=Function(
+        name='CycleAnalyticsInput',
+        package=endpoint_package,
+        public=False,
+        description='Produce one deterministic analytics event that exercises the finite feedback cycle.',
+    ),
+)
+
+endpoint_cycle_analytics_result = connector_analytics_functions.endpoint(
+    'Cycle Analytics Result',
+    function=Function(
+        name='CycleAnalyticsResult',
+        package=endpoint_package,
+        public=False,
+        description='Validate the terminal event emitted after three passes through the feedback cycle.',
+    ),
+)

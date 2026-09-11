@@ -23,7 +23,7 @@ key_orders_for_join = join_analytics_pipeline.key_by(
     ),
     value_type=analytics_event,
     key_type=analytics_key,
-    appearance=Appearance(x=-1312, y=-936),
+    appearance=Appearance(x=-1258, y=-1007),
 )
 
 key_payments_for_join = join_analytics_pipeline.key_by(
@@ -36,7 +36,7 @@ key_payments_for_join = join_analytics_pipeline.key_by(
     ),
     value_type=analytics_event,
     key_type=analytics_key,
-    appearance=Appearance(x=-1051, y=-759),
+    appearance=Appearance(x=-1377, y=-723),
 )
 
 join_order_payment_analytics = join_analytics_pipeline.join(
@@ -52,14 +52,14 @@ join_order_payment_analytics = join_analytics_pipeline.join(
         module=LOCAL_MODULE,
     ),
     value_type=analytics_result,
-    appearance=Appearance(x=-1041, y=-1033),
+    appearance=Appearance(x=-637, y=-1050),
 )
 
 write_joined_analytics = join_analytics_pipeline.sink(
     'Write Joined Analytics',
     endpoint=endpoint_joined_analytics,
     value_type=analytics_result,
-    appearance=Appearance(x=-1082, y=-1355),
+    appearance=Appearance(x=-231, y=-1079),
 )
 
 key_orders_for_join >> join_order_payment_analytics
