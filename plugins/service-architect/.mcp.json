@@ -2,9 +2,12 @@
   "mcpServers": {
     "service-architect": {
       "command": "uvx",
+      "env": {
+        "SERVICE_ARCHITECT_DESIGNER_ASSET_BASE": "https://gorundebug.com/mcp-ui/0.1.2"
+      },
       "args": [
         "--from",
-        "git+https://github.com/gorundebug/sa-python-dsl.git@800fd991cc145965be415c5826fa92f9ffeda99f",
+        "git+https://github.com/gorundebug/sa-python-dsl.git@98da9f5205151c36628688352828c7829c0a6bdf",
         "sa-dsl-mcp",
         "--workspace",
         "."
