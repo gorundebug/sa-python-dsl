@@ -10,12 +10,32 @@ class ApiCatalogTest(unittest.TestCase):
     def test_typed_api_is_generated_from_runtime_signatures(self) -> None:
         catalog = json.loads(catalog_resource("authoring", "typed-api"))
         self.assertTrue(catalog["generated"])
-        stream = catalog["classes"]["Stream"]["methods"]
-        pipeline = catalog["classes"]["Pipeline"]["methods"]
-        self.assertIn("async_", stream["function_call"]["signature"])
-        self.assertIn("priority", stream["priority_task_pool_call"]["signature"])
+        stream = json.loads(catalog_resource("authoring", "typed-api-Stream"))["methods"]
+        pipeline = json.loads(catalog_resource("authoring", "typed-api-Pipeline"))["methods"]
+        self.assertIn("function_call", stream)
+        function_call = json.loads(catalog_resource("authoring", "typed-api-Stream-function_call"))
+        priority_call = json.loads(catalog_resource("authoring", "typed-api-Stream-priority_task_pool_call"))
+        self.assertIn("async_", function_call["signature"])
+        self.assertIn("priority", priority_call["signature"])
         self.assertIn("flat_map_iterable", pipeline)
         self.assertNotIn("_stream", pipeline)
+
+    def test_api_resources_are_bounded_and_links_resolve(self) -> None:
+        def read(uri):
+            topic = uri.removeprefix("servicegen://authoring/")
+            rendered = catalog_resource("authoring", topic)
+            self.assertLess(len(rendered.encode()), 16000, uri)
+            result = json.loads(rendered)
+            self.assertNotIn("status", result)
+            return result
+
+        root = read("servicegen://authoring/typed-api")
+        for class_ref in root["classes"].values():
+            methods = read(class_ref["resource"])["methods"]
+            for method_ref in methods.values():
+                method = read(method_ref["resource"])
+                self.assertIn("signature", method)
+                self.assertIn("parameters", method)
 
     def test_connector_capabilities_follow_factory_parameters(self) -> None:
         catalog = json.loads(
