@@ -12,7 +12,7 @@ class ComponentRoundTripTests(unittest.TestCase):
     def model(self):
         project = Project("Components")
         service = project.service("Booking", language=Golang(), module=ServiceModule(path="example.com/booking"))
-        component = service.component("Reservations", key="original-identity", description="Two pipelines")
+        component = service.component("Reservations", description="Two pipelines")
         component.pipeline("validate")
         component.pipeline("reserve")
         return project

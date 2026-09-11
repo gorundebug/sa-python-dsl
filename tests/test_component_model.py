@@ -9,15 +9,15 @@ class ComponentModelTests(unittest.TestCase):
 
     def test_entity_and_optional_properties(self):
         service = self.service()
-        component = service.component("Booking", key="stable", appearance=Appearance(x=12))
+        component = service.component("Booking", appearance=Appearance(x=12))
         self.assertIsInstance(component, Component)
         pipeline = component.pipeline("reserve")
         self.assertIs(pipeline.component, component)
         component.name = "Reservations"
         metadata = service.to_document()["appearance"]["components"]
         self.assertEqual(metadata, {"version": 1, "groups": {
-            "stable": {"name": "Reservations", "position": {"x": 12}}},
-            "pipelines": {"reserve": "stable"}})
+            "reservations": {"name": "Reservations", "position": {"x": 12}}},
+            "pipelines": {"reserve": "reservations"}})
 
     def test_no_components_keeps_legacy_document(self):
         self.assertNotIn("components", self.service().to_document()["appearance"])
