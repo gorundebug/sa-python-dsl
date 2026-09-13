@@ -1044,6 +1044,7 @@ class Validator:
     def validate_endpoint_contracts(self) -> None:
         http_paths: set[tuple[str, str]] = set()
         grpc_methods: set[tuple[str, str]] = set()
+        checked_http_modules: set[str] = set()
         for stream in self.streams.values():
             if stream.endpoint:
                 self.endpoint_users[stream.endpoint.key].append(stream)
@@ -1062,6 +1063,15 @@ class Validator:
                 "functionName",
             )
             if connector.type == "HTTP":
+                if connector.key not in checked_http_modules:
+                    checked_http_modules.add(connector.key)
+                    self.required(
+                        _prop(connector, "module"),
+                        connector_path + ".module",
+                        "dataConnector",
+                        connector.name,
+                        "module",
+                    )
                 self.enum(
                     _prop(endpoint, "httpMethodType"),
                     HTTP_METHODS,
