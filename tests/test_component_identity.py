@@ -7,10 +7,10 @@ class ComponentIdentityTests(unittest.TestCase):
     def test_output_identity_follows_name_like_other_graph_entities(self):
         service = Service('booking', 'Booking', 'Go', 'example.com/booking')
         component = service.component('Reservations')
-        component.pipeline('reserve')
+        service.pipeline('reserve')
         component.name = 'Renamed'
         metadata = service.to_document()['appearance']['components']
-        self.assertEqual(metadata['pipelines']['reserve'], 'renamed')
+        self.assertNotIn('pipelines', metadata)
         self.assertEqual(metadata['groups']['renamed']['name'], 'Renamed')
 
     def test_key_is_not_part_of_component_factory(self):

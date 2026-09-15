@@ -64,6 +64,8 @@ class DesignerViewTest(unittest.TestCase):
                 body = response.read().decode("utf-8")
                 self.assertEqual("no-store", response.headers["Cache-Control"])
                 self.assertIn("default-src 'none'", response.headers["Content-Security-Policy"])
+                self.assertIn("worker-src blob:", response.headers["Content-Security-Policy"])
+                self.assertIn("connect-src 'none'", response.headers["Content-Security-Policy"])
                 self.assertNotIn("'unsafe-eval'", response.headers["Content-Security-Policy"])
                 self.assertIn("service-architect-snapshot", body)
                 self.assertIn("name: Example", body)

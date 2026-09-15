@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .validation import Diagnostic
+
 import re
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -605,16 +610,56 @@ class Pool:
 
 @dataclass(slots=True)
 class Component:
-    """A service-local visual group of whole pipelines, not a runtime unit."""
+    """A named repeated graph fragment, never a runtime execution wrapper.
+
+    Register concrete repetitions after declaring streams and their connections.
+    Each repetition remains independent; no occurrence identity is generated.
+    """
 
     key: str
     name: str
     service: Service
     description: str | None = None
-    appearance: Appearance = field(default_factory=Appearance)
+    fragments: list[tuple[tuple[Stream, ...], Appearance]] = field(default_factory=list)
 
-    def pipeline(self, name: str) -> Pipeline:
-        return self.service.pipeline(name, component=self)
+    def fragment(self, *streams: Stream, appearance: Appearance | None = None) -> None:
+        """Add one concrete, non-overlapping repetition of this component."""
+        if not 1 <= len(streams) <= 64:
+            raise DslValidationError("A component fragment must contain between 1 and 64 streams")
+        if appearance is not None and not isinstance(appearance, Appearance):
+            raise DslValidationError("Fragment appearance must be an Appearance")
+        if self.service.components.get(self.key) is not self:
+            raise DslValidationError("Component must be registered in its service")
+        occupied = {id(stream) for component in self.service.components.values()
+                    for members, _ in component.fragments for stream in members}
+        for stream in streams:
+            if (not isinstance(stream, Stream) or stream.service is not self.service
+                    or self.service.pipelines.get(stream.pipeline.key) is not stream.pipeline
+                    or stream.pipeline.streams.get(stream.key) is not stream):
+                raise DslValidationError("Component streams must be registered in its service")
+            if id(stream) in occupied:
+                raise DslValidationError("Component fragments must not overlap or nest")
+            occupied.add(id(stream))
+        point = appearance or Appearance()
+        if point.color is not None:
+            raise DslValidationError("Fragment appearance supports position only")
+        self.fragments.append((tuple(streams), point))
+
+    def to_document(self) -> dict[str, Any]:
+        fragments = []
+        for members, appearance in self.fragments:
+            for stream in members:
+                if (stream.service is not self.service
+                        or self.service.pipelines.get(stream.pipeline.key) is not stream.pipeline
+                        or stream.pipeline.streams.get(stream.key) is not stream):
+                    raise DslValidationError("Unknown or foreign component stream")
+            fragment = {"streams": [[stream.pipeline.key, stream.key] for stream in members]}
+            position = {axis: getattr(appearance, axis) for axis in ("x", "y") if getattr(appearance, axis) is not None}
+            if position:
+                fragment["position"] = position
+            fragments.append(fragment)
+        return {"name": self.name, "fragments": fragments,
+                **({"description": self.description} if self.description else {})}
 
 
 @dataclass(slots=True)
@@ -623,7 +668,6 @@ class Pipeline:
     name: str
     service: Service
     streams: dict[str, Stream] = field(default_factory=dict)
-    component: Component | None = None
 
     def _stream(
         self,
@@ -1343,25 +1387,15 @@ class Service:
     links: dict[str, Link] = field(default_factory=dict)
     components: dict[str, Component] = field(default_factory=dict)
 
-    def component(
-        self, name: str, *, description: str | None = None,
-        appearance: Appearance | None = None,
-    ) -> Component:
+    def component(self, name: str, *, description: str | None = None) -> Component:
         component_key = _key(None, name)
-        value = Component(component_key, name, self, description, appearance or Appearance())
-        group = {"name": name, "description": description}
-        normalize_components({"version": 1, "groups": {component_key: group}, "pipelines": {}}, [])
+        value = Component(component_key, name, self, description)
+        normalize_components({"version": 2, "groups": {component_key: value.to_document()}}, {})
         return _insert_unique(self.components, component_key, value, "component")
 
-    def pipeline(self, name: str, *, component: Component | None = None) -> Pipeline:
-        if component is not None and (
-            not isinstance(component, Component)
-            or component.service is not self
-            or self.components.get(component.key) is not component
-        ):
-            raise DslValidationError("Component must be registered in this service")
+    def pipeline(self, name: str) -> Pipeline:
         pipeline_key = _key(None, name)
-        value = Pipeline(pipeline_key, name, self, component=component)
+        value = Pipeline(pipeline_key, name, self)
         return _insert_unique(self.pipelines, pipeline_key, value, "pipeline")
 
     def _link(
@@ -1417,32 +1451,18 @@ class Service:
                 for pipeline in self.pipelines.values()
             },
         }
-        if self.components or any(p.component is not None for p in self.pipelines.values()):
+        if self.components:
             groups = {}
-            memberships = {}
             for key, component in self.components.items():
                 if component.service is not self or component.key != key:
                     raise DslValidationError("Component identity or service ownership changed")
-                group = {"name": component.name}
-                if component.description:
-                    group["description"] = component.description
-                position = {axis: getattr(component.appearance, axis) for axis in ("x", "y")
-                            if getattr(component.appearance, axis) is not None}
-                if position:
-                    group["position"] = position
                 output_key = _key(None, component.name)
                 if output_key in groups:
                     raise DslValidationError(f"Duplicate component: {output_key}")
-                groups[output_key] = group
-            for pipeline in self.pipelines.values():
-                component = pipeline.component
-                if component is not None:
-                    if (not isinstance(component, Component) or component.service is not self
-                            or self.components.get(component.key) is not component):
-                        raise DslValidationError("Pipeline component must belong to its service")
-                    memberships[pipeline.key] = _key(None, component.name)
+                groups[output_key] = component.to_document()
             appearance["components"] = normalize_components(
-                {"version": 1, "groups": groups, "pipelines": memberships}, self.pipelines,
+                {"version": 2, "groups": groups},
+                {pipeline.key: pipeline.streams for pipeline in self.pipelines.values()},
             )
         body = {
             "name": self.name,
@@ -2428,7 +2448,7 @@ class Project:
                             f"Stream {stream.key!r} references an endpoint outside this project"
                         )
 
-    def validate(self):
+    def validate(self) -> list[Diagnostic]:
         """Return diagnostics ported from servicegen.ValidateStreamApp."""
         self._validate_references()
         from .validation import validate_project

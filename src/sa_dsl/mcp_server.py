@@ -86,13 +86,13 @@ def _designer_server() -> DesignerSnapshotServer:
         "ui": {
             "prefersBorder": False,
             "csp": {
-                "resourceDomains": [_asset_origin()],
+                "resourceDomains": [_asset_origin(), "blob:"],
                 "connectDomains": [],
             },
         },
         "openai/widgetDescription": "Read-only Service Architect graph and object inspector.",
         "openai/widgetCSP": {
-            "resource_domains": [_asset_origin()],
+            "resource_domains": [_asset_origin(), "blob:"],
             "connect_domains": [],
         },
     },

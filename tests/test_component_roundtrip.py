@@ -1,3 +1,4 @@
+from component_fixture import component_project
 import unittest
 from unittest.mock import patch
 
@@ -10,11 +11,10 @@ from sa_dsl.generation import _CanonicalProject
 
 class ComponentRoundTripTests(unittest.TestCase):
     def model(self):
-        project = Project("Components")
-        service = project.service("Booking", language=Golang(), module=ServiceModule(path="example.com/booking"))
-        component = service.component("Reservations", description="Two pipelines")
-        component.pipeline("validate")
-        component.pipeline("reserve")
+        project, service, fragments = component_project()
+        component = service.component("Reservations", description="Repeated pricing logic")
+        for fragment in fragments:
+            component.fragment(*fragment)
         return project
 
     def test_yaml_python_yaml_preserves_entities_and_membership(self):
@@ -22,7 +22,8 @@ class ComponentRoundTripTests(unittest.TestCase):
         workspace = yaml_to_python_files(document, "component_roundtrip")
         generated = "\n".join(workspace.files.values())
         self.assertIn(".component(", generated)
-        self.assertIn("component=", generated)
+        self.assertIn(".fragment(", generated)
+        self.assertNotIn("component=", generated)
         restored = yaml.safe_load(python_files_to_yaml(workspace.files, workspace.entrypoint))
         self.assertEqual(restored["services"]["booking"]["appearance"]["components"],
                          document["services"]["booking"]["appearance"]["components"])

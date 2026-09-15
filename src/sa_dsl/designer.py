@@ -9,13 +9,25 @@ import time
 from dataclasses import dataclass
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Literal, TypedDict
 from urllib.parse import urlparse
 
 
 DEFAULT_ASSET_BASE = "https://gorundebug.com/mcp-ui/0.1.2"
 DEFAULT_SNAPSHOT_TTL_SECONDS = 15 * 60
 MAX_SNAPSHOTS = 32
+
+
+class DesignerProject(TypedDict):
+    name: str
+
+
+class DesignerSnapshot(TypedDict):
+    schemaVersion: Literal["1.0"]
+    revision: str
+    mode: Literal["read-only"]
+    project: DesignerProject
+    canonicalYaml: str
 
 
 def validate_asset_base(value: str) -> str:
@@ -26,7 +38,7 @@ def validate_asset_base(value: str) -> str:
     return result
 
 
-def make_snapshot(project_name: str, canonical_yaml: str) -> dict[str, Any]:
+def make_snapshot(project_name: str, canonical_yaml: str) -> DesignerSnapshot:
     revision = f"sha256:{hashlib.sha256(canonical_yaml.encode('utf-8')).hexdigest()}"
     return {
         "schemaVersion": "1.0",
@@ -39,7 +51,7 @@ def make_snapshot(project_name: str, canonical_yaml: str) -> dict[str, Any]:
 
 def designer_document(
     asset_base: str = DEFAULT_ASSET_BASE,
-    snapshot: dict[str, Any] | None = None,
+    snapshot: DesignerSnapshot | None = None,
 ) -> str:
     base = validate_asset_base(asset_base)
     snapshot_element = ""
@@ -64,7 +76,7 @@ def designer_document(
 
 @dataclass(frozen=True, slots=True)
 class _StoredSnapshot:
-    value: dict[str, Any]
+    value: DesignerSnapshot
     expires_at: float
 
 
@@ -101,13 +113,13 @@ class DesignerSnapshotServer:
                     "Content-Security-Policy",
                     "default-src 'none'; "
                     f"script-src {origin}; style-src {origin} 'unsafe-inline'; font-src {origin}; "
-                    "img-src data: blob:; connect-src 'none'; base-uri 'none'; "
+                    "img-src data: blob:; worker-src blob:; connect-src 'none'; base-uri 'none'; "
                     "form-action 'none'; frame-ancestors 'self'",
                 )
                 self.end_headers()
                 self.wfile.write(body)
 
-            def log_message(self, _format: str, *_args: Any) -> None:
+            def log_message(self, _format: str, *_args: object) -> None:
                 return
 
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -119,7 +131,7 @@ class DesignerSnapshotServer:
         host, port = self._server.server_address[:2]
         return f"http://{host}:{port}"
 
-    def publish(self, snapshot: dict[str, Any]) -> str:
+    def publish(self, snapshot: DesignerSnapshot) -> str:
         now = time.monotonic()
         token = secrets.token_urlsafe(24)
         with self._lock:
@@ -130,7 +142,7 @@ class DesignerSnapshotServer:
             self._snapshots[token] = _StoredSnapshot(snapshot, now + self.ttl_seconds)
         return f"{self.origin}/designer/{token}"
 
-    def get(self, token: str) -> dict[str, Any] | None:
+    def get(self, token: str) -> DesignerSnapshot | None:
         now = time.monotonic()
         with self._lock:
             self._prune(now)

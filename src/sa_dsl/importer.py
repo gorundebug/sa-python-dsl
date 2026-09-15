@@ -357,6 +357,10 @@ def yaml_to_python_files(
     if not isinstance(document, dict):
         raise ValueError("Service Architect YAML root must be a mapping")
 
+    from .component_document_validation import require_canonical_components
+
+    require_canonical_components(document)
+
     package = package_name
     if not package.isidentifier() or keyword.iskeyword(package):
         raise ValueError(
@@ -753,19 +757,14 @@ def yaml_to_python_files(
             values = {}
             if group.get("description"):
                 values["description"] = group["description"]
-            if "position" in group:
-                arguments = ", ".join(f"{axis}={value!r}" for axis, value in group["position"].items())
-                values["appearance"] = _Code(f"Appearance({arguments})")
             service_body.append(_call(variable, service_variable, "component", group["name"], values))
         stream_refs: dict[str, tuple[str, str, str]] = {}
         declared_edges: set[tuple[str, str]] = set()
         for pipeline_key, stream_items in pipelines.items():
             pipeline_variable = f"{_snake(pipeline_key)}_pipeline"
             pipeline_variables[pipeline_key] = pipeline_variable
-            component = components["pipelines"].get(pipeline_key)
-            component_argument = f", component={component_variables[component]}" if component is not None else ""
             service_body.append(
-                f"{pipeline_variable} = {service_variable}.pipeline({pipeline_key!r}{component_argument})"
+                f"{pipeline_variable} = {service_variable}.pipeline({pipeline_key!r})"
             )
             for stream_key in stream_items:
                 stream_refs[stream_key] = (
@@ -996,6 +995,23 @@ def yaml_to_python_files(
             )
             if link_code is not None:
                 service_body.append(link_code)
+        # Register fragments only after every concrete stream and edge exists.
+        for identity, group in components["groups"].items():
+            for fragment in group["fragments"]:
+                variables = []
+                for pipeline_key, stream_key in fragment["streams"]:
+                    actual_pipeline, module, variable = stream_refs[stream_key]
+                    if actual_pipeline != pipeline_key:
+                        raise ValueError(f"Unknown component stream: {pipeline_key}/{stream_key}")
+                    imported = f"from {package}.{module} import {variable}"
+                    if imported not in cross_imports:
+                        service_body.append(imported)
+                        cross_imports.add(imported)
+                    variables.append(variable)
+                if fragment.get("position"):
+                    coordinates = ", ".join(f"{axis}={value!r}" for axis, value in fragment["position"].items())
+                    variables.append(f"appearance=Appearance({coordinates})")
+                service_body.append(f"{component_variables[identity]}.fragment({', '.join(variables)})")
         if non_default_links:
             missing = ", ".join(
                 f"{source} -> {target}" for source, target in non_default_links

@@ -388,7 +388,11 @@ class ServiceArchitectClient:
     def generate_code(self, project: Any) -> GeneratedProjectArchive:
         if not callable(getattr(project, "to_yaml", None)):
             raise TypeError("project must provide to_yaml()")
-        document = without_visual_components(yaml_to_api_document(project.to_yaml()))
+        from .component_document_validation import require_canonical_components
+
+        canonical = yaml.safe_load(project.to_yaml())
+        require_canonical_components(canonical)
+        document = generation_document(to_api_document(canonical))
         if self.api_key is not None:
             return self._generate_async(document)
         return self._generate_legacy(document)
@@ -584,4 +588,5 @@ class ServiceArchitectClient:
                 status_code=status_code,
             )
         return GeneratedProjectArchive(filename=filename, content=archive_content)
-from .visual_components import normalize_components, without_visual_components
+from .visual_components import normalize_components
+from .generation_document import generation_document

@@ -336,6 +336,9 @@ class Validator:
         self.validate_endpoint_usage()
         self.validate_functions()
         self.validate_consumers_links_cycles()
+        from .component_validation import validate_components
+
+        validate_components(self)
         return sorted(
             self.values,
             key=lambda value: (

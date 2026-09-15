@@ -69,6 +69,15 @@ connectors, endpoints, modules, packages, pools, and types. Connect internal
 pipeline streams in the pipeline module and cross-pipeline or cross-service
 relationships in the owning service module.
 
+For visual components, read `servicegen://semantics/visual-components` and its
+linked API signatures before editing. Components annotate equivalent connected
+fragments, not whole-pipeline groups or runtime wrappers. Declare and connect
+the concrete streams first, then register repetitions with `service.component`
+and `component.fragment`; retain their existing function identities. Do not
+introduce nested/overlapping membership or `component_instance`. After changing
+member functions, types or links, validate equivalence again; use the Designer's
+explicit Rebuild preview rather than silently rewriting the business topology.
+
 After an edit, use `validate_project`. Export canonical YAML only after validation
 succeeds.
 
