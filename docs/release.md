@@ -25,3 +25,15 @@ revision in scripts or documentation.
 The release check never reads credential values. Runtime operations keep only
 metadata in `.service-architect/audit.jsonl`; generated archives and source code
 are not copied into the audit log.
+
+## Plugin 0.1.8: Designer routing
+
+The plugin loads Designer UI `0.1.3`, with responsive orthogonal edge routing in
+VisNetwork and VueFlow. The MCP runtime stays pinned to the existing validated
+commit; this release changes the UI selection, not the Python authoring API.
+
+Publish `https://gorundebug.com/mcp-ui/0.1.3/designer.js` and `designer.css` from
+the Designer repository before merging this plugin release. A beta-only website
+deployment does not satisfy this production URL. The routing worker must be
+bundled inline: the loopback host intentionally keeps `worker-src blob:` and
+`connect-src 'none'`, and must not fetch a worker script from another origin.
