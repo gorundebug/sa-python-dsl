@@ -1265,7 +1265,7 @@ class Validator:
             if not stream.endpoint or stream.type not in {"Input", "Sink"}:
                 continue
             key = (stream.service.key, stream.endpoint.key, stream.type)
-            if key in seen:
+            if stream.type == "Input" and key in seen:
                 self.add(
                     DUPLICATE,
                     "semantic",
@@ -1276,10 +1276,39 @@ class Validator:
                     identity="endpointDirection",
                     value=stream.endpoint.key,
                 )
-            seen[key] = stream
+            if stream.type == "Input":
+                seen[key] = stream
             (inputs if stream.type == "Input" else sinks)[stream.endpoint.key].append(
                 stream
             )
+        # Shared outbound API declarations do not join caller execution graphs.
+        # Check caller contracts even if no remote Input is modeled locally.
+        for endpoint_sinks in sinks.values():
+            request_type: tuple[bool, str, str] | None = None
+            response_type: tuple[bool, str, str] | None = None
+            for sink in endpoint_sinks:
+                request = self.output_wire_type(sink.source)
+                response = self.output_wire_type(sink)
+                for direction, expected, actual in (
+                    ("request", request_type, request),
+                    ("response", response_type, response),
+                ):
+                    if expected is not None and actual is not None and expected != actual:
+                        self.add(
+                            TYPE_MISMATCH,
+                            "semantic",
+                            f"shared endpoint {direction} types differ for Sink {sink.name!r}",
+                            self.stream_path(sink) + ".endpoint",
+                            "stream",
+                            sink.name,
+                            direction=direction,
+                            expected=expected,
+                            actual=actual,
+                        )
+                if request_type is None and request is not None:
+                    request_type = request
+                if response_type is None and response is not None:
+                    response_type = response
         for endpoint_key, endpoint_inputs in inputs.items():
             for input_stream in endpoint_inputs:
                 for sink in sinks[endpoint_key]:

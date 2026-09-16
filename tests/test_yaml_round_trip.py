@@ -43,6 +43,60 @@ def normalized_document(document: dict) -> dict:
 
 
 class YamlRoundTripTest(unittest.TestCase):
+    def test_kafka_async_keyword_is_not_treated_as_a_variable_name(self) -> None:
+        for enabled in (False, True):
+            with self.subTest(async_enabled=enabled):
+                document = yaml.safe_load(CANONICAL_YAML.read_text(encoding="utf-8"))
+                connectors = [connector for connector in document["dataConnectors"].values()
+                              if connector["type"] == "Kafka"]
+                self.assertTrue(connectors)
+                for connector in connectors:
+                    connector["async"] = enabled
+                generated = yaml_to_python_files(document, "generated_kafka_async")
+                bodies = [body for path, body in generated.files.items()
+                          if "/connectors/" in path and ".kafka_connector(" in body]
+                self.assertTrue(bodies)
+                for body in bodies:
+                    self.assertIn(f"async_={enabled!r}", body)
+                    self.assertNotIn("value_async=", body)
+                restored = yaml.safe_load(python_files_to_yaml(generated.files, generated.entrypoint))
+                self.assertEqual(normalized_document(document), normalized_document(restored))
+
+    def test_endpoint_and_stream_initializer_groups_round_trip(self) -> None:
+        document = yaml.safe_load(CANONICAL_YAML.read_text(encoding="utf-8"))
+        endpoints = [
+            endpoint
+            for connector in document["dataConnectors"].values()
+            for endpoint in connector.get("endpoints", {}).values()
+            if endpoint.get("functionName")
+        ]
+        streams = [
+            stream
+            for service in document["services"].values()
+            for pipeline in service["pipelines"].values()
+            for stream in pipeline.values()
+            if stream.get("functionName")
+        ]
+        self.assertTrue(endpoints)
+        self.assertTrue(streams)
+        for endpoint in endpoints:
+            endpoint["functionInitializerGroup"] = "sharedEndpointClients"
+        for stream in streams:
+            stream["functionInitializerGroup"] = "sharedBusinessFunctions"
+
+        generated = yaml_to_python_files(document, "generated_initializer_groups")
+        endpoint_files = [body for path, body in generated.files.items()
+                          if "/endpoints/" in path and "InitializerGroup(" in body]
+        pipeline_files = [body for path, body in generated.files.items()
+                          if "/pipelines/" in path and "InitializerGroup(" in body]
+        self.assertTrue(endpoint_files)
+        self.assertTrue(pipeline_files)
+        for body in endpoint_files + pipeline_files:
+            self.assertIn("    InitializerGroup,", body)
+
+        restored = yaml.safe_load(python_files_to_yaml(generated.files, generated.entrypoint))
+        self.assertEqual(normalized_document(document), normalized_document(restored))
+
     def test_in_memory_project_contains_importable_entrypoint(self) -> None:
         generated = yaml_to_python_files(CANONICAL_YAML, "generated_processorder")
 

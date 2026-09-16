@@ -114,12 +114,12 @@ _TYPE_METHODS.update(
 )
 
 
-def _snake(value: str) -> str:
+def _snake(value: str, *, escape_keywords: bool = True) -> str:
     value = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", value)
     value = re.sub(r"[^A-Za-z0-9_]+", "_", value).strip("_").lower()
     if not value:
         value = "value"
-    if value[0].isdigit() or keyword.iskeyword(value):
+    if value[0].isdigit() or (escape_keywords and keyword.iskeyword(value)):
         value = f"value_{value}"
     return value
 
@@ -142,7 +142,7 @@ def _enum(field: str, value: Any) -> Any:
 
 
 def _kw_name(name: str) -> str:
-    result = _snake(name)
+    result = _snake(name, escape_keywords=False)
     return f"{result}_" if keyword.iskeyword(result) else result
 
 
@@ -204,6 +204,7 @@ def _dsl_imports(body: str) -> str:
         "Golang",
         "HTTPMethodType",
         "HttpServer",
+        "InitializerGroup",
         "JoinStorageType",
         "JoinType",
         "KafkaSaslMechanism",
