@@ -1,5 +1,20 @@
 # MCP release check
 
+## Plugin 0.1.9: large-graph routing and shared endpoints
+
+This release selects Designer UI `0.1.4` and pins the MCP runtime to
+`194fa2e529ec94f69538781c6cd118db64f48f9f`, including validation support for
+multiple independent Sink streams sharing a compatible endpoint.
+
+The shared Designer includes full-graph route reuse across scoped navigation,
+local rerouting, read-only graph preparation, atomic external-edge snapshots,
+and routing-search optimizations. Routes, arrowheads and saved coordinates are
+preserved; no production time cutoff or direct-line shortcut is introduced.
+
+Keep the release PR in Draft until both `designer.js` and `designer.css` are
+published at `https://gorundebug.com/mcp-ui/0.1.4/`. Deploying only the beta
+website is insufficient. Existing plugin releases keep their prior asset URL.
+
 The Codex plugin does not install the MCP server from a moving branch. Its
 `.mcp.json` manifest references one immutable Git commit so every installation
 uses the same Python DSL, validation rules, resources, and tool contracts.

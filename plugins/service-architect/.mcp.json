@@ -3,11 +3,11 @@
     "service-architect": {
       "command": "uvx",
       "env": {
-        "SERVICE_ARCHITECT_DESIGNER_ASSET_BASE": "https://gorundebug.com/mcp-ui/0.1.3"
+        "SERVICE_ARCHITECT_DESIGNER_ASSET_BASE": "https://gorundebug.com/mcp-ui/0.1.4"
       },
       "args": [
         "--from",
-        "git+https://github.com/gorundebug/sa-python-dsl.git@0eb7078946d4bee3dddbe95d3d556f68251d7910",
+        "git+https://github.com/gorundebug/sa-python-dsl.git@194fa2e529ec94f69538781c6cd118db64f48f9f",
         "sa-dsl-mcp",
         "--workspace",
         "."
