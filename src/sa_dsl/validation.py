@@ -335,6 +335,9 @@ class Validator:
         self.validate_endpoint_contracts()
         self.validate_endpoint_usage()
         self.validate_functions()
+        from .type_usage_validation import validate_type_generation_contracts
+
+        validate_type_generation_contracts(self)
         self.validate_consumers_links_cycles()
         from .component_validation import validate_components
 
@@ -1343,11 +1346,12 @@ class Validator:
     def function(self, stream: Stream) -> tuple[str, str, bool, str] | None:
         if stream.endpoint:
             endpoint = stream.endpoint
+            properties = endpoint.function.to_properties()
             return (
                 endpoint.function_name,
-                _text(_prop(endpoint, "functionPackage")),
-                bool(_prop(endpoint, "publicFunction")),
-                _text(_prop(endpoint, "functionModule")),
+                _text(properties.get("functionPackage")),
+                bool(properties.get("publicFunction")),
+                _text(properties.get("functionModule")),
             )
         name = _text(_prop(stream, "functionName"))
         return (
@@ -1361,15 +1365,31 @@ class Validator:
             else None
         )
 
+    def function_error_contract(self, stream: Stream) -> str:
+        """Return the generated error type, including the implicit native error."""
+        if stream.type not in ERROR_OUTPUT_TYPES:
+            return "none"
+        consumers = self.error_consumers.get(stream.key, [])
+        if not consumers:
+            return "error"
+        wire = self.output_wire_type(consumers[0])
+        if wire is None:
+            return "unknown"
+        definition = self.project.types.get(wire[2])
+        if definition is not None and definition.type == "error" and not definition.properties.get("useAlias"):
+            return "error"
+        return repr(wire)
+
     def validate_functions(self) -> None:
+        from .endpoint_function_validation import validate_endpoint_function_ownership
+
+        validate_endpoint_function_ownership(self)
         generated: dict[tuple[str, str], tuple[str, str]] = {}
         signatures: dict[tuple[str, str, str], tuple[str, str]] = {}
-        processed_endpoints: set[str] = set()
         for stream in self.streams.values():
-            if stream.endpoint and stream.endpoint.key in processed_endpoints:
+            # Error is a passive result stream, not a generated business function.
+            if stream.type == "Error":
                 continue
-            if stream.endpoint:
-                processed_endpoints.add(stream.endpoint.key)
             function = self.function(stream)
             if not function:
                 continue
@@ -1416,7 +1436,10 @@ class Validator:
                 + _text(_prop(stream, "keyType"))
                 + ("@" + "@".join(map(str, source_wire)) if source_wire else "")
             )
-            declaration = (scope, package, name)
+            signature += "@operator=" + stream.type + "@error=" + self.function_error_contract(stream)
+            # Input and Sink endpoint handlers are different generated functions.
+            role_scope = scope + ":" + stream.type if stream.endpoint else scope
+            declaration = (role_scope, package, name)
             if declaration in signatures and signatures[declaration][0] != signature:
                 self.add(
                     TYPE_MISMATCH,
