@@ -188,8 +188,8 @@ class _ServiceGraph:
 
     def part(self, streams: Sequence[Stream]) -> _Part:
         ids = {id(stream) for stream in streams}
-        if not 1 <= len(ids) <= 64 or len(ids) != len(streams):
-            raise ValueError("A component fragment must contain 1 to 64 distinct streams")
+        if not ids or len(ids) != len(streams):
+            raise ValueError("A component fragment must contain distinct streams and cannot be empty")
         if not ids <= self.nodes.keys():
             raise ValueError("A component fragment references an unknown or foreign stream")
         reached: set[int] = set()
