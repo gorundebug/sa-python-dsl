@@ -173,7 +173,7 @@ class _ServiceGraph:
             error = target.type == "Error" or source.error_stream is target
             source_role = "error" if error else (
                 f"branch:{consumers[id(source)].index(id(target))}"
-                if source.type in ("Split", "Case") else "output"
+                if source.type == "Case" else "output"
             )
             target_role = "source" if target.source is source else (
                 f"sources:{next(i for i, item in enumerate(target.sources) if item is source)}"

@@ -129,7 +129,7 @@ def build() -> dict[str, JSONValue]:
         cases.append({"name": kind + "-ordered-ports", "valid": True,
                       "yaml": fixture.project.to_yaml()})
         fixture.swap_ports()
-        cases.append({"name": kind + "-swapped-ports", "valid": False,
+        cases.append({"name": kind + "-swapped-ports", "valid": kind == "split",
                       "yaml": yaml.safe_dump(mapping(json_value(fixture.project.to_document())), sort_keys=False)})
     return {"version": 1, "cases": cases}
 

@@ -64,6 +64,27 @@ class ComponentSemanticsTests(unittest.TestCase):
         fragments[1][1].source = None
         self.assertEqual(self.diagnostics(project)[0].code, "SA_COMPONENT_INVALID_FRAGMENT")
 
+    def test_split_consumer_order_is_not_a_component_contract(self) -> None:
+        from sa_dsl import Function, Package
+        from sa_dsl.component_validation import _ServiceGraph
+        from sa_dsl.validation import Validator
+
+        project, service, fragments = self.model()
+        branches: list[tuple[Stream, Stream, Stream]] = []
+        for load, price in fragments:
+            load.type = "Split"
+            load.function = None
+            for key in list(load.properties):
+                if key.startswith("function"):
+                    del load.properties[key]
+            other = load.pipeline.map(load.name + " Other", function=Function("Other", Package("pricing")), value_type=project.types["amount"], source=load)
+            price.source = load
+            branches.append((load, price, other))
+        pipeline = branches[1][0].pipeline
+        pipeline.streams = dict(reversed(list(pipeline.streams.items())))
+        graph = _ServiceGraph(service, Validator(project).output_wire_type)
+        self.assertTrue(_equivalent(graph.part(branches[0]), graph.part(branches[1]), _MatchBudget(500_000)))
+
     def test_direction_and_boundary_ports_are_not_ignored(self) -> None:
         project, _, fragments = self.model()
         load, price = fragments[1]
