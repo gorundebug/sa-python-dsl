@@ -624,8 +624,8 @@ class Component:
 
     def fragment(self, *streams: Stream, appearance: Appearance | None = None) -> None:
         """Add one concrete, non-overlapping repetition of this component."""
-        if not 1 <= len(streams) <= 64:
-            raise DslValidationError("A component fragment must contain between 1 and 64 streams")
+        if not streams:
+            raise DslValidationError("A component fragment must contain at least one stream")
         if appearance is not None and not isinstance(appearance, Appearance):
             raise DslValidationError("Fragment appearance must be an Appearance")
         if self.service.components.get(self.key) is not self:
