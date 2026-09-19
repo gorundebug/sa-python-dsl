@@ -5,7 +5,7 @@ from typing import Any, Mapping
 
 PATTERN_CATALOG: Mapping[str, dict[str, Any]] = {
     "index": {
-        "selectionRule": "Choose a recipe only after completing the intent model; recipes are starting constraints, not graph macros.",
+        "selectionRule": "Choose meaningful business-stage boundaries using servicegen://authoring/business-modeling before selecting a recipe. Recipes describe graph-visible semantics, not a requirement to expose internal calls or conditions.",
         "topics": [
             "kafka-processing",
             "iterable-worker-aggregation",
@@ -77,6 +77,15 @@ PATTERN_CATALOG: Mapping[str, dict[str, Any]] = {
 
 
 REVIEW_CHECKLIST = {
+    "businessAbstraction": [
+        "The graph reduces understanding and review context and states functional constraints; completeness is not coverage of all implementation code",
+        "Changes preserve explicit process contracts or identify authorized changes to those contracts; omitted internals are not permission to change behavior",
+        "Every node or branch exposes a meaningful business responsibility, outcome, or process-level execution contract, not merely a source-code statement",
+        "Technical conditions, helpers, waits, logging and storage details remain inside their owner unless independently meaningful",
+        "Independently meaningful stages are not hidden inside one oversized endpoint function",
+        "Shared business logic retains the same function identity and equivalent fragment regardless of external argument preparation",
+        "Operator examples are not treated as mandatory decompositions; components are not manufactured by over-fragmenting the model",
+    ],
     "identity": ["Names derive stable unique keys", "references use project-owned objects"],
     "types": ["Every edge has compatible value types", "KeyBy uses a comparable key type", "Join inputs share key type"],
     "boundaries": ["Input/Sink use the intended endpoint direction", "runtime credentials are not embedded", "disabled endpoints are intentional"],

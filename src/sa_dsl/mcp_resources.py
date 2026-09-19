@@ -33,7 +33,9 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
         },
         "overview": {
             "sourceOfTruth": "typed Python for Python-authored workspaces; canonical YAML is generated IR",
+            "modelingGuide": "servicegen://authoring/business-modeling",
             "rules": [
+                "Model meaningful business stages and process-level execution boundaries, not source-code AST or every condition and call.",
                 "Use concrete typed factories and object references.",
                 "Validate and review semantic changes before export or generation.",
                 "Preview generation before applying the immutable archive.",
@@ -42,7 +44,7 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
         },
         "operators": {
             "operators": [
-                "Input", "Map", "Filter", "FlatMap", "FlatMapIterable", "KeyBy",
+                "Input", "SubStream", "Map", "Filter", "FlatMap", "FlatMapIterable", "KeyBy",
                 "Join", "MultiJoin", "Merge", "Split", "Case", "When", "Process",
                 "Delay", "CycleLink", "Sink", "Error",
             ],
@@ -51,6 +53,29 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
                 "Join": "one primary and one additional keyed source",
                 "MultiJoin": "one primary and one or more additional keyed sources",
             },
+        },
+        "substreams": {
+            "purpose": "Declare a small service-local graph callable from business code without a transport endpoint.",
+            "language": "Go, Python, TypeScript, Rust, C++/Boost and C++/userver; requires matching runtime and generator versions.",
+            "languages": ["GoLang", "Python", "TypeScript", "Rust", "CppBoost", "CppUserver"],
+            "workflowLanguages": ["GoLang", "Python", "TypeScript"],
+            "api": "pipeline.substream(name, value_type=argument_type)",
+            "rules": [
+                "Connect the body through ordinary operators and bind its result producer with result >> entry.",
+                "The entry value_type describes the input argument; the result type comes from its result source.",
+                "A substream belongs to one service. It is not a connector, a visual component, or a copy of the graph per call.",
+                "Expose named typed service accessors; business functions can declare their own narrow dependency interfaces next to custom makers.",
+                "Do not require a function-to-substream dependency declaration in the model or a string-based runtime registry.",
+                "Use the owning language's typed Consume/consume method and collector interface or function adapter. The collector returns a boolean: false keeps receiving, true completes this call; context cancellation also ends the wait. Await asynchronous language APIs.",
+                "In Go, Consume(ctx, value, collector) accepts SubStreamCollector[R] with Out(context.Context, R) bool; SubStreamCollectorFunc[R] adapts a function. Python carries the caller context through ContextVars rather than an explicit ctx argument.",
+                "The existing source is the result producer. Do not add a ResultStream operator or a SubStream error output.",
+                "Late results are discarded. Completion does not wait for, cancel, or roll back the entire graph.",
+                "Existing operators, Join keys and storage, pools, and transports are reused unchanged. SubStream adds no automatic Join isolation.",
+                "Use a cancellable context or deadline when completion is not guaranteed; callbacks for one call are serialized.",
+                "Link call semantics determine scheduling. Consume does not automatically choose a worker pool or spawn a goroutine.",
+                "Business error branches stay inside the declared graph contract; do not treat every handled error as an invocation failure.",
+                "Do not extract every helper into a substream: preserve meaningful business-stage boundaries.",
+            ],
         },
         "transports": {
             "connectors": ["HTTP", "gRPC", "Kafka", "Custom", "Cron", "Temporal"],
@@ -204,6 +229,7 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
         },
         "boundaries": {
             "Input": "Admit messages from a concrete connector Endpoint.",
+            "SubStream": "Admit an in-process invocation from business code in its owning service, without a connector Endpoint.",
             "Sink": "Submit messages through a concrete connector Endpoint.",
             "HTTP": "GET or POST with a required path unique within the connector.",
             "gRPC": "Requires a contract Module and explicit unary/client/server/bidirectional streaming method; Sink usage also requires address.",
@@ -263,6 +289,38 @@ RESOURCE_CATALOG["authoring"].update(
     {
         "typed-api": build_typed_api_catalog(),
         "connector-capabilities": build_connector_capabilities(),
+        "business-modeling": {
+            "purpose": "Reduce the context needed to understand a system, simplify changes, accelerate review, and communicate explicit constraints on agent changes to functionality. The graph is not intended to represent or generate all application code.",
+            "rules": [
+                "Code generation is a supporting capability, not the graph's purpose or a measure of model completeness. Optimize for concise understanding, change impact, and reviewable behavioral contracts.",
+                "Preserve explicitly declared responsibilities, input/output contracts, business rules, outcomes, ordering, and failure/completion policies during edits. Distinguish requirements from assumptions and examples.",
+                "Record functional constraints using supported contracts and descriptions; do not invent DSL fields or claim that prose constraints are automatically enforced by validation.",
+                "Use the graph to locate affected stages and shared logic, then inspect the relevant implementation. Details omitted from the graph are neither missing coverage nor permission to alter existing behavior.",
+                "Keep implementation-only changes local when they preserve the process contract. Make constraint-changing impacts explicit and obtain authorization if they exceed agreed scope; never silently weaken constraints to accommodate code edits.",
+                "Update the graph for process-level behavior changes and review semantic impact on responsibilities, contracts, and outcomes, not source-statement coverage or generated-code volume.",
+                "Choose business-stage boundaries before selecting operators. A separate node needs an independently meaningful responsibility, outcome, or process-level execution contract.",
+                "Do not translate every function call, if, loop, goroutine, wait, conversion, SDK call, or storage operation into a graph node. These may remain inside one cohesive stage function.",
+                "Do not force either one node per source function or one function per endpoint. Preserve independently meaningful business stages without expanding their internals into AST.",
+                "Expose streaming, ordering, concurrency, completion, durability, and failure semantics when they matter to understanding or changing the process. Do not hide a boundary the user explicitly wants to control.",
+                "Case/When represents a business alternative, not every local condition. Split/Join represents graph-visible branches and completion, not every pair of internal concurrent calls.",
+                "Examples and operator recipes demonstrate capabilities, not mandatory decompositions. Two internal parallel calculations and result combination may belong in one business function.",
+                "Simple external calls, Kafka log publication, or database writes may be implementation details of a stage. Add transport operators only when exposing a real architectural boundary; do not invent an Input for an internal helper.",
+                "Expose errors that affect process continuation, fallback, compensation, or business outcomes. Locally handled technical errors need not have separate nodes.",
+                "After choosing graph-visible boundaries, honor their actual operator and transport contracts. Abstraction is not permission to invent ordering, drop completion events, or hide important outcomes.",
+                "Reuse the same function identity and equivalent meaningful fragment when business logic is shared. Different argument preparation outside a stage does not change that shared logic.",
+                "Discover components from actual repeated business logic; do not split stages merely to manufacture repeated fragments or increase component counts.",
+            ],
+            "reviewQuestions": [
+                "Does the graph provide enough compact context to understand this change and review its functional impact?",
+                "Which explicit functional constraints apply, and does the change preserve them or deliberately change them within authorized scope?",
+                "Have omitted implementation details been inspected where necessary rather than treated as unconstrained behavior?",
+                "What business purpose or independently important execution contract justifies each node and branch?",
+                "Would merging this technical step into its owner preserve the process contract and improve readability?",
+                "Are independently meaningful stages and outcome-changing decisions still visible?",
+                "Was an operator demonstration mistakenly treated as a universal modeling requirement?",
+            ],
+            "reviewResource": "servicegen://authoring/review-checklist",
+        },
         "review-checklist": REVIEW_CHECKLIST,
     }
 )
