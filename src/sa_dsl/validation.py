@@ -45,6 +45,7 @@ WORKLOADS = {"Deployment", "StatefulSet"}
 CONNECTOR_TYPES = {"HTTP", "gRPC", "Kafka", "Custom", "Cron", "Temporal"}
 STREAM_TYPES = {
     "Input",
+    "SubStream",
     "Map",
     "Filter",
     "Join",
@@ -124,6 +125,7 @@ JOIN_STORAGES = {"HashMap", "RocksDB", "Aerospike", 1, 2, 3}
 PROCESS_PATTERNS = {"Execute", "Collect", 1, 2}
 OUTPUT_TYPES = {
     "Input",
+    "SubStream",
     "Map",
     "Join",
     "MultiJoin",
@@ -332,6 +334,7 @@ class Validator:
         self.validate_modules_types_pools()
         self.validate_connectors()
         self.validate_streams()
+        self.validate_substreams()
         self.validate_endpoint_contracts()
         self.validate_endpoint_usage()
         self.validate_functions()
@@ -801,7 +804,7 @@ class Validator:
             dependencies = ([stream.source] if stream.source else []) + list(
                 stream.sources
             )
-            if stream.type not in {"Input", "Merge"} and stream.source is None:
+            if stream.type not in {"Input", "SubStream", "Merge"} and stream.source is None:
                 self.add(
                     MISSING_SOURCE,
                     "semantic",
@@ -984,6 +987,94 @@ class Validator:
                     stream.name,
                 )
             self.validate_connection_types(stream, path)
+
+    def validate_substreams(self) -> None:
+        for entry in self.streams.values():
+            if entry.type != "SubStream":
+                continue
+            path = self.stream_path(entry)
+            if entry.service.programming_language not in {"GoLang", "Python", "TypeScript", "Rust", "CppBoost", "CppUserver"}:
+                self.add(
+                    UNSUPPORTED, "capability",
+                    "SubStream requires a supported service language",
+                    path + ".type", "stream", entry.name,
+                    programmingLanguage=entry.service.programming_language,
+                )
+            if entry.endpoint is not None:
+                self.add(
+                    RANGE, "schema", "SubStream does not use a transport endpoint",
+                    path + ".endpoint", "stream", entry.name,
+                )
+            if entry.sources:
+                self.add(
+                    CARDINALITY, "semantic",
+                    "SubStream accepts one result source; combine multiple result producers explicitly",
+                    path + ".sources", "stream", entry.name,
+                    maximum=0, actual=len(entry.sources),
+                )
+            if entry.function is not None or _prop(entry, "functionName"):
+                self.add(
+                    RANGE, "schema",
+                    "SubStream is a callable graph entry, not an input business function",
+                    path + ".functionName", "stream", entry.name,
+                )
+            if len(self.normal_consumers[entry.key]) != 1:
+                self.add(
+                    CARDINALITY, "semantic",
+                    f"SubStream {entry.name!r} requires one body consumer; use Split for branching",
+                    path, "stream", entry.name, minimum=1, maximum=1,
+                    actual=len(self.normal_consumers[entry.key]),
+                )
+            result = entry.source
+            if result is None:
+                self.add(
+                    MISSING_SOURCE, "semantic",
+                    f"SubStream {entry.name!r} requires a result source",
+                    path + ".source", "stream", entry.name,
+                )
+                continue
+            if self.streams.get(result.key) is not result:
+                self.add(
+                    UNKNOWN_REFERENCE, "semantic",
+                    "SubStream result source is not part of this project",
+                    path + ".source", "stream", entry.name,
+                    reference=result.key,
+                )
+                continue
+            if result.service is not entry.service:
+                self.add(
+                    TYPE_MISMATCH, "semantic",
+                    "SubStream result source must belong to its service",
+                    path + ".source", "stream", entry.name,
+                )
+                continue
+
+            # The return edge terminates the invocation rather than re-entering
+            # the body. Follow error branches too: recovery can produce results.
+            reachable: set[str] = set()
+            pending = list(self.normal_consumers[entry.key])
+            while pending:
+                stream = pending.pop()
+                if stream is entry or stream.key in reachable:
+                    continue
+                reachable.add(stream.key)
+                if stream.service is not entry.service or stream.type in {"Input", "SubStream"}:
+                    self.add(
+                        TYPE_MISMATCH, "semantic",
+                        "SubStream body must stay in its service and return to its own entry",
+                        self.stream_path(stream), "stream", stream.name,
+                        substream=entry.key,
+                    )
+                    continue
+                pending.extend(self.normal_consumers[stream.key])
+                pending.extend(self.error_consumers[stream.key])
+            if result is entry or result.key not in reachable:
+                self.add(
+                    TYPE_MISMATCH, "semantic",
+                    "SubStream result source must be reachable from its body",
+                    path + ".source", "stream", entry.name,
+                    source=result.key,
+                )
 
     def stream_path(self, stream: Stream) -> str:
         return f"$.services.{stream.service.key}.pipelines.{stream.pipeline.key}.{stream.key}"
@@ -1573,7 +1664,7 @@ class Validator:
         adjacency: dict[str, list[str]] = defaultdict(list)
         for source, target in self.declared_edges:
             source_stream = self.streams[source]
-            if source_stream.type not in {"Input", "CycleLink"}:
+            if source_stream.type not in {"Input", "SubStream", "CycleLink"}:
                 adjacency[source].append(target)
         state: dict[str, int] = {}
 

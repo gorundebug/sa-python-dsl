@@ -126,6 +126,7 @@ class DataConnectorImplementation(str, Enum):
 
 class StreamType(str, Enum):
     INPUT = "Input"
+    SUBSTREAM = "SubStream"
     MAP = "Map"
     FILTER = "Filter"
     JOIN = "Join"
@@ -738,6 +739,28 @@ class Pipeline:
             value_type=value_type,
             source=source,
             sources=sources,
+            appearance=appearance,
+        )
+
+    def substream(
+        self,
+        name: str,
+        *,
+        value_type: TypeDefinition | DataType | str,
+        source: Stream | None = None,
+        appearance: Appearance | None = None,
+    ) -> Stream:
+        """Declare a service-local callable entry, without a transport endpoint.
+
+        Connect the body with ordinary stream edges. Its final result producer
+        connects back to this entry through ``source`` or ``result >> entry``.
+        The entry value_type describes the argument, not the returned values.
+        """
+        return self._stream(
+            name,
+            StreamType.SUBSTREAM,
+            value_type=value_type,
+            source=source,
             appearance=appearance,
         )
 

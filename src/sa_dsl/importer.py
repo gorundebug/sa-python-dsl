@@ -86,6 +86,7 @@ _ENUM_FIELDS = {
 
 _STREAM_METHODS = {
     "Input": "input",
+    "SubStream": "substream",
     "Map": "map",
     "Filter": "filter",
     "Join": "join",

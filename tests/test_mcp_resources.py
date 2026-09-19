@@ -15,6 +15,14 @@ from sa_dsl.mcp_server import (
 
 
 class McpResourcesTest(unittest.TestCase):
+    def test_substream_languages_and_workflow_limits_are_explicit(self) -> None:
+        resource = json.loads(catalog_resource("semantics", "substreams"))
+        self.assertEqual(
+            {"GoLang", "Python", "TypeScript", "Rust", "CppBoost", "CppUserver"},
+            set(resource["languages"]),
+        )
+        self.assertEqual({"GoLang", "Python", "TypeScript"}, set(resource["workflowLanguages"]))
+
     def test_catalog_resources_are_focused_and_versioned(self) -> None:
         operators = json.loads(catalog_resource("semantics", "operators"))
         self.assertEqual("1.0", operators["schemaVersion"])

@@ -367,3 +367,36 @@ pipeline files; persisted links and cross-pipeline connections are emitted in se
 
 The importer reconstructs the declarative graph. Python-only control flow, helper functions
 and abstractions from a previous Python source cannot be recovered from YAML.
+## Service-local SubStream
+
+SubStream exposes a reusable business graph to code in its owning service.
+It is supported by Go, Python, TypeScript, Rust, C++/userver and C++/Boost.
+Temporal workflows are supported only by Go, Python and TypeScript.
+
+```python
+from sa_dsl import Function, Golang, Project, ServiceModule
+
+project = Project("SubStream Example")
+service = project.service("Worker", language=Golang(),
+                          module=ServiceModule("example.com/substreams/worker"))
+text = project.string_type("Text")
+pipeline = service.pipeline("lookup")
+entry = pipeline.substream("Lookup", value_type=text)
+result = pipeline.map("Normalize", source=entry, value_type=text,
+                      function=Function("Normalize"))
+result >> entry
+```
+
+`value_type` describes the argument. `source` (or `result >> entry`) binds the
+result producer and determines the result type; the return relation is not a
+new invocation or an ordinary execution cycle. Use exactly one body consumer,
+with Split inside the body if needed. The result must be reachable in the same
+service. The entry has no business function, endpoint or extra error port.
+
+The generated service exposes a typed accessor; business makers can inject a
+narrow provider interface without declaring every call in the graph. A collector
+returns true when it has enough results; false keeps collecting. No message ID
+argument or copy of the graph is needed. Preserve runtime context, use deadlines
+for uncertain completion, and retain meaningful business boundaries rather than
+translating every code branch into a graph node. A visual component is not a
+callable SubStream and is not substituted for one during generation.

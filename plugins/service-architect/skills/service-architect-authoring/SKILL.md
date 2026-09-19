@@ -5,6 +5,19 @@ description: Create or modify Service Architect topology projects whose editable
 
 # Service Architect authoring
 
+The graph reduces the context needed to understand the system, change it, and
+review its behavior. It records explicit functional constraints for the agent;
+it is not intended to describe or generate all implementation code. Preserve
+those constraints during edits, and do not treat omitted internals as permission
+to change behavior. Code generation is a supporting capability.
+
+Before decomposing business logic, read
+`../service-architect-business-modeling/SKILL.md` and the MCP resource
+`servicegen://authoring/business-modeling`. Expose meaningful business stages
+and process-level execution boundaries, not every function call, condition,
+loop, or internal wait. Operator examples demonstrate capabilities, not a
+mandatory decomposition. One function may implement an entire cohesive stage.
+
 Start by calling `inspect_project` on the project root. Use its entrypoint and
 manifest metadata to locate the Python model. Do not execute project Python just
 to discover its structure.
@@ -20,8 +33,9 @@ Separate cardinality, topology, and invocation semantics. `FlatMap` or
 `FlatMapIterable` expands one value into multiple values. `Split` broadcasts
 each existing value to multiple graph consumers. `PriorityTaskPool` selects a
 priority worker queue, while `ParallelCall` dispatches each incoming message
-without a pool; neither operation expands a collection. Model each concern
-explicitly, then choose the call semantics for each existing graph edge.
+without a pool; neither operation expands a collection. For boundaries chosen
+to be graph-visible, model each concern explicitly, then choose the call
+semantics for each existing graph edge.
 
 Declare a graph edge before assigning specialized call metadata. First use
 `source >> target`, `target << source`, a factory `source`/`sources` argument, or

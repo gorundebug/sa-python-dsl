@@ -31,7 +31,7 @@ _ENUM_VALUES = {
         "Input": 1, "Map": 2, "Filter": 3, "Join": 4, "MultiJoin": 5,
         "Process": 6, "FlatMap": 7, "FlatMapIterable": 8, "KeyBy": 9,
         "Merge": 10, "Split": 11, "Case": 12, "Sink": 13, "CycleLink": 14,
-        "Error": 15, "Delay": 16, "When": 17,
+        "Error": 15, "Delay": 16, "When": 17, "SubStream": 18,
     },
     "callSemantics": {
         "Inherited": 1, "FunctionCall": 2, "TaskPool": 3,

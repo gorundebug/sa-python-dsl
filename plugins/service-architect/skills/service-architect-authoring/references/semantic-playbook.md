@@ -1,8 +1,12 @@
 # Semantic authoring playbook
 
 Use this playbook before creating or changing a non-trivial Service Architect
-topology. The goal is to translate business intent into explicit graph semantics
-instead of guessing an API from words in the prompt.
+topology. The graph reduces context for understanding the system, simplifies
+changes and review, and states explicit constraints on functional edits. It is
+not a specification of every implementation detail or a way to generate all code.
+Translate business intent into graph semantics at that level instead of guessing
+an API from words in the prompt. Preserve declared contracts during edits; inspect
+relevant implementation rather than assuming omitted behavior is unconstrained.
 
 Do not guess Python names or keyword arguments. Read
 `servicegen://authoring/typed-api` for signatures and
@@ -10,6 +14,20 @@ Do not guess Python names or keyword arguments. Read
 a target language. When a matching recipe exists in
 `servicegen://patterns/index`, use its decisions and anti-patterns as additional
 constraints, not as a graph macro.
+
+## 0. Choose business-stage boundaries, not AST nodes
+
+First read `servicegen://authoring/business-modeling`. Expose responsibilities
+that are useful to understand or change independently, and execution semantics
+that matter to the business process. Internal conditions, helper calls, waits,
+parallel calculations, and incidental storage/logging operations may stay inside
+one stage function. Do not make one node per source statement or one node per
+endpoint by default. Preserve all independently meaningful business stages.
+
+The recipes below describe how to implement a boundary already chosen for the
+graph. They are not a requirement to expose every implementation detail. A
+Split/KeyBy/Join example demonstrates operators; a cohesive business function
+may perform equivalent internal parallel work without exposing those operators.
 
 ## 1. Build an intent card
 
@@ -38,7 +56,7 @@ missing graph operator.
 
 ### Expansion, fan-out, and fan-in
 
-For "process every item in parallel":
+When item processing and aggregation are graph-visible business boundaries:
 
 1. Use `flat_map_iterable` when the incoming value is already an iterable, or
    `flat_map` when a Function must produce zero or more item values.
@@ -64,7 +82,8 @@ processing must wait for or combine keyed branch results.
 
 ### Conditional routing
 
-Use Case with ordered When streams for mutually selected branches. The Case
+For graph-visible business alternatives, use Case with ordered When streams.
+Local conditions inside a stage stay in its function. The Case
 Function returns the zero-based index of exactly one attached When. Document
 out-of-range/unmatched behavior and do not model a condition as multiple
 unconditional outgoing links.
@@ -134,7 +153,9 @@ topology needs fan-out plus a priority pool, model fan-out explicitly and use
 
 ## 4. Failure design
 
-Every failure-capable boundary needs an explicit decision:
+Every graph-visible failure-capable boundary needs an explicit decision.
+Expose failures affecting business continuation or outcomes; locally handled
+technical failures do not require separate Error streams:
 
 - Input, Process, and Sink can expose a dedicated error relationship. Connect
   the owner to an Error stream and then register `owner.on_error(error_stream)`.
