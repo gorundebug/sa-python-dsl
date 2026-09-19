@@ -898,10 +898,14 @@ def yaml_to_python_files(
                         variable,
                         pipeline_variable,
                         _STREAM_METHODS[stream_type],
-                        name,
+                        stream_key,
                         values,
                     )
                 )
+                # Labels may contain punctuation or change independently of keys.
+                # Reconstruct identity first, then restore the display name.
+                if name != stream_key:
+                    blocks.append(f"{variable}.name = {name!r}")
                 if error_stream is not None:
                     if error_stream not in stream_refs:
                         raise ValueError(f"Unknown error stream {error_stream!r}")
