@@ -276,11 +276,13 @@ def _key(value: str | None, name: str) -> str:
         if not name:
             raise DslValidationError(f"Cannot derive a key from {name!r}")
         value = re.sub(
-            r"[\s_-]+(.)",
-            lambda match: match.group(1).upper(),
+            r"[^A-Za-z0-9]+([A-Za-z0-9])?",
+            lambda match: match.group(1).upper() if match.group(1) else "",
             name,
         )
-        value = value[:1].lower() + value[1:]
+        value = value[:1].lower() + value[1:] or "item"
+        if value[0].isdigit():
+            value = "_" + value
     if not _IDENTIFIER.fullmatch(value):
         raise DslValidationError(
             f"{value!r} is not a valid graph key; use letters, digits and underscores, "
