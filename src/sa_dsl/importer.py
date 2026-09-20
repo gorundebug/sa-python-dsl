@@ -762,6 +762,15 @@ def yaml_to_python_files(
             service_body.append(_call(variable, service_variable, "component", group["name"], values))
         stream_refs: dict[str, tuple[str, str, str]] = {}
         declared_edges: set[tuple[str, str]] = set()
+        # Stream declarations must not shadow imported types, endpoints or pools.
+        # Allocate service-wide names because cross-pipeline connections import
+        # these declarations together into the service module.
+        reserved_variables = {"project", service_variable, *component_variables.values()}
+        for table in (writer.types, writer.modules, writer.packages, writer.pools,
+                      writer.connectors, writer.endpoints):
+            reserved_variables.update(variable for _, variable in table.values())
+        reserved_variables.update(f"{_snake(key)}_pipeline" for key in pipelines)
+        reserved_variables.update(f"_{_snake(key)}_pipeline" for key in pipelines)
         for pipeline_key, stream_items in pipelines.items():
             pipeline_variable = f"{_snake(pipeline_key)}_pipeline"
             pipeline_variables[pipeline_key] = pipeline_variable
@@ -769,10 +778,17 @@ def yaml_to_python_files(
                 f"{pipeline_variable} = {service_variable}.pipeline({pipeline_key!r})"
             )
             for stream_key in stream_items:
+                base = _snake(stream_key)
+                variable = base
+                suffix = 0
+                while variable in reserved_variables:
+                    suffix += 1
+                    variable = f"{base}_stream" + (str(suffix) if suffix > 1 else "")
+                reserved_variables.add(variable)
                 stream_refs[stream_key] = (
                     pipeline_key,
                     f"services.{service_variable}.pipelines.{_snake(pipeline_key)}",
-                    _snake(stream_key),
+                    variable,
                 )
 
         for stream_key, stream_item in (
@@ -795,7 +811,13 @@ def yaml_to_python_files(
                     f"Persisted link {edge[0]!r} -> {edge[1]!r} has no graph connection"
                 )
             semantics = link_values.get("callSemantics", CallSemantics.INHERITED.value)
-            if semantics in (CallSemantics.INHERITED.value, default_call_semantics):
+            if semantics == CallSemantics.INHERITED.value:
+                continue
+            if (
+                semantics == default_call_semantics
+                and link_values.get("async", False) is False
+                and set(link_values) <= {"callSemantics", "async"}
+            ):
                 continue
             non_default_links[edge] = link_values
 
@@ -893,15 +915,36 @@ def yaml_to_python_files(
                     )
                 values = _property_values(values)
                 variable = stream_refs[stream_key][2]
+                _key(stream_key, stream_key)
+                creation_name = stream_key
+                if _key(None, stream_key) != stream_key:
+                    # Factories derive camelCase keys from names. Use an unused
+                    # temporary identity before restoring the explicit YAML key;
+                    # foo_bar and fooBar may both legitimately be present.
+                    temporary_index = 0
+                    creation_name = f"importedStream{temporary_index}"
+                    while creation_name in stream_refs:
+                        temporary_index += 1
+                        creation_name = f"importedStream{temporary_index}"
                 blocks.append(
                     _call(
                         variable,
                         pipeline_variable,
                         _STREAM_METHODS[stream_type],
-                        name,
+                        creation_name,
                         values,
                     )
                 )
+                if creation_name != stream_key:
+                    blocks.extend([
+                        f"{pipeline_variable}.streams.pop({variable}.key)",
+                        f"{variable}.key = {stream_key!r}",
+                        f"{pipeline_variable}.streams[{variable}.key] = {variable}",
+                    ])
+                # Labels may contain punctuation or change independently of keys.
+                # Reconstruct identity first, then restore the display name.
+                if name != creation_name:
+                    blocks.append(f"{variable}.name = {name!r}")
                 if error_stream is not None:
                     if error_stream not in stream_refs:
                         raise ValueError(f"Unknown error stream {error_stream!r}")
