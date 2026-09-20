@@ -1,5 +1,14 @@
 # MCP release check
 
+## Plugin 0.1.13: identifier-safe graph keys
+
+The MCP runtime is pinned to `7597e363d2ef39fa7afa6dafbf87fd9994cde83c`.
+Automatically derived keys remove punctuation, use a leading underscore for
+numeric names, and retain strict validation for explicitly provided keys.
+The Designer wheel uses the same normalization and an updated cache hash.
+This does not migrate invalid keys in previously exported YAML documents.
+
+
 ## Plugin 0.1.12: YAML round-trip and passive Error validation
 
 The MCP runtime is pinned to `430dee7043c85a95dd705d5a2a8e26f5ad8624d8`.
