@@ -1,5 +1,17 @@
 # MCP release check
 
+## Plugin 0.1.12: YAML round-trip and passive Error validation
+
+The MCP runtime is pinned to `430dee7043c85a95dd705d5a2a8e26f5ad8624d8`.
+This revision preserves stream keys independently of display labels, avoids
+Python symbol collisions, and rejects functions on passive Error streams.
+Redundant synchronous links matching service defaults remain omitted.
+
+The Designer wheel must be rebuilt from this runtime revision and its worker
+URL content hash updated to invalidate browser caches. The Python distribution
+version remains `0.1.0`; the plugin version is `0.1.12`. Designer UI assets
+remain at `https://gorundebug.com/mcp-ui/0.1.5`.
+
 ## Plugin 0.1.9: large-graph routing and shared endpoints
 
 This release selects Designer UI `0.1.4` and pins the MCP runtime to
