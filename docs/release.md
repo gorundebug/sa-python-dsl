@@ -1,5 +1,13 @@
 # MCP release check
 
+## Plugin 0.1.15: Error node borders
+
+This UI-only release selects Designer assets at
+`https://gorundebug.com/mcp-ui/0.1.7`. Error nodes use dark-red borders when
+unselected and bright-red borders when selected, in both VisNetwork and VueFlow.
+The MCP runtime commit and Python wheel are unchanged. Keep the release PR in Draft
+until both `designer.js` and `designer.css` are published on the production domain.
+
 ## Plugin 0.1.13: identifier-safe graph keys
 
 The MCP runtime is pinned to `7597e363d2ef39fa7afa6dafbf87fd9994cde83c`.
