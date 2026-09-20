@@ -921,6 +921,20 @@ class Validator:
                     stream.name,
                     transformationType=stream.type,
                 )
+            if stream.type == "Error" and (
+                stream.function is not None or _prop(stream, "functionName")
+            ):
+                self.add(
+                    RANGE,
+                    "schema",
+                    f"Error stream {stream.name!r} is a passive error output and cannot "
+                    "execute a function; move the conversion into a following Map stream",
+                    path + ".functionName",
+                    "stream",
+                    stream.name,
+                    transformationType=stream.type,
+                    field="functionName",
+                )
             if stream.type in FUNCTION_TYPES or (
                 stream.type == "Input" and stream.endpoint is None
             ):
