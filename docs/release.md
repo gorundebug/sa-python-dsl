@@ -1,5 +1,17 @@
 # MCP release check
 
+## Plugin 0.1.17: Designer link selection
+
+This UI-only release selects Designer assets at
+`https://gorundebug.com/mcp-ui/0.1.8`. The shared graph renderer preserves
+explicit routed-edge selection and the configured highlight color, including
+red error connections. The website Links page keeps single-edge selection
+available even when build mode is enabled.
+
+The MCP runtime commit and Python wheel are unchanged. Keep this release PR
+in Draft until both `designer.js` and `designer.css` are published on the
+production domain from the corresponding Designer release.
+
 ## Plugin 0.1.16: complete HTTP method support
 
 The MCP runtime is pinned to `d06719b425952f00d72a506023824ea0ec0261fb`.
