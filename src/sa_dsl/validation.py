@@ -119,7 +119,7 @@ GRPC_METHODS = {
     4,
     5,
 }
-HTTP_METHODS = {"GET", "POST"}
+HTTP_METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "CONNECT"}
 JOIN_TYPES = {"Inner", "Left", "Right", "Outer", 1, 2, 3, 4}
 JOIN_STORAGES = {"HashMap", "RocksDB", "Aerospike", 1, 2, 3}
 PROCESS_PATTERNS = {"Execute", "Collect", 1, 2}
