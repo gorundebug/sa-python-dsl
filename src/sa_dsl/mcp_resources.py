@@ -231,7 +231,7 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
             "Input": "Admit messages from a concrete connector Endpoint.",
             "SubStream": "Admit an in-process invocation from business code in its owning service, without a connector Endpoint.",
             "Sink": "Submit messages through a concrete connector Endpoint.",
-            "HTTP": "GET or POST with a required path unique within the connector.",
+            "HTTP": "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE or CONNECT with a required path; method and path must be unique within the connector.",
             "gRPC": "Requires a contract Module and explicit unary/client/server/bidirectional streaming method; Sink usage also requires address.",
             "Kafka": "Requires brokers and topic; Input usage also requires consumer group; credentials are runtime-only.",
             "disabledEndpoint": "Remains in the graph but does not start its transport or scheduler integration.",

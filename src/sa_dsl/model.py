@@ -156,6 +156,13 @@ class CallSemantics(str, Enum):
 class HTTPMethodType(str, Enum):
     GET = "GET"
     POST = "POST"
+    PUT = "PUT"
+    PATCH = "PATCH"
+    DELETE = "DELETE"
+    HEAD = "HEAD"
+    OPTIONS = "OPTIONS"
+    TRACE = "TRACE"
+    CONNECT = "CONNECT"
 
 
 class GrpcMethodType(str, Enum):
@@ -1102,6 +1109,27 @@ class HttpConnector(Connector):
 
     def post(self, name: str, *, function: Function, path: str, tracing_enabled: bool | None = None) -> Endpoint:
         return self._route(name, function=function, method=HTTPMethodType.POST, path=path, tracing_enabled=tracing_enabled)
+
+    def put(self, name: str, *, function: Function, path: str, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._route(name, function=function, method=HTTPMethodType.PUT, path=path, tracing_enabled=tracing_enabled)
+
+    def patch(self, name: str, *, function: Function, path: str, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._route(name, function=function, method=HTTPMethodType.PATCH, path=path, tracing_enabled=tracing_enabled)
+
+    def delete(self, name: str, *, function: Function, path: str, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._route(name, function=function, method=HTTPMethodType.DELETE, path=path, tracing_enabled=tracing_enabled)
+
+    def head(self, name: str, *, function: Function, path: str, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._route(name, function=function, method=HTTPMethodType.HEAD, path=path, tracing_enabled=tracing_enabled)
+
+    def options(self, name: str, *, function: Function, path: str, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._route(name, function=function, method=HTTPMethodType.OPTIONS, path=path, tracing_enabled=tracing_enabled)
+
+    def trace(self, name: str, *, function: Function, path: str, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._route(name, function=function, method=HTTPMethodType.TRACE, path=path, tracing_enabled=tracing_enabled)
+
+    def connect(self, name: str, *, function: Function, path: str, tracing_enabled: bool | None = None) -> Endpoint:
+        return self._route(name, function=function, method=HTTPMethodType.CONNECT, path=path, tracing_enabled=tracing_enabled)
 
 
 class GrpcConnector(Connector):

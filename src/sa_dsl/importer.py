@@ -567,9 +567,7 @@ def yaml_to_python_files(
             if function is not None:
                 endpoint_values["function"] = function
             if connector_type == "HTTP":
-                method = {"GET": "get", "POST": "post"}[
-                    endpoint_values.pop("httpMethodType")
-                ]
+                method = HTTPMethodType(endpoint_values.pop("httpMethodType")).value.lower()
             elif connector_type == "gRPC":
                 method = {
                     "NoStreaming": "unary_method",
