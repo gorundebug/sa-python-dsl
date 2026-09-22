@@ -3,7 +3,7 @@
     "service-architect": {
       "command": "uvx",
       "env": {
-        "SERVICE_ARCHITECT_DESIGNER_ASSET_BASE": "https://gorundebug.com/mcp-ui/0.1.8"
+        "SERVICE_ARCHITECT_DESIGNER_ASSET_BASE": "https://gorundebug.com/mcp-ui/0.1.9"
       },
       "args": [
         "--from",

@@ -1,5 +1,17 @@
 # MCP release check
 
+## Plugin 0.1.18: complete error-path highlighting
+
+This UI-only release selects Designer assets at
+`https://gorundebug.com/mcp-ui/0.1.9`. Both graph renderers color the complete
+error-only path red until ordinary flow joins it. Only edges entering Error
+nodes are dashed; subsequent error-path edges are solid. Selected error edges
+remain bright red. Topology edits recompute downstream path colors.
+
+The MCP runtime commit and Python wheel are unchanged. Keep this release PR
+in Draft until both `designer.js` and `designer.css` are published on the
+production domain from Designer MR 137.
+
 ## Plugin 0.1.17: Designer link selection
 
 This UI-only release selects Designer assets at
