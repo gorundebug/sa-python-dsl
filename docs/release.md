@@ -1,5 +1,15 @@
 # MCP release check
 
+## Plugin 0.1.16: complete HTTP method support
+
+The MCP runtime is pinned to `d06719b425952f00d72a506023824ea0ec0261fb`.
+The typed model, validation, MCP guidance and YAML importer support GET, POST,
+PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE and CONNECT.
+The Designer wheel is rebuilt from the same source revision, with a new
+content hash in its worker URL. The Python distribution remains `0.1.0`;
+the plugin is `0.1.16`. Embedded Designer assets remain at `0.1.7`.
+
+
 ## Plugin 0.1.15: Error node borders
 
 This UI-only release selects Designer assets at
