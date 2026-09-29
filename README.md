@@ -66,7 +66,7 @@ The same product topology is generated for multiple target runtimes:
 | --- | --- |
 | Go | [gorundebug/goexample](https://github.com/gorundebug/goexample) |
 | C++ userver | [gorundebug/cppexample](https://github.com/gorundebug/cppexample) |
-| C++ Boost | [gorundebug/cppboostexample](https://github.com/gorundebug/cppboostexample) |
+| C++ Coro (epoll/io_uring) | [gorundebug/cppcoroexample](https://github.com/gorundebug/cppcoroexample) |
 | Python | [gorundebug/pyexample](https://github.com/gorundebug/pyexample) |
 | Rust | [gorundebug/rustexample](https://github.com/gorundebug/rustexample) |
 | TypeScript | [gorundebug/tsexample](https://github.com/gorundebug/tsexample) |
@@ -75,7 +75,7 @@ Related runtime libraries:
 
 - [Go ServiceLib](https://github.com/gorundebug/servicelib)
 - [C++ userver ServiceLib](https://github.com/gorundebug/cppservicelib)
-- [C++ Boost ServiceLib](https://github.com/gorundebug/cppboostservicelib)
+- [C++ Coro ServiceLib](https://github.com/gorundebug/cppcoroservicelib)
 - [Python ServiceLib](https://github.com/gorundebug/pyservicelib)
 - [Rust ServiceLib](https://github.com/gorundebug/rustservicelib)
 - [TypeScript ServiceLib](https://github.com/gorundebug/tsservicelib)

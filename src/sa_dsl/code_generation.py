@@ -39,7 +39,7 @@ _ENUM_VALUES = {
     },
     "programmingLanguage": {
         "GoLang": 1, "CppUserver": 2, "Python": 3, "Rust": 4,
-        "CppBoost": 5, "TypeScript": 6,
+        "TypeScript": 6, "CppCoro": 7,
     },
     "connectorType": {"HTTP": 1, "gRPC": 2, "Kafka": 3, "Custom": 4, "Cron": 5, "Temporal": 6},
     "joinType": {"Inner": 1, "Left": 2, "Right": 3, "Outer": 4},
@@ -143,6 +143,9 @@ def _enum(group: str, value: Any) -> Any:
 
 def to_api_document(document: Mapping[str, Any]) -> dict[str, Any]:
     """Convert the symbolic YAML document to the designer's flat JSON API model."""
+    from .retired_backends import require_supported_backends
+
+    require_supported_backends(document)
     document = _json_compatible(document)
     stream_ids: dict[str, int] = {}
     endpoint_ids: dict[str, int] = {}
@@ -326,6 +329,23 @@ def _error_message(payload: Any) -> str:
     return "Service Architect code generation failed"
 
 
+def generation_build_options(
+    cpp_graph: str | None, cpp_io_backend: str | None,
+) -> dict[str, str]:
+    """Validated build choices; these must not become graph/model properties."""
+    result: dict[str, str] = {}
+    for key, value, allowed in (
+        ("cpp_graph", cpp_graph, ("typed", "dynamic")),
+        ("cpp_io_backend", cpp_io_backend, ("epoll", "uring")),
+    ):
+        if value is None:
+            continue
+        if value not in allowed:
+            raise ValueError(f"{key} must be one of {', '.join(allowed)}")
+        result[key] = value
+    return result
+
+
 class ServiceArchitectClient:
     def __init__(
         self,
@@ -385,7 +405,15 @@ class ServiceArchitectClient:
             ).authenticate()
         return self.id_token
 
-    def generate_code(self, project: Any) -> GeneratedProjectArchive:
+    def generate_code(
+        self, project: Any, *, cpp_graph: str | None = None, cpp_io_backend: str | None = None,
+    ) -> GeneratedProjectArchive:
+        choices = generation_build_options(cpp_graph, cpp_io_backend)
+        query = urllib.parse.urlencode({
+            {"cpp_graph": "cppGraph", "cpp_io_backend": "cppIoBackend"}[key]: value
+            for key, value in choices.items()
+        })
+        suffix = "?" + query if query else ""
         if not callable(getattr(project, "to_yaml", None)):
             raise TypeError("project must provide to_yaml()")
         from .component_document_validation import require_canonical_components
@@ -394,12 +422,12 @@ class ServiceArchitectClient:
         require_canonical_components(canonical)
         document = generation_document(to_api_document(canonical))
         if self.api_key is not None:
-            return self._generate_async(document)
-        return self._generate_legacy(document)
+            return self._generate_async(document, suffix)
+        return self._generate_legacy(document, suffix)
 
-    def _generate_async(self, document: Mapping[str, Any]) -> GeneratedProjectArchive:
+    def _generate_async(self, document: Mapping[str, Any], query: str = "") -> GeneratedProjectArchive:
         submitted = self._json_request(
-            f"{self.base_url}{GENERATION_JOBS_PATH}",
+            f"{self.base_url}{GENERATION_JOBS_PATH}{query}",
             method="POST",
             data=json.dumps(document).encode("utf-8"),
             headers={
@@ -520,9 +548,9 @@ class ServiceArchitectClient:
             )
         return content, status_code, response_headers
 
-    def _generate_legacy(self, document: Mapping[str, Any]) -> GeneratedProjectArchive:
+    def _generate_legacy(self, document: Mapping[str, Any], query: str = "") -> GeneratedProjectArchive:
         request = urllib.request.Request(
-            f"{self.base_url}{GENERATE_CODE_PATH}",
+            f"{self.base_url}{GENERATE_CODE_PATH}{query}",
             data=json.dumps(document).encode("utf-8"),
             headers={
                 "Accept": "application/json, application/zip",

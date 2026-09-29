@@ -90,6 +90,8 @@ def main() -> None:
         default=".env",
         help="Workspace-relative credentials file",
     )
+    generate.add_argument("--cpp-graph", choices=("typed", "dynamic"), help="C++ graph typing (default: typed)")
+    generate.add_argument("--cpp-io-backend", choices=("epoll", "uring"), help="Coro build backend (default: epoll)")
     generate.add_argument("--format", choices=("human", "json"), default="human")
 
     build = subparsers.add_parser("build", help="Validate a Python graph and emit YAML")
@@ -211,7 +213,8 @@ def main() -> None:
             _print_operation_failure("generate", error, args.format)
             raise SystemExit(2)
         result = generate_project_archive(
-            manifest, output=args.output, env_file=args.env_file
+            manifest, output=args.output, env_file=args.env_file,
+            cpp_graph=args.cpp_graph, cpp_io_backend=args.cpp_io_backend
         )
         if args.format == "json":
             print(json.dumps(result.to_payload(), indent=2))

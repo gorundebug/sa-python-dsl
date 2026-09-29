@@ -2,7 +2,7 @@ import unittest
 
 import yaml
 
-from sa_dsl import CppBoost, CppUserver, Function, Golang, Project, Python, Rust, ServiceModule, TypeScript
+from sa_dsl import CppCoro, CppUserver, Function, Golang, Project, Python, Rust, ServiceModule, TypeScript
 from sa_dsl.browser import python_files_to_yaml
 from sa_dsl.importer import yaml_to_python_files
 
@@ -20,7 +20,7 @@ def fixture():
 
 class SubStreamTest(unittest.TestCase):
     def test_all_languages_validate_and_round_trip(self) -> None:
-        for language in (Golang(), Python(), TypeScript(), Rust(), CppBoost(), CppUserver()):
+        for language in (Golang(), Python(), TypeScript(), Rust(), CppCoro(), CppUserver()):
             with self.subTest(language=language.programming_language):
                 project = Project("Portable SubStream")
                 service = project.service(

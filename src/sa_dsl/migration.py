@@ -14,7 +14,7 @@ from .manifest import MANIFEST_RELATIVE_PATH
 _LANGUAGE_TARGETS = {
     "GoLang": "go",
     "CppUserver": "cpp-userver",
-    "CppBoost": "cpp-boost",
+    "CppCoro": "cpp-coro",
     "Python": "python",
     "Rust": "rust",
     "TypeScript": "typescript",
@@ -22,8 +22,8 @@ _LANGUAGE_TARGETS = {
     2: "cpp-userver",
     3: "python",
     4: "rust",
-    5: "cpp-boost",
     6: "typescript",
+    7: "cpp-coro",
 }
 
 
@@ -78,6 +78,9 @@ def import_yaml_project(
         if not isinstance(project_name, str) or not project_name.strip():
             raise ValueError("settings.name must be a non-empty string")
 
+        from .retired_backends import require_supported_backends
+
+        require_supported_backends(document)
         targets = _generation_targets(document)
         entrypoint_path = yaml_to_python_project(document, output_path)
         entrypoint_module = ".".join(

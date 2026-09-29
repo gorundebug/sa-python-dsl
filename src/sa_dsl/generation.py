@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from .code_generation import CodeGenerationError, ServiceArchitectClient
+from .code_generation import CodeGenerationError, ServiceArchitectClient, generation_build_options
 from .execution import execute_project
 from .manifest import ProjectManifest
 
@@ -46,6 +46,8 @@ def generate_project_archive(
     *,
     output: str | None = None,
     env_file: str = ".env",
+    cpp_graph: str | None = None,
+    cpp_io_backend: str | None = None,
 ) -> GenerationResult:
     exported = execute_project(manifest, "export")
     if not exported.succeeded:
@@ -65,7 +67,10 @@ def generate_project_archive(
     try:
         environment_path = _workspace_path(manifest.workspace, env_file)
         client = ServiceArchitectClient.from_env(environment_path)
-        archive = client.generate_code(_CanonicalProject(exported.rendered_yaml))
+        archive = client.generate_code(
+            _CanonicalProject(exported.rendered_yaml),
+            **generation_build_options(cpp_graph, cpp_io_backend),
+        )
         relative_output = output or f"dist/{archive.filename}"
         destination = _workspace_path(manifest.workspace, relative_output)
         destination.parent.mkdir(parents=True, exist_ok=True)

@@ -12,7 +12,7 @@ connector_order_events = project.kafka_connector(
     'Order Events',
     go_implementation=DataConnectorImplementation.IBM_SARAMA,
     cpp_userver_implementation=DataConnectorImplementation.USERVER_KAFKA,
-    cpp_boost_implementation=DataConnectorImplementation.LIBRDKAFKA,
+    cpp_coro_implementation=DataConnectorImplementation.LIBRDKAFKA,
     python_implementation=DataConnectorImplementation.AIOKAFKA,
     rust_implementation=DataConnectorImplementation.RUST_RDKAFKA,
     type_script_implementation=DataConnectorImplementation.CONFLUENT_KAFKA_JAVASCRIPT,

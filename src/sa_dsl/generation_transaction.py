@@ -15,7 +15,7 @@ from typing import Any, Callable
 
 import yaml
 
-from .code_generation import CodeGenerationError, GeneratedProjectArchive, ServiceArchitectClient
+from .code_generation import CodeGenerationError, GeneratedProjectArchive, ServiceArchitectClient, generation_build_options
 from .execution import execute_project
 from .manifest import ProjectManifest
 from .semantic_diff import document_revision
@@ -61,6 +61,8 @@ def preview_generation_transaction(
     *,
     env_file: str = ".env",
     remove_stale: bool = False,
+    cpp_graph: str | None = None,
+    cpp_io_backend: str | None = None,
     client_factory: Callable[[Path], ServiceArchitectClient] = ServiceArchitectClient.from_env,
     now: Callable[[], float] = time.time,
 ) -> dict[str, Any]:
@@ -81,7 +83,8 @@ def preview_generation_transaction(
     try:
         environment_path = _workspace_path(manifest.workspace, env_file)
         archive = client_factory(environment_path).generate_code(
-            _CanonicalProject(exported.rendered_yaml)
+            _CanonicalProject(exported.rendered_yaml),
+            **generation_build_options(cpp_graph, cpp_io_backend),
         )
         workspace_revision = _workspace_revision(manifest.workspace)
         canonical_document = yaml.safe_load(exported.rendered_yaml)
@@ -126,6 +129,7 @@ def preview_generation_transaction(
                 "archiveRevision": archive_revision,
                 "archiveFilename": archive.filename,
                 "removeStale": remove_stale,
+                "buildOptions": generation_build_options(cpp_graph, cpp_io_backend),
             }
             metadata["previewRevision"] = _json_revision(metadata)
             preview_directory = _preview_directory(manifest.workspace, preview_id)

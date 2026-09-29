@@ -18,7 +18,7 @@ class McpResourcesTest(unittest.TestCase):
     def test_substream_languages_and_workflow_limits_are_explicit(self) -> None:
         resource = json.loads(catalog_resource("semantics", "substreams"))
         self.assertEqual(
-            {"GoLang", "Python", "TypeScript", "Rust", "CppBoost", "CppUserver"},
+            {"GoLang", "Python", "TypeScript", "Rust", "CppCoro", "CppUserver"},
             set(resource["languages"]),
         )
         self.assertEqual({"GoLang", "Python", "TypeScript"}, set(resource["workflowLanguages"]))

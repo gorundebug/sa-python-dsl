@@ -7,7 +7,7 @@ connector_inventory_service_api = project.grpc_connector(
     'Inventory Service API',
     go_implementation=DataConnectorImplementation.GOOGLE_GRPC,
     cpp_userver_implementation=DataConnectorImplementation.USERVER_GRPC,
-    cpp_boost_implementation=DataConnectorImplementation.ASIO_GRPC,
+    cpp_coro_implementation=DataConnectorImplementation.GOOGLE_GRPC,
     python_implementation=DataConnectorImplementation.GOOGLE_GRPC,
     rust_implementation=DataConnectorImplementation.RUST_TONIC,
     type_script_implementation=DataConnectorImplementation.GRPC_JS,

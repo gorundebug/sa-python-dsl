@@ -58,8 +58,8 @@ class ProgrammingLanguage(str, Enum):
     CPP_USERVER = "CppUserver"
     PYTHON = "Python"
     RUST = "Rust"
-    CPP_BOOST = "CppBoost"
     TYPESCRIPT = "TypeScript"
+    CPP_CORO = "CppCoro"
 
 
 class Environment(str, Enum):
@@ -402,8 +402,8 @@ class CppUserver(ServiceLanguage):
 
 
 @dataclass(frozen=True, slots=True)
-class CppBoost(ServiceLanguage):
-    programming_language = ProgrammingLanguage.CPP_BOOST
+class CppCoro(ServiceLanguage):
+    programming_language = ProgrammingLanguage.CPP_CORO
 
 
 @dataclass(frozen=True, slots=True)
@@ -2130,12 +2130,15 @@ class Project:
         implementation: DataConnectorImplementation | None = None,
         go_implementation: DataConnectorImplementation | None = None,
         cpp_userver_implementation: DataConnectorImplementation | None = None,
-        cpp_boost_implementation: DataConnectorImplementation | None = None,
+        cpp_coro_implementation: DataConnectorImplementation | None = None,
         python_implementation: DataConnectorImplementation | None = None,
         rust_implementation: DataConnectorImplementation | None = None,
         type_script_implementation: DataConnectorImplementation | None = None,
         **properties: Any,
     ) -> Connector:
+        if "cpp_boost_implementation" in properties or "cppBoostImplementation" in properties:
+            from .retired_backends import CPP_BOOST_RETIREMENT
+            raise DslValidationError(CPP_BOOST_RETIREMENT)
         if module is not None and not isinstance(module, Module):
             raise DslValidationError("Connector.module must be a Module or None")
         connector_key = _key(None, name)
@@ -2149,7 +2152,7 @@ class Project:
                     "implementation": implementation,
                     "go_implementation": go_implementation,
                     "cpp_userver_implementation": cpp_userver_implementation,
-                    "cpp_boost_implementation": cpp_boost_implementation,
+                    "cpp_coro_implementation": cpp_coro_implementation,
                     "python_implementation": python_implementation,
                     "rust_implementation": rust_implementation,
                     "type_script_implementation": type_script_implementation,
@@ -2173,7 +2176,7 @@ class Project:
         cpp_userver_implementation: (
             DataConnectorImplementation | None
         ) = DataConnectorImplementation.USERVER_HTTP,
-        cpp_boost_implementation: (
+        cpp_coro_implementation: (
             DataConnectorImplementation | None
         ) = DataConnectorImplementation.BOOST_BEAST_HTTP,
         python_implementation: (
@@ -2196,7 +2199,7 @@ class Project:
             use_dedicated_listener=use_dedicated_listener,
             go_implementation=go_implementation,
             cpp_userver_implementation=cpp_userver_implementation,
-            cpp_boost_implementation=cpp_boost_implementation,
+            cpp_coro_implementation=cpp_coro_implementation,
             python_implementation=python_implementation,
             rust_implementation=rust_implementation,
             type_script_implementation=type_script_implementation,
@@ -2215,10 +2218,10 @@ class Project:
         ) = DataConnectorImplementation.GOOGLE_GRPC,
         cpp_userver_implementation: (
             DataConnectorImplementation | None
-        ) = DataConnectorImplementation.USERVER_GRPC,
-        cpp_boost_implementation: (
+        ) = DataConnectorImplementation.GOOGLE_GRPC,
+        cpp_coro_implementation: (
             DataConnectorImplementation | None
-        ) = DataConnectorImplementation.ASIO_GRPC,
+        ) = DataConnectorImplementation.GOOGLE_GRPC,
         python_implementation: (
             DataConnectorImplementation | None
         ) = DataConnectorImplementation.GOOGLE_GRPC,
@@ -2239,7 +2242,7 @@ class Project:
             connections_count=connections_count,
             go_implementation=go_implementation,
             cpp_userver_implementation=cpp_userver_implementation,
-            cpp_boost_implementation=cpp_boost_implementation,
+            cpp_coro_implementation=cpp_coro_implementation,
             python_implementation=python_implementation,
             rust_implementation=rust_implementation,
             type_script_implementation=type_script_implementation,
@@ -2259,7 +2262,7 @@ class Project:
         cpp_userver_implementation: (
             DataConnectorImplementation | None
         ) = DataConnectorImplementation.USERVER_KAFKA,
-        cpp_boost_implementation: (
+        cpp_coro_implementation: (
             DataConnectorImplementation | None
         ) = DataConnectorImplementation.LIBRDKAFKA,
         python_implementation: (
@@ -2286,7 +2289,7 @@ class Project:
             **(security.to_properties() if security else {}),
             go_implementation=go_implementation,
             cpp_userver_implementation=cpp_userver_implementation,
-            cpp_boost_implementation=cpp_boost_implementation,
+            cpp_coro_implementation=cpp_coro_implementation,
             python_implementation=python_implementation,
             rust_implementation=rust_implementation,
             type_script_implementation=type_script_implementation,
@@ -2302,7 +2305,7 @@ class Project:
         cpp_userver_implementation: (
             DataConnectorImplementation | None
         ) = DataConnectorImplementation.CPP_LIBCRON,
-        cpp_boost_implementation: (
+        cpp_coro_implementation: (
             DataConnectorImplementation | None
         ) = DataConnectorImplementation.CPP_LIBCRON,
         python_implementation: (
@@ -2321,7 +2324,7 @@ class Project:
             connector_class=CronConnector,
             go_implementation=go_implementation,
             cpp_userver_implementation=cpp_userver_implementation,
-            cpp_boost_implementation=cpp_boost_implementation,
+            cpp_coro_implementation=cpp_coro_implementation,
             python_implementation=python_implementation,
             rust_implementation=rust_implementation,
             type_script_implementation=type_script_implementation,
@@ -2400,7 +2403,7 @@ class Project:
     ) -> Service:
         if not isinstance(language, ServiceLanguage):
             raise DslValidationError(
-                "Service language must be Golang, CppUserver, CppBoost, Python, Rust, or TypeScript"
+                "Service language must be Golang, CppUserver, CppCoro, Python, Rust, or TypeScript"
             )
         if not isinstance(module, ServiceModule):
             raise DslValidationError("Service module must be a ServiceModule")
@@ -2555,6 +2558,8 @@ class Project:
         env_file: str = ".env",
         base_url: str | None = None,
         timeout: float = 120,
+        cpp_graph: str | None = None,
+        cpp_io_backend: str | None = None,
     ):
         from .code_generation import ServiceArchitectClient
 
@@ -2565,7 +2570,7 @@ class Project:
             password=password,
             base_url=base_url,
             timeout=timeout,
-        ).generate_code(self)
+        ).generate_code(self, cpp_graph=cpp_graph, cpp_io_backend=cpp_io_backend)
 
     def write_yaml(self, path: str | Path) -> Path:
         destination = Path(path)

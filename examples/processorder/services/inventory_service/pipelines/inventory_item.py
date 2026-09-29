@@ -9,6 +9,7 @@ from processorder.packages.inventory_item import inventory_item_package
 from processorder.pools.inventory_priority_workers import inventory_priority_workers
 from processorder.services.inventory_service.service import inventory_item_pipeline
 from processorder.services.inventory_service.service import inventory_service
+from processorder.types.inventory_failure import inventory_failure
 from processorder.types.order_item import order_item
 from processorder.types.order_item_result import order_item_result
 
@@ -38,6 +39,12 @@ merge_inventory_result = inventory_item_pipeline.merge(
 
 get_inventory_item_error = inventory_item_pipeline.error(
     'Get Inventory Item Error',
+    value_type=inventory_failure,
+    appearance=Appearance(x=733, y=-450),
+)
+
+map_inventory_item_error = inventory_item_pipeline.map(
+    'Map Inventory Item Error',
     function=Function(
         name='GetInventoryItemError',
         package=inventory_item_package,
@@ -64,6 +71,8 @@ get_inventory_item_data.parallel_call(
     merge_inventory_result,
 )
 
-merge_inventory_result << get_inventory_item_error
+merge_inventory_result << map_inventory_item_error
+
+get_inventory_item_error >> map_inventory_item_error
 
 get_inventory_item_data >> get_inventory_item_error

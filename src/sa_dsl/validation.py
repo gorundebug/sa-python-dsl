@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Iterable
 
 from .model import NULL, Connector, Endpoint, Project, Service, Stream
+from .retired_backends import CPP_BOOST_RETIREMENT, is_retired_language
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +39,7 @@ TYPE_MISMATCH = "SG_SEMANTIC_TYPE_MISMATCH"
 INVALID_CYCLE = "SG_SEMANTIC_INVALID_CYCLE"
 UNSUPPORTED = "SG_CAPABILITY_UNSUPPORTED_FEATURE"
 
-LANGUAGES = {"GoLang", "CppUserver", "Python", "Rust", "CppBoost", "TypeScript"}
+LANGUAGES = {"GoLang", "CppUserver", "Python", "Rust", "CppCoro", "TypeScript"}
 ENVIRONMENTS = {"", "local", "debug", "staging", "production"}
 LOG_LEVELS = {"", "CRITICAL", "FATAL", "ERROR", "WARNING", "INFO", "DEBUG"}
 WORKLOADS = {"Deployment", "StatefulSet"}
@@ -360,15 +361,19 @@ class Validator:
         self.duplicate_names("service", self.project.services.values(), "$.services")
         for service in self.project.services.values():
             path = f"$.services.{service.key}"
-            self.enum(
-                service.programming_language,
-                LANGUAGES,
-                path + ".programmingLanguage",
-                "service",
-                service.name,
-                "programmingLanguage",
-                True,
-            )
+            if is_retired_language(service.programming_language):
+                self.add(UNSUPPORTED, "capability", CPP_BOOST_RETIREMENT,
+                         path + ".programmingLanguage", "service", service.name)
+            else:
+                self.enum(
+                    service.programming_language,
+                    LANGUAGES,
+                    path + ".programmingLanguage",
+                    "service",
+                    service.name,
+                    "programmingLanguage",
+                    True,
+                )
             self.enum(
                 _prop(service, "defaultCallSemantics"),
                 CALL_SEMANTICS,
@@ -550,6 +555,9 @@ class Validator:
         workflow_limits: dict[tuple[str, str], int] = {}
         for connector in self.project.connectors.values():
             path = f"$.dataConnectors.{connector.key}"
+            if "cppBoostImplementation" in connector.properties:
+                self.add(UNSUPPORTED, "capability", CPP_BOOST_RETIREMENT,
+                         path + ".cppBoostImplementation", "dataConnector", connector.name)
             self.enum(
                 connector.type,
                 CONNECTOR_TYPES,
@@ -1007,7 +1015,7 @@ class Validator:
             if entry.type != "SubStream":
                 continue
             path = self.stream_path(entry)
-            if entry.service.programming_language not in {"GoLang", "Python", "TypeScript", "Rust", "CppBoost", "CppUserver"}:
+            if entry.service.programming_language not in {"GoLang", "Python", "TypeScript", "Rust", "CppCoro", "CppUserver"}:
                 self.add(
                     UNSUPPORTED, "capability",
                     "SubStream requires a supported service language",
