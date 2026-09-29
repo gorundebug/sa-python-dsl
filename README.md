@@ -12,6 +12,13 @@ codex plugin marketplace add gorundebug/sa-python-dsl
 codex plugin add service-architect@service-architect
 ```
 
+### Install MAC OS
+```bash
+cd stream_app_go/sa-python-dsl
+CODEX="/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
+"$CODEX" plugin add service-architect@service-architect
+```
+
 `sa-python-dsl` is a typed authoring layer for Service Architect graphs. Python is
 used to compose and reuse graph definitions; the resulting YAML remains the stable
 input contract for the existing designer and code generator.
