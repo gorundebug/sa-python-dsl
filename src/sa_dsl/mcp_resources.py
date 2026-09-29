@@ -56,8 +56,8 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
         },
         "substreams": {
             "purpose": "Declare a small service-local graph callable from business code without a transport endpoint.",
-            "language": "Go, Python, TypeScript, Rust, C++/Boost and C++/userver; requires matching runtime and generator versions.",
-            "languages": ["GoLang", "Python", "TypeScript", "Rust", "CppBoost", "CppUserver"],
+            "language": "Go, Python, TypeScript, Rust, C++/userver and C++/Coro; requires matching runtime and generator versions.",
+            "languages": ["GoLang", "Python", "TypeScript", "Rust", "CppCoro", "CppUserver"],
             "workflowLanguages": ["GoLang", "Python", "TypeScript"],
             "api": "pipeline.substream(name, value_type=argument_type)",
             "rules": [

@@ -4,7 +4,7 @@ import argparse
 import os
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import anyio
 import yaml
@@ -396,6 +396,8 @@ def generate_project(
     project_path: str = ".",
     output: str | None = None,
     env_file: str = ".env",
+    cpp_graph: Literal["typed", "dynamic"] | None = None,
+    cpp_io_backend: Literal["epoll", "uring"] | None = None,
 ) -> dict[str, Any]:
     """Validate the Python model and download the generated project ZIP.
 
@@ -408,7 +410,8 @@ def generate_project(
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("generate", error)
     return generate_project_archive(
-        manifest, output=output, env_file=env_file
+        manifest, output=output, env_file=env_file,
+        cpp_graph=cpp_graph, cpp_io_backend=cpp_io_backend
     ).to_payload()
 
 
@@ -424,6 +427,8 @@ async def preview_generation(
     project_path: str = ".",
     env_file: str = ".env",
     remove_stale: bool = False,
+    cpp_graph: Literal["typed", "dynamic"] | None = None,
+    cpp_io_backend: Literal["epoll", "uring"] | None = None,
 ) -> dict[str, Any]:
     """Generate an immutable archive and preview the exact ServiceGen merge."""
 
@@ -435,7 +440,8 @@ async def preview_generation(
     await ctx.report_progress(0, 3, "Exporting and validating architecture")
     result = await anyio.to_thread.run_sync(
         lambda: preview_generation_transaction(
-            manifest, env_file=env_file, remove_stale=remove_stale
+            manifest, env_file=env_file, remove_stale=remove_stale,
+            cpp_graph=cpp_graph, cpp_io_backend=cpp_io_backend
         )
     )
     await ctx.report_progress(3, 3, "Generation preview ready")

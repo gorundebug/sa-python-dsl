@@ -14,7 +14,7 @@ SUPPORTED_GENERATION_TARGETS = frozenset(
     {
         "go",
         "cpp-userver",
-        "cpp-boost",
+        "cpp-coro",
         "python",
         "rust",
         "typescript",

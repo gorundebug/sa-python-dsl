@@ -18,7 +18,7 @@ SUPPORTED_SCHEMA_VERSION = "1.0"
 TARGET_BACKENDS = {
     "go": "golang",
     "cpp-userver": "cppUserver",
-    "cpp-boost": "cppBoost",
+    "cpp-coro": "cppCoro",
     "python": "python",
     "rust": "rust",
     "typescript": "typescript",

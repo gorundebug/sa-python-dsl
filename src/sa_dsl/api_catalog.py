@@ -45,7 +45,7 @@ CONNECTOR_FACTORIES = (
 LANGUAGE_PARAMETERS = {
     "go_implementation": "Go",
     "cpp_userver_implementation": "C++ userver",
-    "cpp_boost_implementation": "C++ Boost",
+    "cpp_coro_implementation": "C++ Coro",
     "python_implementation": "Python",
     "rust_implementation": "Rust",
     "type_script_implementation": "TypeScript",

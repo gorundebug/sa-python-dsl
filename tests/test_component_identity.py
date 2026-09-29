@@ -17,7 +17,21 @@ class ComponentIdentityTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             Service('booking', 'Booking', 'Go', 'example.com/booking').component('Booking', key='anything')
 
-    def test_invalid_names_are_rejected(self):
-        for name in ('', '123', 'Invalid!'):
-            with self.subTest(name=name), self.assertRaises(DslValidationError):
-                Service('booking', 'Booking', 'Go', 'example.com/booking').component(name)
+    def test_empty_name_is_rejected(self):
+        with self.assertRaises(DslValidationError):
+            Service('booking', 'Booking', 'Go', 'example.com/booking').component('')
+
+    def test_display_names_use_the_same_identifier_rules_as_pipelines(self):
+        for name, key in (('123', '_123'), ('Invalid!', 'invalid')):
+            with self.subTest(name=name):
+                service = Service('booking', 'Booking', 'Go', 'example.com/booking')
+                component = service.component(name)
+                self.assertEqual(component.name, name)
+                self.assertEqual(component.key, key)
+                self.assertEqual(component.key, service.pipeline(name).key)
+
+    def test_normalized_component_keys_must_remain_unique(self):
+        service = Service('booking', 'Booking', 'Go', 'example.com/booking')
+        service.component('Invalid!')
+        with self.assertRaises(DslValidationError):
+            service.component('Invalid')

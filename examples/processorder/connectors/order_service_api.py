@@ -7,7 +7,7 @@ connector_order_service_api = project.http_connector(
     'Order Service API',
     go_implementation=DataConnectorImplementation.NET_HTTP,
     cpp_userver_implementation=DataConnectorImplementation.USERVER_HTTP,
-    cpp_boost_implementation=DataConnectorImplementation.BOOST_BEAST_HTTP,
+    cpp_coro_implementation=DataConnectorImplementation.BOOST_BEAST_HTTP,
     python_implementation=DataConnectorImplementation.AIOHTTP,
     rust_implementation=DataConnectorImplementation.RUST_AXUM,
     type_script_implementation=DataConnectorImplementation.NODE_HTTP,

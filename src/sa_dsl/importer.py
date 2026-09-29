@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import keyword
+import inspect
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,7 +16,7 @@ from .model import (
     ActivityWorker,
     Appearance,
     CallSemantics,
-    CppBoost,
+    CppCoro,
     CppUserver,
     CronSchedule,
     DataConnectorImplementation,
@@ -40,6 +41,7 @@ from .model import (
     Python,
     ProcessPattern,
     ProgrammingLanguage,
+    Project,
     ScheduleMissedRunPolicy,
     ScheduleOverlapPolicy,
     Rust,
@@ -68,7 +70,7 @@ _ENUM_FIELDS = {
     "implementation": DataConnectorImplementation,
     "goImplementation": DataConnectorImplementation,
     "cppUserverImplementation": DataConnectorImplementation,
-    "cppBoostImplementation": DataConnectorImplementation,
+    "cppCoroImplementation": DataConnectorImplementation,
     "pythonImplementation": DataConnectorImplementation,
     "rustImplementation": DataConnectorImplementation,
     "typeScriptImplementation": DataConnectorImplementation,
@@ -193,7 +195,7 @@ def _dsl_imports(body: str) -> str:
         "ActivityWorker",
         "Appearance",
         "CallSemantics",
-        "CppBoost",
+        "CppCoro",
         "CppUserver",
         "CronSchedule",
         "DataConnectorImplementation",
@@ -361,6 +363,9 @@ def yaml_to_python_files(
 
     from .component_document_validation import require_canonical_components
 
+    from .retired_backends import require_supported_backends
+
+    require_supported_backends(document)
     require_canonical_components(document)
 
     package = package_name
@@ -529,6 +534,17 @@ def yaml_to_python_files(
         endpoints = values.pop("endpoints", {}) or {}
         name = values.pop("name", key)
         connector_type = values.pop("type")
+        # Import is lossless: factory defaults are for newly authored models,
+        # not permission to add implementation selectors absent from the YAML.
+        present = {_kw_name(field) for field in values}
+        factory = getattr(Project, connector_methods[connector_type])
+        for parameter in inspect.signature(factory).parameters.values():
+            if (
+                parameter.name.endswith("_implementation")
+                and isinstance(parameter.default, DataConnectorImplementation)
+                and parameter.name not in present
+            ):
+                values[parameter.name] = _Code("None")
         imports = [project_import]
         module_value = values.pop("module", None)
         if module_value is not None:
@@ -661,7 +677,7 @@ def yaml_to_python_files(
         language_classes = {
             ProgrammingLanguage.GO.value: "Golang",
             ProgrammingLanguage.CPP_USERVER.value: "CppUserver",
-            ProgrammingLanguage.CPP_BOOST.value: "CppBoost",
+            ProgrammingLanguage.CPP_CORO.value: "CppCoro",
             ProgrammingLanguage.PYTHON.value: "Python",
             ProgrammingLanguage.RUST.value: "Rust",
             ProgrammingLanguage.TYPESCRIPT.value: "TypeScript",
