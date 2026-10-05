@@ -28,7 +28,8 @@ class RetiredBoostTest(unittest.TestCase):
         project.cron_connector("Cron")
         for connector in project.to_document()["dataConnectors"].values():
             self.assertNotIn("cppBoostImplementation", connector)
-            self.assertIn("cppCoroImplementation", connector)
+            self.assertNotIn("cppCoroImplementation", connector)
+            self.assertNotIn("implementations", connector)
         for name in ("http_connector", "grpc_connector", "kafka_connector", "cron_connector"):
             self.assertNotIn("cpp_boost_implementation", inspect.signature(getattr(Project, name)).parameters)
         self.assertEqual(DataConnectorImplementation.BOOST_BEAST_HTTP.value, "boost/beast-http")
@@ -43,9 +44,8 @@ class RetiredBoostTest(unittest.TestCase):
         grpc = [connector for connector in connectors.values() if connector.get("type") == "gRPC"]
         self.assertTrue(grpc)
         for connector in grpc:
-            self.assertEqual(connector["cppCoroImplementation"], "google/grpc")
-        from sa_dsl.api_catalog import LANGUAGE_PARAMETERS
-        self.assertNotIn("cpp_boost_implementation", LANGUAGE_PARAMETERS)
+            self.assertNotIn("cppCoroImplementation", connector)
+            self.assertNotIn("implementations", connector)
         self.assertEqual(validate_project(project), [])
         document = project.to_document()
         pipeline = document["services"]["inventoryService"]["pipelines"]["inventoryItem"]

@@ -14,6 +14,8 @@ from typing import Any, Iterable, Mapping, Sequence
 
 import yaml
 from .visual_components import normalize_components
+from .connector_bindings import normalize_connector_implementations, require_connector_fields
+from .native_bindings import NativeTypeBinding, normalize_native_type_bindings, require_type_fields
 
 
 class DslValidationError(ValueError):
@@ -343,6 +345,10 @@ class TypeDefinition:
     properties: dict[str, Any] = field(default_factory=dict)
 
     def to_document(self) -> dict[str, Any]:
+        try:
+            require_type_fields(self.properties)
+        except ValueError as error:
+            raise DslValidationError(str(error)) from error
         return _document(
             {"name": self.name, "type": _enum_value(self.type), **self.properties}
         )
@@ -1073,6 +1079,11 @@ class Connector:
         return _insert_unique(self.endpoints, endpoint_key, endpoint, "endpoint")
 
     def to_document(self) -> dict[str, Any]:
+        try:
+            require_connector_fields(self.properties)
+            normalize_connector_implementations(self.properties.get("implementations"))
+        except ValueError as error:
+            raise DslValidationError(str(error)) from error
         return _document(
             {
                 "name": self.name,
@@ -1568,6 +1579,7 @@ class Project:
         *,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
         **properties: Any,
     ) -> TypeDefinition:
         if isinstance(module, LocalType):
@@ -1576,12 +1588,16 @@ class Project:
             raise DslValidationError("Type.module must be a Module, LocalType, or None")
         if package is not None and not isinstance(package, Package):
             raise DslValidationError("Type.package must be a Package or None")
+        try:
+            native_bindings = normalize_native_type_bindings(bindings)
+        except ValueError as error:
+            raise DslValidationError(str(error)) from error
         type_key = _key(None, name)
         value = TypeDefinition(
             type_key,
             name,
             data_type,
-            _properties({"module": module, "package": package, **properties}),
+            _properties({"module": module, "package": package, "bindings": native_bindings, **properties}),
         )
         return _insert_unique(self.types, type_key, value, "type")
 
@@ -1595,6 +1611,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._type(
             name,
@@ -1604,6 +1621,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def int_type(
@@ -1615,6 +1633,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1624,6 +1643,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def uint_type(
@@ -1635,6 +1655,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1644,6 +1665,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def byte_type(
@@ -1655,6 +1677,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1664,6 +1687,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def char_type(
@@ -1675,6 +1699,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1684,6 +1709,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def boolean_type(
@@ -1695,6 +1721,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1704,6 +1731,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def unicode_char_type(
@@ -1715,6 +1743,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1724,6 +1753,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def string_type(
@@ -1735,6 +1765,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1744,6 +1775,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def unicode_string_type(
@@ -1755,6 +1787,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1764,6 +1797,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def float_type(
@@ -1775,6 +1809,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1784,6 +1819,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def double_type(
@@ -1795,6 +1831,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1804,6 +1841,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def int8_type(
@@ -1815,6 +1853,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1824,6 +1863,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def int16_type(
@@ -1835,6 +1875,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1844,6 +1885,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def int32_type(
@@ -1855,6 +1897,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1864,6 +1907,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def int64_type(
@@ -1875,6 +1919,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1884,6 +1929,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def uint8_type(
@@ -1895,6 +1941,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1904,6 +1951,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def uint16_type(
@@ -1915,6 +1963,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1924,6 +1973,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def uint32_type(
@@ -1935,6 +1985,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1944,6 +1995,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def uint64_type(
@@ -1955,6 +2007,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1964,6 +2017,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def any_type(
@@ -1975,6 +2029,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -1984,6 +2039,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def error_type(
@@ -1995,6 +2051,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._scalar_type(
             name,
@@ -2004,6 +2061,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def struct_type(
@@ -2014,10 +2072,9 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
         transfer_by_value: bool | None = None,
         definition_format: TypeDefinitionFormat | None = None,
-        type_definition: str | None = None,
-        type_import: str | None = None,
     ) -> TypeDefinition:
         return self._type(
             name,
@@ -2026,10 +2083,9 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
             transfer_by_value=transfer_by_value,
             definition_format=definition_format,
-            type_definition=type_definition,
-            type_import=type_import,
         )
 
     def array_type(
@@ -2041,6 +2097,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._type(
             name,
@@ -2050,6 +2107,7 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def map_type(
@@ -2062,6 +2120,7 @@ class Project:
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
     ) -> TypeDefinition:
         return self._type(
             name,
@@ -2072,29 +2131,28 @@ class Project:
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
         )
 
     def custom_type(
         self,
         name: str,
         *,
-        type_definition: str | None = None,
-        type_import: str | None = None,
         description: str | None = None,
         public_type: bool | None = None,
         module: Module | LocalType | _ExplicitNull | None = None,
         package: Package | None = None,
+        bindings: Mapping[str, NativeTypeBinding] | None = None,
         definition_format: TypeDefinitionFormat | None = None,
     ) -> TypeDefinition:
         return self._type(
             name,
             DataType.CUSTOM,
-            type_definition=type_definition,
-            type_import=type_import,
             description=description,
             public_type=public_type,
             module=module,
             package=package,
+            bindings=bindings,
             definition_format=definition_format,
         )
 
@@ -2125,20 +2183,19 @@ class Project:
         name: str,
         connector_type: ConnectorType | str,
         *,
+        implementations: Mapping[str, str] | None = None,
         connector_class: type[Connector] = Connector,
         module: Module | None = None,
         implementation: DataConnectorImplementation | None = None,
-        go_implementation: DataConnectorImplementation | None = None,
-        cpp_userver_implementation: DataConnectorImplementation | None = None,
-        cpp_coro_implementation: DataConnectorImplementation | None = None,
-        python_implementation: DataConnectorImplementation | None = None,
-        rust_implementation: DataConnectorImplementation | None = None,
-        type_script_implementation: DataConnectorImplementation | None = None,
         **properties: Any,
     ) -> Connector:
         if "cpp_boost_implementation" in properties or "cppBoostImplementation" in properties:
             from .retired_backends import CPP_BOOST_RETIREMENT
             raise DslValidationError(CPP_BOOST_RETIREMENT)
+        try:
+            require_connector_fields(properties)
+        except ValueError as error:
+            raise DslValidationError(str(error)) from error
         if module is not None and not isinstance(module, Module):
             raise DslValidationError("Connector.module must be a Module or None")
         connector_key = _key(None, name)
@@ -2150,130 +2207,69 @@ class Project:
                 {
                     "module": module,
                     "implementation": implementation,
-                    "go_implementation": go_implementation,
-                    "cpp_userver_implementation": cpp_userver_implementation,
-                    "cpp_coro_implementation": cpp_coro_implementation,
-                    "python_implementation": python_implementation,
-                    "rust_implementation": rust_implementation,
-                    "type_script_implementation": type_script_implementation,
                     **properties,
                 }
             ),
         )
+        try:
+            bindings = normalize_connector_implementations(implementations)
+        except ValueError as error:
+            raise DslValidationError(str(error)) from error
+        if bindings is not None:
+            value.properties["implementations"] = bindings
         return _insert_unique(self.connectors, connector_key, value, "connector")
 
     def http_connector(
         self,
         name: str,
         *,
+        implementations: Mapping[str, str] | None = None,
         module: Module | None = None,
         host: str | None = None,
         port: int | None = None,
         use_dedicated_listener: bool | None = None,
-        go_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.NET_HTTP,
-        cpp_userver_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.USERVER_HTTP,
-        cpp_coro_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.BOOST_BEAST_HTTP,
-        python_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.AIOHTTP,
-        rust_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.RUST_AXUM,
-        type_script_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.NODE_HTTP,
     ) -> HttpConnector:
         return self._connector(
             name,
             ConnectorType.HTTP,
             connector_class=HttpConnector,
+            implementations=implementations,
             module=module,
             host=host,
             port=port,
             use_dedicated_listener=use_dedicated_listener,
-            go_implementation=go_implementation,
-            cpp_userver_implementation=cpp_userver_implementation,
-            cpp_coro_implementation=cpp_coro_implementation,
-            python_implementation=python_implementation,
-            rust_implementation=rust_implementation,
-            type_script_implementation=type_script_implementation,
         )
 
     def grpc_connector(
         self,
         name: str,
         *,
+        implementations: Mapping[str, str] | None = None,
         module: Module | None = None,
         programming_language: ProgrammingLanguage | None = None,
         address: str | None = None,
         connections_count: int | None = None,
-        go_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.GOOGLE_GRPC,
-        cpp_userver_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.GOOGLE_GRPC,
-        cpp_coro_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.GOOGLE_GRPC,
-        python_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.GOOGLE_GRPC,
-        rust_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.RUST_TONIC,
-        type_script_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.GRPC_JS,
     ) -> GrpcConnector:
         return self._connector(
             name,
             ConnectorType.GRPC,
             connector_class=GrpcConnector,
+            implementations=implementations,
             module=module,
             programming_language=programming_language,
             address=address,
             connections_count=connections_count,
-            go_implementation=go_implementation,
-            cpp_userver_implementation=cpp_userver_implementation,
-            cpp_coro_implementation=cpp_coro_implementation,
-            python_implementation=python_implementation,
-            rust_implementation=rust_implementation,
-            type_script_implementation=type_script_implementation,
         )
 
     def kafka_connector(
         self,
         name: str,
         *,
+        implementations: Mapping[str, str] | None = None,
         cluster: KafkaCluster,
         security: KafkaSecurity | None = None,
         use_partitioner: bool | None = None,
         async_: bool | None = None,
-        go_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.IBM_SARAMA,
-        cpp_userver_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.USERVER_KAFKA,
-        cpp_coro_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.LIBRDKAFKA,
-        python_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.AIOKAFKA,
-        rust_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.RUST_RDKAFKA,
-        type_script_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.CONFLUENT_KAFKA_JAVASCRIPT,
     ) -> KafkaConnector:
         if not isinstance(cluster, KafkaCluster):
             raise DslValidationError("Kafka cluster must be a KafkaCluster")
@@ -2283,57 +2279,31 @@ class Project:
             name,
             ConnectorType.KAFKA,
             connector_class=KafkaConnector,
+            implementations=implementations,
             use_partitioner=use_partitioner,
             async_=async_,
             **cluster.to_properties(),
             **(security.to_properties() if security else {}),
-            go_implementation=go_implementation,
-            cpp_userver_implementation=cpp_userver_implementation,
-            cpp_coro_implementation=cpp_coro_implementation,
-            python_implementation=python_implementation,
-            rust_implementation=rust_implementation,
-            type_script_implementation=type_script_implementation,
         )
 
     def cron_connector(
         self,
         name: str,
         *,
-        go_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.GO_GOCRON,
-        cpp_userver_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.CPP_LIBCRON,
-        cpp_coro_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.CPP_LIBCRON,
-        python_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.PYTHON_APSCHEDULER,
-        rust_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.RUST_CRONER,
-        type_script_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.NODE_CRONER,
+        implementations: Mapping[str, str] | None = None,
     ) -> CronConnector:
         return self._connector(
             name,
             ConnectorType.CRON,
             connector_class=CronConnector,
-            go_implementation=go_implementation,
-            cpp_userver_implementation=cpp_userver_implementation,
-            cpp_coro_implementation=cpp_coro_implementation,
-            python_implementation=python_implementation,
-            rust_implementation=rust_implementation,
-            type_script_implementation=type_script_implementation,
+            implementations=implementations,
         )
 
     def temporal_connector(
         self,
         name: str,
         *,
+        implementations: Mapping[str, str] | None = None,
         address: str,
         namespace: str,
         identity: str | None = None,
@@ -2344,20 +2314,12 @@ class Project:
         tls_cert_file: str | None = None,
         tls_key_file: str | None = None,
         worker_stop_timeout: int | None = None,
-        go_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.TEMPORAL_GO,
-        python_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.TEMPORAL_PYTHON,
-        type_script_implementation: (
-            DataConnectorImplementation | None
-        ) = DataConnectorImplementation.TEMPORAL_TYPESCRIPT,
     ) -> TemporalConnector:
         return self._connector(
             name,
             ConnectorType.TEMPORAL,
             connector_class=TemporalConnector,
+            implementations=implementations,
             address=address,
             namespace=namespace,
             identity=identity,
@@ -2368,15 +2330,13 @@ class Project:
             tls_cert_file=tls_cert_file,
             tls_key_file=tls_key_file,
             worker_stop_timeout=worker_stop_timeout,
-            go_implementation=go_implementation,
-            python_implementation=python_implementation,
-            type_script_implementation=type_script_implementation,
         )
 
     def custom_connector(
         self,
         name: str,
         *,
+        implementations: Mapping[str, str] | None = None,
         implementation: DataConnectorImplementation = DataConnectorImplementation.FUNCTION,
         module: Module | None = None,
     ) -> CustomConnector:
@@ -2384,6 +2344,7 @@ class Project:
             name,
             ConnectorType.CUSTOM,
             connector_class=CustomConnector,
+            implementations=implementations,
             implementation=implementation,
             module=module,
         )

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from .connector_bindings import require_connector_fields
+
 
 CPP_BOOST_RETIREMENT = (
     "The cppBoost runtime has been removed. Migrate explicitly to CppCoro and "
@@ -32,5 +34,7 @@ def require_supported_backends(document: Mapping[str, Any]) -> None:
             if "cppBoostImplementation" in entry:
                 raise ValueError(
                     f"{path}.cppBoostImplementation: {CPP_BOOST_RETIREMENT} "
-                    "Remove the retired selector; configure cppCoroImplementation explicitly when needed."
+                    "Remove the retired selector; configure implementations.cppCoro explicitly when needed."
                 )
+            if collection == "dataConnectors":
+                require_connector_fields(entry, path)

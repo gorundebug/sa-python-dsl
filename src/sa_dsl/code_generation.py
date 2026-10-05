@@ -144,9 +144,12 @@ def _enum(group: str, value: Any) -> Any:
 def to_api_document(document: Mapping[str, Any]) -> dict[str, Any]:
     """Convert the symbolic YAML document to the designer's flat JSON API model."""
     from .retired_backends import require_supported_backends
+    from .native_bindings import require_type_fields
 
     require_supported_backends(document)
     document = _json_compatible(document)
+    for value in (document.get("types") or {}).values():
+        require_type_fields(value)
     stream_ids: dict[str, int] = {}
     endpoint_ids: dict[str, int] = {}
     type_names = {
@@ -407,12 +410,26 @@ class ServiceArchitectClient:
 
     def generate_code(
         self, project: Any, *, cpp_graph: str | None = None, cpp_io_backend: str | None = None,
+        pack_options: Mapping[str, Mapping[str, str | bool | int]] | None = None,
     ) -> GeneratedProjectArchive:
         choices = generation_build_options(cpp_graph, cpp_io_backend)
+        overrides = {section: dict(values) for section, values in (pack_options or {}).items()}
+        # Preserve existing CLI conveniences, but use the same pack-owned wire
+        # contract as external languages and deployment/CI sections.
+        if "cpp_graph" in choices:
+            for section in ("cpp-userver-service", "cpp-coro-service"):
+                values = overrides.setdefault(section, {})
+                if "graph" in values and values["graph"] != choices["cpp_graph"]:
+                    raise ValueError(f"conflicting graph options for {section}")
+                values["graph"] = choices["cpp_graph"]
+        if "cpp_io_backend" in choices:
+            values = overrides.setdefault("cpp-coro-service", {})
+            if "ioBackend" in values and values["ioBackend"] != choices["cpp_io_backend"]:
+                raise ValueError("conflicting I/O backend options for cpp-coro-service")
+            values["ioBackend"] = choices["cpp_io_backend"]
         query = urllib.parse.urlencode({
-            {"cpp_graph": "cppGraph", "cpp_io_backend": "cppIoBackend"}[key]: value
-            for key, value in choices.items()
-        })
+            "options": json.dumps({"packOptions": overrides}, separators=(",", ":")),
+        }) if overrides else ""
         suffix = "?" + query if query else ""
         if not callable(getattr(project, "to_yaml", None)):
             raise TypeError("project must provide to_yaml()")

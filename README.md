@@ -39,8 +39,8 @@ The SDK deliberately hides numeric IDs. Services, streams, connectors and endpoi
 reference Python objects, while the serializer emits the symbolic YAML references
 expected by `servicegen`.
 
-The graph is the source of truth. The visual designer, canonical YAML, and typed Python
-API are three interfaces over the same architecture. A validated Project can be sent to
+The typed Python project is the editable source of truth. The visual designer and
+canonical YAML are projections and interchange formats. A validated Project can be sent to
 the asynchronous generation backend to download complete target-language projects.
 
 The bundled MCP server also exposes `designer_view`. Codex can open the exact exported
@@ -52,6 +52,20 @@ Before selecting a runtime adapter, Codex can call `refresh_capabilities` to cac
 public ServiceGen capability matrix at `.service-architect/capabilities.json`. The
 cache contains no credentials. Passive MCP resources expose the complete matrix or one
 language, and `doctor` checks the manifest targets against the exact generator revision.
+
+The VS Code, JetBrains, and Codex plugins all render the same versioned
+`EmbeddedDesigner` bundle. `sa-dsl ide-snapshot` supplies its immutable canonical
+snapshot, and `sa-dsl ide-locate` maps selected node/link keys back to Python; no
+source positions are added to YAML. Build the Designer bundle, then package the same
+compiled assets in both IDE plugins with `python3 sa-python-dsl/scripts/sync_ide_assets.py`
+from the workspace root. There is no separate IDE graph implementation.
+
+The IDE command `ide-materialize` evaluates the current Python DSL, exports canonical
+YAML in a temporary directory, and imports it into `python-dsl/model/` for Git review.
+It never replaces the authoring source. Repeated runs update only previously generated,
+unchanged files and stop if the user edited one. `ide-generate --output-dir
+dist/generated-project` invokes the existing ServiceGen archive and merge contracts
+against the chosen directory. Both IDE plugins expose these commands in their UI.
 
 ## Explore the product
 
@@ -407,3 +421,9 @@ argument or copy of the graph is needed. Preserve runtime context, use deadlines
 for uncertain completion, and retain meaningful business boundaries rather than
 translating every code branch into a graph node. A visual component is not a
 callable SubStream and is not substituted for one during generation.
+
+### Native type bindings
+
+Use `bindings={target: NativeTypeBinding(...)}` on a type factory to describe a
+native type for a selected template target. See [native type bindings](docs/native-types.md)
+for the fields, YAML/Python round trip, and removed language-slot parameters.

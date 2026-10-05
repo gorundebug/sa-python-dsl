@@ -1,5 +1,24 @@
 # MCP release check
 
+## Plugin 0.1.20: shared Designer 0.1.10 and model bindings
+
+The shared Designer source builds immutable UI `0.1.10`. VS Code and JetBrains
+package byte-identical copies of that build; both use the `designer_view` snapshot
+contract and `service-architect:selection` events. The Codex plugin selects
+`https://gorundebug.com/mcp-ui/0.1.10`, and the standalone MCP runtime uses the
+same default. The plugin pins the updated Python runtime to an immutable commit,
+including connector implementations, native type bindings and IDE support.
+
+Keep this release PR in Draft until both `designer.js` and `designer.css` are
+available on the production domain and the release gate below has passed.
+Deploying only beta is insufficient. Do not overwrite `0.1.9` in place.
+Preparing this PR does not deploy the assets or update installed plugins.
+
+The Designer updates, including the versioned assets, are included in
+[MR !156](https://gitlab.com/sergeyalexeev/service_architect_vue3/-/merge_requests/156).
+Use `scripts/sync_ide_assets.py --check --source-dir <release-checkout>/public/mcp-ui/0.1.10`
+before packaging the IDE plugins; a dirty Designer checkout may build different bytes.
+
 ## Plugin 0.1.18: complete error-path highlighting
 
 This UI-only release selects Designer assets at

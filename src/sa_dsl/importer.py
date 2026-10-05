@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import keyword
-import inspect
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,6 +8,7 @@ from typing import Any, Mapping
 
 import yaml
 from .visual_components import normalize_components
+from .native_bindings import normalize_native_type_bindings, require_type_fields
 
 from .model import (
     _key,
@@ -68,12 +68,6 @@ _ENUM_FIELDS = {
     "defaultCallSemantics": CallSemantics,
     "callSemantics": CallSemantics,
     "implementation": DataConnectorImplementation,
-    "goImplementation": DataConnectorImplementation,
-    "cppUserverImplementation": DataConnectorImplementation,
-    "cppCoroImplementation": DataConnectorImplementation,
-    "pythonImplementation": DataConnectorImplementation,
-    "rustImplementation": DataConnectorImplementation,
-    "typeScriptImplementation": DataConnectorImplementation,
     "httpMethodType": HTTPMethodType,
     "grpcMethodType": GrpcMethodType,
     "securityProtocol": KafkaSecurityProtocol,
@@ -191,6 +185,7 @@ def _object_code(values: dict[str, Any], class_name: str, fields: tuple[tuple[st
 
 def _dsl_imports(body: str) -> str:
     names = [
+        "NativeTypeBinding",
         "ActivityTimeouts",
         "ActivityWorker",
         "Appearance",
@@ -475,9 +470,20 @@ def yaml_to_python_files(
         variable = _snake(key)
         writer.types[key] = (f"types.{variable}", variable)
     for key, item in type_documents.items():
+        require_type_fields(item)
         variable = writer.types[key][1]
         module = writer.types[key][0]
         values = dict(item)
+        if "bindings" in values:
+            bindings = normalize_native_type_bindings(values["bindings"])
+            if bindings is not None:
+                entries = []
+                for target, binding in bindings.items():
+                    expression = _object_code(dict(binding), "NativeTypeBinding", (
+                        ("definition", "definition"), ("import_path", "import"), ("package", "package"),
+                    ))
+                    entries.append(f"{target!r}: {expression.text}")
+                values["bindings"] = _Code("{" + ", ".join(entries) + "}")
         name = values.pop("name", key)
         data_type = values.pop("type")
         try:
@@ -534,17 +540,6 @@ def yaml_to_python_files(
         endpoints = values.pop("endpoints", {}) or {}
         name = values.pop("name", key)
         connector_type = values.pop("type")
-        # Import is lossless: factory defaults are for newly authored models,
-        # not permission to add implementation selectors absent from the YAML.
-        present = {_kw_name(field) for field in values}
-        factory = getattr(Project, connector_methods[connector_type])
-        for parameter in inspect.signature(factory).parameters.values():
-            if (
-                parameter.name.endswith("_implementation")
-                and isinstance(parameter.default, DataConnectorImplementation)
-                and parameter.name not in present
-            ):
-                values[parameter.name] = _Code("None")
         imports = [project_import]
         module_value = values.pop("module", None)
         if module_value is not None:

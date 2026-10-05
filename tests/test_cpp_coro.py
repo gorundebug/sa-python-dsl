@@ -16,12 +16,12 @@ class CppCoroTest(unittest.TestCase):
             "Worker", language=CppCoro(),
             module=ServiceModule("example.com/coro/worker"),
         )
-        project.http_connector("HTTP", host="0.0.0.0", port=9091)
-        project.grpc_connector("RPC", address="localhost:9092")
-        project.cron_connector("Schedules")
+        project.http_connector("HTTP", host="0.0.0.0", port=9091, implementations={"cppCoro": "boost/beast-http"})
+        project.grpc_connector("RPC", address="localhost:9092", implementations={"cppCoro": "google/grpc", "cppUserver": "userver/grpc"})
+        project.cron_connector("Schedules", implementations={"cppCoro": "cpp/libcron"})
         document = project.to_document()
         implementations = {
-            item["cppCoroImplementation"]
+            item["implementations"]["cppCoro"]
             for item in document["dataConnectors"].values()
         }
         self.assertEqual(
@@ -29,8 +29,7 @@ class CppCoroTest(unittest.TestCase):
         )
         self.assertEqual("google/grpc", DataConnectorImplementation.GOOGLE_GRPC.value)
         rpc = next(item for item in document["dataConnectors"].values() if item["type"] == "gRPC")
-        for backend in ("cppUserverImplementation", "cppCoroImplementation"):
-            self.assertEqual("google/grpc", rpc[backend])
+        self.assertEqual({"cppUserver": "userver/grpc", "cppCoro": "google/grpc"}, rpc["implementations"])
         self.assertEqual("cppCoro", TARGET_BACKENDS["cpp-coro"])
         restored = yaml_to_python_files(project.to_yaml(), "coro_example")
         self.assertEqual(
@@ -47,9 +46,8 @@ class CppCoroTest(unittest.TestCase):
         project.cron_connector("Schedules")
         document = project.to_document()
         for connector in document["dataConnectors"].values():
-            for field in list(connector):
-                if field.endswith("Implementation"):
-                    del connector[field]
+            self.assertNotIn("implementations", connector)
+            self.assertFalse(any(field.endswith("Implementation") for field in connector))
         restored = yaml_to_python_files(document, "existing_example")
         self.assertEqual(
             document,
