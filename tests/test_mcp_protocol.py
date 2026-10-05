@@ -7,6 +7,7 @@ from pathlib import Path
 import yaml
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from sa_dsl.designer import DEFAULT_ASSET_BASE
 
 
 def tool_payload(result) -> dict:
@@ -90,7 +91,7 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual("text/html;profile=mcp-app", designer_resource.mime_type)
                     self.assertIn("resourceDomains", designer_resource.meta["ui"]["csp"])
                     ui = await session.read_resource("ui://service-architect/designer")
-                    self.assertIn("/mcp-ui/0.1.5/designer.js", ui.contents[0].text)
+                    self.assertIn(f"{DEFAULT_ASSET_BASE}/designer.js", ui.contents[0].text)
 
                     templates = await session.list_resource_templates()
                     template_uris = {str(item.uri_template) for item in templates.resource_templates}

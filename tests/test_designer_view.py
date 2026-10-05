@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from sa_dsl.designer import DesignerSnapshotServer, designer_document, make_snapshot
+from sa_dsl.designer import DEFAULT_ASSET_BASE, DesignerSnapshotServer, designer_document, make_snapshot
 from sa_dsl.mcp_workspace import WorkspaceBoundary, WorkspaceBoundaryError
 
 
@@ -36,8 +36,8 @@ class WorkspaceBoundaryTest(unittest.TestCase):
 class DesignerViewTest(unittest.TestCase):
     def test_default_ui_uses_published_version(self) -> None:
         document = designer_document()
-        self.assertIn("https://gorundebug.com/mcp-ui/0.1.5/designer.js", document)
-        self.assertIn("https://gorundebug.com/mcp-ui/0.1.5/designer.css", document)
+        self.assertIn(f"{DEFAULT_ASSET_BASE}/designer.js", document)
+        self.assertIn(f"{DEFAULT_ASSET_BASE}/designer.css", document)
 
     def test_snapshot_revision_is_deterministic_and_content_sensitive(self) -> None:
         first = make_snapshot("Example", "name: Example\n")
