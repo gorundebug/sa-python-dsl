@@ -129,7 +129,7 @@ opens a floating working copy and never writes graph edits back to Python.
 
 Hosts with MCP Apps support render `ui://service-architect/designer`. The small HTML
 resource loads the pinned frontend bundle from
-`https://gorundebug.com/mcp-ui/0.1.0/`; the graph payload arrives in structured tool
+`https://gorundebug.com/mcp-ui/0.1.10/`; the graph payload arrives in structured tool
 output and is not uploaded to that site. The resource receives no filesystem access,
 API key, Cognito token, `.env` contents or AWS credentials.
 

@@ -79,6 +79,7 @@ from .model import (
     WorkflowWorker,
 )
 from .validation import Diagnostic
+from .native_bindings import NativeTypeBinding
 from .importer import PythonProjectFiles, yaml_to_python_files, yaml_to_python_project
 from .code_generation import (
     CodeGenerationError,
@@ -90,6 +91,7 @@ from .auth import AuthenticationError, CognitoAuthenticator
 from .browser import python_files_to_yaml
 
 __all__ = [
+    "NativeTypeBinding",
     "Component",
     "ActivityTimeouts",
     "ActivityWorker",

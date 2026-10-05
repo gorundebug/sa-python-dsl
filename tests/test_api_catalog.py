@@ -42,11 +42,11 @@ class ApiCatalogTest(unittest.TestCase):
             catalog_resource("authoring", "connector-capabilities")
         )
         temporal = catalog["connectors"]["temporal_connector"]
-        self.assertEqual(
-            {"Go", "Python", "TypeScript"},
-            set(temporal["languageAdapters"]),
-        )
-        self.assertNotIn("Rust", temporal["languageAdapters"])
+        for connector in catalog["connectors"].values():
+            self.assertNotIn("languageAdapters", connector)
+            self.assertEqual("implementations", connector["selection"]["parameter"])
+            self.assertEqual("selected template pack", connector["selection"]["defaultSource"])
+            self.assertIn("Mapping[str, str]", connector["selection"]["type"])
         self.assertIn("address", temporal["requiredParameters"])
         self.assertIn("namespace", temporal["requiredParameters"])
 

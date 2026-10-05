@@ -42,16 +42,6 @@ CONNECTOR_FACTORIES = (
     "custom_connector",
 )
 
-LANGUAGE_PARAMETERS = {
-    "go_implementation": "Go",
-    "cpp_userver_implementation": "C++ userver",
-    "cpp_coro_implementation": "C++ Coro",
-    "python_implementation": "Python",
-    "rust_implementation": "Rust",
-    "type_script_implementation": "TypeScript",
-}
-
-
 def _annotation(value: Any) -> str | None:
     if value is inspect.Parameter.empty or value is inspect.Signature.empty:
         return None
@@ -114,14 +104,12 @@ def build_connector_capabilities() -> dict[str, Any]:
     connectors: dict[str, Any] = {}
     for factory_name in CONNECTOR_FACTORIES:
         signature = inspect.signature(getattr(Project, factory_name))
-        adapters = {}
-        for parameter in signature.parameters.values():
-            language = LANGUAGE_PARAMETERS.get(parameter.name)
-            if language is None:
-                continue
-            adapters[language] = _default(parameter.default)
         connectors[factory_name] = {
-            "languageAdapters": adapters,
+            "selection": {
+                "parameter": "implementations",
+                "type": _annotation(signature.parameters["implementations"].annotation),
+                "defaultSource": "selected template pack",
+            },
             "requiredParameters": [
                 parameter.name
                 for parameter in signature.parameters.values()
@@ -132,6 +120,6 @@ def build_connector_capabilities() -> dict[str, Any]:
     return {
         "generated": True,
         "source": "Project connector factory signatures",
-        "scope": "Authoring adapters exposed by this DSL version; validate_project remains authoritative for generator/runtime capability.",
+        "scope": "Authoring factory parameters only; supported transports and defaults belong to the selected template packs and generator capabilities.",
         "connectors": connectors,
     }

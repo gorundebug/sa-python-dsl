@@ -7,6 +7,8 @@ from typing import Any, Iterable
 
 from .model import NULL, Connector, Endpoint, Project, Service, Stream
 from .retired_backends import CPP_BOOST_RETIREMENT, is_retired_language
+from .connector_bindings import REMOVED_CONNECTOR_FIELDS, normalize_connector_implementations
+from .native_bindings import NativeTypeBindingError, require_type_fields
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,6 +29,7 @@ class Diagnostic:
 
 
 REQUIRED = "SG_SCHEMA_REQUIRED_FIELD"
+UNKNOWN_FIELD = "SG_SCHEMA_UNKNOWN_FIELD"
 RANGE = "SG_SCHEMA_VALUE_OUT_OF_RANGE"
 UNKNOWN_ENUM = "SG_SCHEMA_UNKNOWN_ENUM_VALUE"
 DUPLICATE = "SG_SEMANTIC_DUPLICATE_IDENTITY"
@@ -465,6 +468,11 @@ class Validator:
         self.duplicate_names("type", self.project.types.values(), "$.types")
         for value in self.project.types.values():
             path = f"$.types.{value.key}"
+            try:
+                require_type_fields(value.properties)
+            except NativeTypeBindingError as error:
+                stage = "semantic" if error.code.startswith("SG_SEMANTIC_") else "schema"
+                self.add(error.code, stage, str(error), f"{path}.{error.field}", "type", value.name)
             data_type = str(getattr(value.type, "value", value.type))
             self.enum(
                 data_type, DATA_TYPES, path + ".type", "type", value.name, "type", True
@@ -555,6 +563,13 @@ class Validator:
         workflow_limits: dict[tuple[str, str], int] = {}
         for connector in self.project.connectors.values():
             path = f"$.dataConnectors.{connector.key}"
+            try:
+                normalize_connector_implementations(connector.properties.get("implementations"))
+            except ValueError as error:
+                self.add(RANGE, "schema", str(error), path + ".implementations", "dataConnector", connector.name)
+            for field_name in sorted(REMOVED_CONNECTOR_FIELDS.intersection(connector.properties)):
+                self.add(UNKNOWN_FIELD, "schema", "Removed connector field; use implementations or the template pack default",
+                         path + "." + field_name, "dataConnector", connector.name)
             if "cppBoostImplementation" in connector.properties:
                 self.add(UNSUPPORTED, "capability", CPP_BOOST_RETIREMENT,
                          path + ".cppBoostImplementation", "dataConnector", connector.name)

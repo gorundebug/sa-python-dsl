@@ -33,8 +33,12 @@ class GenerationBuildOptionsTest(unittest.TestCase):
                         client = ServiceArchitectClient(api_key=api_key, id_token="token", opener=opener)
                         archive = client.generate_code(project, cpp_graph=graph, cpp_io_backend=backend)
                         self.assertEqual(archive.content, payload)
-                        self.assertEqual(parse_qs(urlsplit(requests[0].full_url).query),
-                                         {"cppGraph": [graph], "cppIoBackend": [backend]})
+                        query = parse_qs(urlsplit(requests[0].full_url).query)
+                        self.assertEqual(set(query), {"options"})
+                        self.assertEqual(json.loads(query["options"][0]), {"packOptions": {
+                            "cpp-userver-service": {"graph": graph},
+                            "cpp-coro-service": {"graph": graph, "ioBackend": backend},
+                        }})
                         self.assertEqual(json.loads(requests[0].data), yaml_to_api_document(project.to_yaml()))
                         for request in requests[1:]:
                             self.assertEqual(urlsplit(request.full_url).query, "")
@@ -44,6 +48,27 @@ class GenerationBuildOptionsTest(unittest.TestCase):
         for graph, backend in (("other", None), (None, "poll"), (None, "URING")):
             with self.assertRaises(ValueError):
                 generation_build_options(graph, backend)
+
+    def test_external_pack_options_preserve_types_and_input(self):
+        requests = []
+
+        def opener(request, *, timeout):
+            requests.append(request)
+            return FakeResponse(zip_content(), headers={"Content-Type": "application/zip"})
+
+        options = {"custom-ci": {"runner": "self-hosted", "capacity": 9007199254740993, "enabled": False}}
+        client = ServiceArchitectClient(id_token="token", opener=opener)
+        client.generate_code(Project("External"), pack_options=options)
+        query = parse_qs(urlsplit(requests[0].full_url).query)
+        self.assertEqual(json.loads(query["options"][0]), {"packOptions": options})
+        self.assertEqual(set(options), {"custom-ci"})
+
+    def test_conflicting_convenience_options_fail_before_request(self):
+        client = ServiceArchitectClient(id_token="token")
+        options = {"cpp-coro-service": {"graph": "dynamic"}}
+        with self.assertRaisesRegex(ValueError, "conflicting graph"):
+            client.generate_code(Project("Conflict"), cpp_graph="typed", pack_options=options)
+        self.assertEqual(options, {"cpp-coro-service": {"graph": "dynamic"}})
 
 
 if __name__ == "__main__":

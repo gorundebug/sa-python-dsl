@@ -10,6 +10,9 @@ from typing import Any
 from .execution import execute_project, write_canonical_yaml
 from .doctor import diagnose_project
 from .generation import generate_project_archive
+from .ide import graph_snapshot, locate_source
+from .ide_materialize import materialize_project
+from .ide_generation import generate_and_merge
 from .manifest import ManifestError, load_manifest
 from .migration import import_yaml_project
 from .model import Project
@@ -106,6 +109,36 @@ def main() -> None:
     check.add_argument("source", type=Path, help="Python graph file")
     check.add_argument("--json", action="store_true", help="Print diagnostics as JSON")
 
+    ide_snapshot = subparsers.add_parser(
+        "ide-snapshot", help="Emit the shared read-only Designer snapshot without writing YAML"
+    )
+    ide_snapshot.add_argument("--project", type=Path, default=Path("."))
+
+    ide_locate = subparsers.add_parser(
+        "ide-locate", help="Find a Python declaration or link by its graph key"
+    )
+    ide_locate.add_argument("--project", type=Path, default=Path("."))
+    ide_locate.add_argument("--kind", choices=("node", "link"), required=True)
+    ide_locate.add_argument("--service", required=True)
+    ide_locate.add_argument("--key", required=True)
+    ide_locate.add_argument("--source", default="")
+    ide_locate.add_argument("--target", default="")
+
+    ide_materialize = subparsers.add_parser(
+        "ide-materialize", help="Export and re-import the effective graph as reviewable Python DSL"
+    )
+    ide_materialize.add_argument("--project", type=Path, default=Path("."))
+    ide_materialize.add_argument("--output-dir", default="python-dsl")
+
+    ide_generate = subparsers.add_parser(
+        "ide-generate", help="Generate code into an output directory using ServiceGen merge"
+    )
+    ide_generate.add_argument("--project", type=Path, default=Path("."))
+    ide_generate.add_argument("--output-dir", required=True)
+    ide_generate.add_argument("--env-file", default=".env")
+    ide_generate.add_argument("--cpp-graph", choices=("typed", "dynamic"))
+    ide_generate.add_argument("--cpp-io-backend", choices=("epoll", "uring"))
+
     import_yaml = subparsers.add_parser(
         "import", help="Convert Service Architect YAML into a typed Python project"
     )
@@ -122,6 +155,25 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+    if args.command in {"ide-snapshot", "ide-locate", "ide-materialize", "ide-generate"}:
+        try:
+            manifest = load_manifest(args.project)
+            if manifest.authoring.mode != "python":
+                raise ManifestError("IDE graph requires Python authoring", path="$.authoring.mode")
+            payload = (graph_snapshot(manifest) if args.command == "ide-snapshot"
+                       else materialize_project(manifest, args.output_dir) if args.command == "ide-materialize"
+                       else generate_and_merge(manifest, output_dir=args.output_dir,
+                                               env_file=args.env_file, cpp_graph=args.cpp_graph,
+                                               cpp_io_backend=args.cpp_io_backend) if args.command == "ide-generate"
+                       else locate_source(manifest.workspace, kind=args.kind,
+                                          service=args.service, key=args.key,
+                                          source=args.source, target=args.target))
+        except ManifestError as error:
+            payload = {"status": "failed", "message": str(error)}
+        print(json.dumps(payload, ensure_ascii=False))
+        if payload.get("status") != "success":
+            raise SystemExit(1)
+        return
     if args.command == "doctor":
         result = diagnose_project(args.project, env_file=args.env_file)
         if args.format == "json":
