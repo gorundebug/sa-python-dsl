@@ -1,5 +1,14 @@
 # MCP release check
 
+## IDE viewer 0.1.11: extensible node context menu
+
+Both IDE plugins package the same immutable Designer `0.1.11` assets. Right-click
+or Shift+F10 offers Python Code (IDE hosts only), Show Component and Show Pipeline
+according to live membership. Scope navigation is shared with the Designer browsers.
+`scripts/sync_ide_assets.py --check` verifies both packaged builds. This change does
+not switch the Codex/MCP remote asset default: it remains `0.1.10` until the new
+versioned assets are deployed and a separate plugin release selects them.
+
 ## Plugin 0.1.20: shared Designer 0.1.10 and model bindings
 
 The shared Designer source builds immutable UI `0.1.10`. VS Code and JetBrains
