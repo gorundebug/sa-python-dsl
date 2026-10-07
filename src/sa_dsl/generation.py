@@ -7,6 +7,7 @@ from typing import Any, Literal
 from .code_generation import CodeGenerationError, ServiceArchitectClient, generation_build_options
 from .execution import execute_project
 from .manifest import ProjectManifest
+from .generation_progress import ProgressCallback, report_progress
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,6 +16,7 @@ class GenerationResult:
     project_name: str
     diagnostics: tuple[dict[str, Any], ...] = ()
     artifact: str | None = None
+    source_files: tuple[str, ...] = ()
 
     @property
     def succeeded(self) -> bool:
@@ -48,7 +50,10 @@ def generate_project_archive(
     env_file: str = ".env",
     cpp_graph: str | None = None,
     cpp_io_backend: str | None = None,
+    on_progress: ProgressCallback | None = None,
+    job_timeout: float | None = None,
 ) -> GenerationResult:
+    report_progress(on_progress, "EXPORTING", "Evaluating Python DSL and preparing the model")
     exported = execute_project(manifest, "export")
     if not exported.succeeded:
         return GenerationResult(
@@ -66,10 +71,11 @@ def generate_project_archive(
 
     try:
         environment_path = _workspace_path(manifest.workspace, env_file)
-        client = ServiceArchitectClient.from_env(environment_path)
+        client = ServiceArchitectClient.from_env(environment_path, job_timeout=job_timeout)
         archive = client.generate_code(
             _CanonicalProject(exported.rendered_yaml),
             **generation_build_options(cpp_graph, cpp_io_backend),
+            on_progress=on_progress,
         )
         relative_output = output or f"dist/{archive.filename}"
         destination = _workspace_path(manifest.workspace, relative_output)
@@ -89,6 +95,7 @@ def generate_project_archive(
         status="success",
         project_name=manifest.name,
         artifact=relative_output,
+        source_files=exported.source_files,
     )
 
 

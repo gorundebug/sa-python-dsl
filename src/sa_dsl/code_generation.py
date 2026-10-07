@@ -18,6 +18,7 @@ from typing import Any, Callable, Mapping, Protocol
 import yaml
 
 from .auth import CognitoAuthenticator, load_env
+from .generation_progress import ProgressCallback, report_progress
 
 
 DEFAULT_API_URL = "https://0pc6ljy0hg.execute-api.us-east-1.amazonaws.com/test"
@@ -359,6 +360,7 @@ class ServiceArchitectClient:
         password: str | None = None,
         base_url: str | None = None,
         timeout: float = 120,
+        job_timeout: float | None = None,
         opener: Callable[..., _Response] | None = None,
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
@@ -379,6 +381,7 @@ class ServiceArchitectClient:
             or (DEFAULT_API_KEY_URL if api_key is not None else DEFAULT_API_URL)
         ).rstrip("/")
         self.timeout = timeout
+        self.job_timeout = timeout if job_timeout is None else job_timeout
         self._opener = opener or urllib.request.urlopen
         self._sleep = sleep
         self._monotonic = monotonic
@@ -390,6 +393,11 @@ class ServiceArchitectClient:
         **overrides: Any,
     ) -> ServiceArchitectClient:
         values = load_env(env_file)
+        for name in ("SERVICE_ARCHITECT_API_KEY", "SERVICE_ARCHITECT_ID_TOKEN",
+                     "SERVICE_ARCHITECT_USERNAME", "SERVICE_ARCHITECT_PASSWORD",
+                     "SERVICE_ARCHITECT_API_URL"):
+            if name in os.environ:
+                values[name] = os.environ[name]
         options = {
             "api_key": values.get("SERVICE_ARCHITECT_API_KEY") or None,
             "id_token": values.get("SERVICE_ARCHITECT_ID_TOKEN") or None,
@@ -411,6 +419,7 @@ class ServiceArchitectClient:
     def generate_code(
         self, project: Any, *, cpp_graph: str | None = None, cpp_io_backend: str | None = None,
         pack_options: Mapping[str, Mapping[str, str | bool | int]] | None = None,
+        on_progress: ProgressCallback | None = None,
     ) -> GeneratedProjectArchive:
         choices = generation_build_options(cpp_graph, cpp_io_backend)
         overrides = {section: dict(values) for section, values in (pack_options or {}).items()}
@@ -438,11 +447,16 @@ class ServiceArchitectClient:
         canonical = yaml.safe_load(project.to_yaml())
         require_canonical_components(canonical)
         document = generation_document(to_api_document(canonical))
+        report_progress(on_progress, "SUBMITTING", "Sending the model to Service Architect")
         if self.api_key is not None:
-            return self._generate_async(document, suffix)
+            return self._generate_async(document, suffix, on_progress=on_progress)
+        report_progress(on_progress, "RUNNING", "Waiting for remote code generation")
         return self._generate_legacy(document, suffix)
 
-    def _generate_async(self, document: Mapping[str, Any], query: str = "") -> GeneratedProjectArchive:
+    def _generate_async(
+        self, document: Mapping[str, Any], query: str = "", *,
+        on_progress: ProgressCallback | None = None,
+    ) -> GeneratedProjectArchive:
         submitted = self._json_request(
             f"{self.base_url}{GENERATION_JOBS_PATH}{query}",
             method="POST",
@@ -465,7 +479,8 @@ class ServiceArchitectClient:
         )
         poll_after = submitted.get("pollAfterSeconds", 2)
         poll_interval = float(poll_after) if isinstance(poll_after, (int, float)) else 2.0
-        deadline = self._monotonic() + self.timeout
+        deadline = self._monotonic() + self.job_timeout
+        previous_status = ""
         while True:
             status = str(job.get("status", ""))
             if status == "SUCCEEDED":
@@ -481,6 +496,11 @@ class ServiceArchitectClient:
                     f"Service Architect returned unknown generation status: {status or '<empty>'}",
                     details=job,
                 )
+            if status != previous_status:
+                report_progress(on_progress, status,
+                                "Waiting in the generation queue" if status == "QUEUED"
+                                else "Generating project code on the server")
+                previous_status = status
             if self._monotonic() >= deadline:
                 raise CodeGenerationError(
                     "Service Architect generation job timed out while polling",
@@ -501,6 +521,7 @@ class ServiceArchitectClient:
                     details=status_payload,
                 )
 
+        report_progress(on_progress, "DOWNLOADING", "Downloading the generated project archive")
         download = self._json_request(
             status_endpoint + "/download",
             headers={

@@ -1,7 +1,7 @@
-"""Read-only IDE projection of a typed Python Service Architect project.
+"""IDE projection of a typed Python Service Architect project.
 
-The Python project remains authoritative.  Neither operation writes canonical YAML
-or adds source locations to the graph document.
+Python remains authoritative. Snapshot refresh saves the canonical YAML artifact;
+source navigation is read-only. Neither operation adds locations to the graph.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from typing import Any
 import yaml
 
 from .designer import make_snapshot
-from .execution import execute_project
+from .execution import execute_project, write_canonical_yaml
 from .manifest import ProjectManifest
 
 
@@ -42,7 +42,7 @@ def _key(name: str) -> str:
 
 
 def graph_snapshot(manifest: ProjectManifest) -> dict[str, Any]:
-    """Evaluate Python in the bounded worker and return the shared Designer snapshot."""
+    """Evaluate Python, save canonical YAML and display that same model."""
     result = execute_project(manifest, "export")
     if not result.succeeded or result.rendered_yaml is None:
         diagnostics = list(result.diagnostics)
@@ -53,6 +53,10 @@ def graph_snapshot(manifest: ProjectManifest) -> dict[str, Any]:
         }
     if not isinstance(yaml.safe_load(result.rendered_yaml), dict):
         return {"status": "failed", "message": "Exported graph is not a mapping"}
+    try:
+        write_canonical_yaml(manifest, result.rendered_yaml)
+    except (OSError, ValueError) as error:
+        return {'status': 'failed', 'message': f'Cannot save canonical YAML: {error}'}
     return {"status": "success", "snapshot": make_snapshot(manifest.name, result.rendered_yaml)}
 
 

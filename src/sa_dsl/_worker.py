@@ -59,6 +59,16 @@ def main() -> None:
         }
         if not diagnostics and args.operation == "export":
             payload["yaml"] = project.to_yaml()
+            workspace = args.workspace.resolve()
+            source_files = set()
+            for module in tuple(sys.modules.values()):
+                filename = getattr(module, "__file__", None)
+                if not isinstance(filename, str) or not filename.endswith(".py"):
+                    continue
+                source = Path(filename).resolve()
+                if source.is_relative_to(workspace):
+                    source_files.add(source.relative_to(workspace).as_posix())
+            payload["sourceFiles"] = sorted(source_files)
         if diagnostics:
             exit_code = 1
     except Exception as error:

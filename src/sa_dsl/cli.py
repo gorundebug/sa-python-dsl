@@ -13,6 +13,8 @@ from .generation import generate_project_archive
 from .ide import graph_snapshot, locate_source
 from .ide_materialize import materialize_project
 from .ide_generation import generate_and_merge
+from .generation_progress import write_progress
+from .project_init import initialize_project
 from .manifest import ManifestError, load_manifest
 from .migration import import_yaml_project
 from .model import Project
@@ -36,6 +38,11 @@ def main() -> None:
         description="Build Service Architect YAML from a typed Python graph.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    initialize = subparsers.add_parser("init", help="Create <workspace-name>-architecture in the current workspace")
+    initialize.add_argument("--project", type=Path, default=Path("."), help="Existing workspace directory")
+    initialize.add_argument("--name", help="Project name; defaults to the workspace folder name")
+    initialize.add_argument("--yaml", type=Path, help="Import architecture YAML instead of creating an empty model")
 
     inspect = subparsers.add_parser(
         "inspect", help="Read project metadata without executing authoring code"
@@ -134,7 +141,8 @@ def main() -> None:
         "ide-generate", help="Generate code into an output directory using ServiceGen merge"
     )
     ide_generate.add_argument("--project", type=Path, default=Path("."))
-    ide_generate.add_argument("--output-dir", required=True)
+    ide_generate.add_argument("--output-dir", help="Destination; defaults to generation.outputDirectory from the project manifest")
+    ide_generate.add_argument("--progress-json", action="store_true", help="Stream generation progress as JSON lines on stderr")
     ide_generate.add_argument("--env-file", default=".env")
     ide_generate.add_argument("--cpp-graph", choices=("typed", "dynamic"))
     ide_generate.add_argument("--cpp-io-backend", choices=("epoll", "uring"))
@@ -155,6 +163,12 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+    if args.command == "init":
+        payload = initialize_project(args.project, name=args.name, source_yaml=args.yaml)
+        print(json.dumps(payload, ensure_ascii=False))
+        if payload["status"] != "success":
+            raise SystemExit(1)
+        return
     if args.command in {"ide-snapshot", "ide-locate", "ide-materialize", "ide-generate"}:
         try:
             manifest = load_manifest(args.project)
@@ -164,7 +178,8 @@ def main() -> None:
                        else materialize_project(manifest, args.output_dir) if args.command == "ide-materialize"
                        else generate_and_merge(manifest, output_dir=args.output_dir,
                                                env_file=args.env_file, cpp_graph=args.cpp_graph,
-                                               cpp_io_backend=args.cpp_io_backend) if args.command == "ide-generate"
+                                               cpp_io_backend=args.cpp_io_backend,
+                                               on_progress=write_progress if args.progress_json else None) if args.command == "ide-generate"
                        else locate_source(manifest.workspace, kind=args.kind,
                                           service=args.service, key=args.key,
                                           source=args.source, target=args.target))

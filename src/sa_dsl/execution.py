@@ -24,6 +24,7 @@ class ExecutionResult:
     project_name: str
     diagnostics: tuple[dict[str, Any], ...] = ()
     rendered_yaml: str | None = None
+    source_files: tuple[str, ...] = ()
 
     @property
     def succeeded(self) -> bool:
@@ -148,6 +149,12 @@ def execute_project(
             "SA_EXECUTION_PROTOCOL_ERROR",
             "Python authoring returned invalid YAML content",
         )
+    source_files = payload.get("sourceFiles", [])
+    if not isinstance(source_files, list) or any(not isinstance(path, str) for path in source_files):
+        return _execution_failure(
+            manifest, operation, "SA_EXECUTION_PROTOCOL_ERROR",
+            "Python authoring returned invalid source file metadata",
+        )
     status = payload.get("status")
     if status not in {"success", "failed"}:
         return _execution_failure(
@@ -169,6 +176,7 @@ def execute_project(
         project_name=manifest.name,
         diagnostics=tuple(diagnostics),
         rendered_yaml=rendered_yaml,
+        source_files=tuple(source_files),
     )
 
 
@@ -178,9 +186,29 @@ def write_canonical_yaml(
     relative_output = output or manifest.canonical.output
     destination = _workspace_path(manifest.workspace, relative_output)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary = destination.with_name(f".{destination.name}.tmp")
-    temporary.write_text(rendered_yaml, encoding="utf-8")
-    temporary.replace(destination)
+    metadata = manifest.workspace / '.service-architect'
+    if destination.is_relative_to((metadata / 'build').resolve()):
+        ignore = manifest.workspace / '.gitignore'
+        if ignore.is_symlink():
+            raise ValueError('SA project .gitignore must not be a symlink')
+        with ignore.open('a+', encoding='utf-8') as stream:
+            stream.seek(0)
+            content = stream.read()
+            pattern = '.service-architect/build/'
+            if pattern not in content.splitlines() and '/' + pattern not in content.splitlines():
+                stream.write(('\n' if content and not content.endswith('\n') else '') + pattern + '\n')
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode='w', encoding='utf-8', dir=destination.parent,
+            prefix=f'.{destination.name}.', suffix='.tmp', delete=False,
+        ) as stream:
+            temporary = Path(stream.name)
+            stream.write(rendered_yaml)
+        temporary.replace(destination)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
     return relative_output
 
 

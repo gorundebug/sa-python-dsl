@@ -8,11 +8,11 @@ import shutil
 
 ROOT = Path(__file__).resolve().parents[2]
 DESIGNER = ROOT.parent / "service_architect" / "service_architect_vue3"
-VERSION = "0.1.11"
+VERSION = "0.1.12"
 SOURCE = DESIGNER / "public" / "mcp-ui" / VERSION
 ASSET_DIGESTS = {
-    "designer.js": "bdc60846753ef47ff0b06f12ef15cc63d79709318c429bbb8588155d822c0e82",
-    "designer.css": "b1bbe48ecb41e4f3b5bfcd4cf4be82dea5b8d526dd292a73f77433733f18a30d",
+    "designer.js": "1a39ed70f3b5a327a892ebb4cca87bca4141e111b6e71e3b0deea43600dbe593",
+    "designer.css": "8a96a26263559c1e59472b940337b8b319710e1c0b5aa0239557044181829aae",
 }
 DESTINATIONS = (
     (ROOT / "service-architect-vscode", Path("media")),

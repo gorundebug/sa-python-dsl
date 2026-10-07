@@ -58,6 +58,7 @@ class CanonicalConfig:
 @dataclass(frozen=True, slots=True)
 class GenerationConfig:
     targets: tuple[str, ...]
+    output_directory: str = "."
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +84,7 @@ class ProjectManifest:
                 "source": self.authoring.source,
                 "canonicalOutput": self.canonical.output,
                 "targets": list(self.generation.targets),
+                "generationOutputDirectory": self.generation.output_directory,
             },
         }
 
@@ -176,7 +178,12 @@ def load_manifest(project: str | Path) -> ProjectManifest:
     _validate_relative_path(canonical_output, "$.canonical.output")
 
     generation_config = _mapping(root.get("generation"), "$.generation")
-    _reject_unknown(generation_config, {"targets"}, "$.generation")
+    _reject_unknown(generation_config, {"targets", "outputDirectory"}, "$.generation")
+    output_directory = _optional_string(generation_config, "outputDirectory", "$.generation.outputDirectory")
+    if output_directory is None:
+        output_directory = "."
+    if not output_directory.strip() or PurePosixPath(output_directory).is_absolute() or "\\" in output_directory or "\x00" in output_directory:
+        raise ManifestError("outputDirectory must be a non-empty relative directory", path="$.generation.outputDirectory")
     targets_value = generation_config.get("targets")
     if not isinstance(targets_value, list) or not targets_value:
         raise ManifestError(
@@ -200,7 +207,7 @@ def load_manifest(project: str | Path) -> ProjectManifest:
         name=name,
         authoring=AuthoringConfig(mode=mode, entrypoint=entrypoint, source=source),
         canonical=CanonicalConfig(output=canonical_output),
-        generation=GenerationConfig(targets=tuple(targets)),
+        generation=GenerationConfig(targets=tuple(targets), output_directory=output_directory),
         workspace=workspace,
         manifest_path=manifest_path,
     )

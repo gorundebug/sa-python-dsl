@@ -84,7 +84,7 @@ high_value_analytics = multi_join_analytics_pipeline.when(
     appearance=Appearance(x=398, y=-1650),
 )
 
-standard_analytics = multi_join_analytics_pipeline.when(
+standard_analytics =  multi_join_analytics_pipeline.when(
     'Standard Analytics',
     value_type=analytics_result,
     appearance=Appearance(x=463, y=-1449),
