@@ -1,5 +1,34 @@
 # MCP release check
 
+## Plugin 0.1.22: typed Python authoring and verified generation
+
+The plugin pins its MCP runtime to
+`dc198e0d639b16eb7b1e012f246bba52a1a5057a`. It exposes 21 tools, including
+source-preserving Python previews and edits, adding nodes and endpoints,
+connecting ports, and structured object discovery. Agents can read 30 object
+guides and ten executable architecture recipes. Project-scoped resources keep
+nested workspaces and their metadata separate.
+
+Generation preserves backend diagnostics and business-owned files. Destination
+locking, revision checks, bounded verification subprocesses and safe audit
+failures are covered by the regression suite. Composite type references are
+resolved correctly in generation requests. Passive Error nodes do not accept a
+business-function argument; error handling uses the documented graph contracts.
+
+Acceptance includes 314 passing tests, real generation and compilation of all ten
+Go recipes and the canonical example's four services. The installed MCP also
+completed live production AWS generation, downloaded a valid archive and built
+its four Go services. Compilation used the local servicelib checkout; this is
+not a claim about other language backends or execution of business stubs.
+See [the acceptance audit](mcp/completion-audit.md) for scope and evidence.
+
+The Python distribution metadata remains `0.1.0`, as in earlier plugin releases;
+the immutable Git source identifies this runtime revision. This is a Git-backed
+plugin release, not a PyPI publication. Designer UI selection stays at `0.1.10`,
+and no IDE plugin binaries or cloud deployment are changed by this release.
+Run `make mcp-conformance` against this exact published revision before publishing
+the updated plugin manifest. The release gate requires all 21 tools.
+
 ## IDE viewer 0.1.11: extensible node context menu
 
 Both IDE plugins package the same immutable Designer `0.1.11` assets. Right-click
