@@ -17,7 +17,11 @@ import yaml
 
 from .code_generation import CodeGenerationError, GeneratedProjectArchive, ServiceArchitectClient, generation_build_options
 from .execution import execute_project
+from .destination_lock import DestinationBusyError, lock_generation_destination
 from .manifest import ProjectManifest
+from .generation_workspace import generation_directory, protect_authoring
+from .mcp_workspace import WorkspaceBoundaryError
+from .process_execution import run_bounded_process
 from .semantic_diff import document_revision
 
 
@@ -65,7 +69,14 @@ def preview_generation_transaction(
     cpp_io_backend: str | None = None,
     client_factory: Callable[[Path], ServiceArchitectClient] = ServiceArchitectClient.from_env,
     now: Callable[[], float] = time.time,
+    boundary_root: Path | None = None,
 ) -> dict[str, Any]:
+    try:
+        destination = generation_directory(manifest, boundary_root=boundary_root)
+        workspace_revision = _workspace_revision(manifest.workspace)
+        output_revision = _output_revision(destination)
+    except (OSError, ValueError) as error:
+        return _failure(manifest, "preview-generation", _transaction_error(error, "SA_GENERATION_PREVIEW_FAILED"))
     exported = execute_project(manifest, "export")
     if not exported.succeeded:
         return _execution_payload("preview-generation", exported.to_payload())
@@ -86,7 +97,8 @@ def preview_generation_transaction(
             _CanonicalProject(exported.rendered_yaml),
             **generation_build_options(cpp_graph, cpp_io_backend),
         )
-        workspace_revision = _workspace_revision(manifest.workspace)
+        if _workspace_revision(manifest.workspace) != workspace_revision or _output_revision(destination) != output_revision:
+            raise GenerationTransactionError("SA_STALE_WORKSPACE", "workspace changed while generating; request a fresh preview")
         canonical_document = yaml.safe_load(exported.rendered_yaml)
         if not isinstance(canonical_document, dict):
             raise GenerationTransactionError(
@@ -103,16 +115,21 @@ def preview_generation_transaction(
             archive_path.write_bytes(archive.content)
             incoming = staging / "incoming"
             merge_script = _extract_merge_script(archive_path, incoming)
+            protect_authoring(manifest, destination, merge_script.parent.parent, exported.source_files, env_file)
             report_path = staging / "merge-report.json"
+            preview_destination = destination
+            if not destination.exists():
+                preview_destination = staging / "empty-output"
+                preview_destination.mkdir()
             report = _run_merge(
                 merge_script,
                 archive_path,
-                manifest.workspace,
+                preview_destination,
                 report_path,
                 dry_run=True,
                 remove_stale=remove_stale,
             )
-            if _workspace_revision(manifest.workspace) != workspace_revision:
+            if _workspace_revision(manifest.workspace) != workspace_revision or _output_revision(destination) != output_revision:
                 raise GenerationTransactionError(
                     "SA_PREVIEW_MUTATED_WORKSPACE",
                     "merge preview changed the workspace; inspect local merge hooks",
@@ -126,6 +143,10 @@ def preview_generation_transaction(
                 "expiresAt": created_at + PREVIEW_TTL_SECONDS,
                 "canonicalRevision": canonical_revision,
                 "workspaceRevision": workspace_revision,
+                "outputDirectory": str(destination),
+                "outputRevision": output_revision,
+                "sourceFiles": list(exported.source_files),
+                "envFile": env_file,
                 "archiveRevision": archive_revision,
                 "archiveFilename": archive.filename,
                 "removeStale": remove_stale,
@@ -141,9 +162,15 @@ def preview_generation_transaction(
             )
             _atomic_write(preview_directory / "report.json", _json_bytes(report))
     except (CodeGenerationError, GenerationTransactionError, OSError, ValueError) as error:
-        transaction_error = error if isinstance(error, GenerationTransactionError) else GenerationTransactionError(
-            "SA_GENERATION_PREVIEW_FAILED", str(error)
-        )
+        if isinstance(error, CodeGenerationError) and error.diagnostics:
+            return {
+                "schemaVersion": "1.0",
+                "operation": "preview-generation",
+                "status": "failed",
+                "project": {"name": manifest.name},
+                "diagnostics": list(error.diagnostics),
+            }
+        transaction_error = _transaction_error(error, "SA_GENERATION_PREVIEW_FAILED")
         return _failure(manifest, "preview-generation", transaction_error)
 
     return {
@@ -162,9 +189,36 @@ def apply_generation_transaction(
     preview_id: str,
     preview_revision: str,
     now: Callable[[], float] = time.time,
+    boundary_root: Path | None = None,
 ) -> dict[str, Any]:
     try:
+        destination = generation_directory(manifest, boundary_root=boundary_root)
+        with lock_generation_destination(destination):
+            return _apply_generation_transaction_locked(
+                manifest, preview_id=preview_id, preview_revision=preview_revision,
+                now=now, boundary_root=boundary_root,
+            )
+    except DestinationBusyError as error:
+        return _failure(manifest, "apply-generation", GenerationTransactionError(
+            "SA_GENERATION_APPLY_BUSY", str(error),
+        ))
+    except (OSError, ValueError) as error:
+        return _failure(manifest, "apply-generation", _transaction_error(error, "SA_GENERATION_APPLY_FAILED"))
+
+
+def _apply_generation_transaction_locked(
+    manifest: ProjectManifest,
+    *,
+    preview_id: str,
+    preview_revision: str,
+    now: Callable[[], float],
+    boundary_root: Path | None,
+) -> dict[str, Any]:
+    try:
+        destination = generation_directory(manifest, boundary_root=boundary_root)
         directory = _preview_directory(manifest.workspace, preview_id)
+        if any((directory / name).is_symlink() for name in ("metadata.json", "archive.zip", "applied.json")):
+            raise GenerationTransactionError("SA_PREVIEW_INVALID", "preview files must not be symlinks")
         metadata = _read_json(directory / "metadata.json")
         if metadata.get("previewId") != preview_id:
             raise GenerationTransactionError(
@@ -194,8 +248,10 @@ def apply_generation_transaction(
             raise GenerationTransactionError(
                 "SA_PREVIEW_INVALID", "generation preview belongs to another project"
             )
+        if metadata.get("outputDirectory") != str(destination):
+            raise GenerationTransactionError("SA_STALE_WORKSPACE", "generation output changed; request a fresh preview")
         current_workspace_revision = _workspace_revision(manifest.workspace)
-        if current_workspace_revision != metadata.get("workspaceRevision"):
+        if current_workspace_revision != metadata.get("workspaceRevision") or _output_revision(destination) != metadata.get("outputRevision"):
             raise GenerationTransactionError(
                 "SA_STALE_WORKSPACE",
                 "workspace changed after preview; request a fresh generation preview",
@@ -209,10 +265,16 @@ def apply_generation_transaction(
         with tempfile.TemporaryDirectory(prefix="sa-generation-apply-") as temporary:
             staging = Path(temporary)
             merge_script = _extract_merge_script(archive_path, staging / "incoming")
+            source_files = metadata.get("sourceFiles")
+            env_file = metadata.get("envFile")
+            if not isinstance(source_files, list) or any(not isinstance(item, str) for item in source_files) or not isinstance(env_file, str):
+                raise GenerationTransactionError("SA_PREVIEW_INVALID", "preview source protection metadata is invalid")
+            protect_authoring(manifest, destination, merge_script.parent.parent, tuple(source_files), env_file)
+            destination.mkdir(parents=True, exist_ok=True)
             report = _run_merge(
                 merge_script,
                 archive_path,
-                manifest.workspace,
+                destination,
                 staging / "merge-report.json",
                 dry_run=False,
                 remove_stale=bool(metadata.get("removeStale")),
@@ -223,13 +285,13 @@ def apply_generation_transaction(
             "previewRevision": preview_revision,
             "appliedAt": int(now()),
             "workspaceRevision": _workspace_revision(manifest.workspace),
+            "outputDirectory": str(destination),
+            "outputRevision": _output_revision(destination),
             "merge": report,
         }
         _atomic_write(directory / "applied.json", _json_bytes(applied))
     except (GenerationTransactionError, OSError, ValueError) as error:
-        transaction_error = error if isinstance(error, GenerationTransactionError) else GenerationTransactionError(
-            "SA_GENERATION_APPLY_FAILED", str(error)
-        )
+        transaction_error = _transaction_error(error, "SA_GENERATION_APPLY_FAILED")
         return _failure(manifest, "apply-generation", transaction_error)
 
     return {
@@ -311,7 +373,7 @@ def _run_merge(
     }
     environment["SERVICEGEN_PROJECT_DIR_OVERRIDE"] = str(workspace.resolve())
     try:
-        completed = subprocess.run(
+        completed = run_bounded_process(
             command,
             cwd=workspace,
             env=environment,
@@ -361,15 +423,15 @@ def _workspace_revision(workspace: Path) -> str:
             for directory in directories
             if directory not in _IGNORED_DIRECTORIES
             and not (
-                relative_directory == Path(".service-architect")
-                and directory == "previews"
+                relative_directory.name == ".service-architect"
+                and directory in {"previews", "edits"}
             )
         )
         for filename in sorted(files):
             relative = relative_directory / filename
-            if relative == Path(".servicegen/merge.log"):
+            if relative.parts[-2:] == (".servicegen", "merge.log"):
                 continue
-            if relative == Path(".service-architect/audit.jsonl"):
+            if relative.parts[-2:] == (".service-architect", "audit.jsonl"):
                 continue
             path = root / relative
             digest.update(relative.as_posix().encode("utf-8") + b"\0")
@@ -389,7 +451,7 @@ def _preview_directory(workspace: Path, preview_id: str) -> Path:
         raise GenerationTransactionError(
             "SA_PREVIEW_INVALID", "preview ID has an invalid format", "$.preview_id"
         )
-    root = (workspace / ".service-architect" / "previews").resolve()
+    root = _workspace_path(workspace, ".service-architect/previews")
     directory = (root / preview_id).resolve(strict=False)
     if directory.parent != root:
         raise GenerationTransactionError(
@@ -418,6 +480,17 @@ def _new_preview_id() -> str:
     import secrets
 
     return secrets.token_urlsafe(24)
+
+
+def _output_revision(directory: Path) -> str | None:
+    return _workspace_revision(directory) if directory.exists() else None
+
+
+def _transaction_error(error: Exception, fallback_code: str) -> GenerationTransactionError:
+    if isinstance(error, GenerationTransactionError):
+        return error
+    code = "SA_WORKSPACE_BOUNDARY_VIOLATION" if isinstance(error, WorkspaceBoundaryError) else fallback_code
+    return GenerationTransactionError(code, str(error))
 
 
 def _file_revision(path: Path) -> str:

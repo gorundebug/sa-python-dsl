@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import os
+import glob
 import re
+import shlex
 import subprocess
 import time
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
+
+from .process_execution import MAX_CAPTURED_OUTPUT, run_bounded_process
 
 
 VERIFICATIONS: Mapping[str, tuple[str, ...]] = {
@@ -15,7 +19,7 @@ VERIFICATIONS: Mapping[str, tuple[str, ...]] = {
     "merge-validate": ("make", "merge-validate"),
 }
 DEFAULT_VERIFICATION_TIMEOUT_SECONDS = 15 * 60
-MAX_VERIFICATION_OUTPUT = 64 * 1024
+MAX_VERIFICATION_OUTPUT = MAX_CAPTURED_OUTPUT
 _TASK_TITLE = re.compile(r"^# Task (\d+)/(\d+): `([^`]+)`$", re.MULTILINE)
 _TABLE_ROW = re.compile(r"^\|\s*([^|]+?)\s*\|\s*`?([^|`]+?)`?\s*\|$", re.MULTILINE)
 _TYPE_LINE = re.compile(r"^- (Input|Output|Key): `([^`]+)`(?:.*?`([^`]+)`)?.*$", re.MULTILINE)
@@ -59,14 +63,66 @@ def inspect_business_tasks(workspace: Path) -> dict[str, Any]:
 
 
 def available_verifications(workspace: Path) -> list[dict[str, Any]]:
-    makefile = workspace / "Makefile"
-    content = makefile.read_text(encoding="utf-8", errors="replace") if makefile.is_file() else ""
+    targets = _make_targets(workspace)
     result = []
     for identifier, command in VERIFICATIONS.items():
         target = command[-1]
-        if re.search(rf"(?m)^{re.escape(target)}\s*:", content):
+        if target in targets:
             result.append({"id": identifier, "argv": list(command)})
     return result
+
+
+def _make_targets(workspace: Path) -> set[str]:
+    """Discover literal targets in local Make includes without evaluating Make.
+
+    This is capability discovery, not a Make interpreter. Conditional execution
+    and arbitrary variables are deliberately left to an explicit verification.
+    """
+    root = workspace.resolve()
+    initial = next((root / name for name in ("GNUmakefile", "makefile", "Makefile")
+                    if (root / name).is_file()), None)
+    if initial is None:
+        return set()
+    pending = [initial]
+    visited: set[Path] = set()
+    targets: set[str] = set()
+    total = 0
+    while pending and len(visited) < 64:
+        path = pending.pop().resolve()
+        if path in visited or not path.is_relative_to(root) or not path.is_file():
+            continue
+        visited.add(path)
+        if total + path.stat().st_size > 4 * 1024 * 1024:
+            continue
+        content = path.read_text(encoding="utf-8", errors="replace")
+        total += len(content.encode("utf-8"))
+        content = re.sub(r"\\\r?\n", " ", content)
+        for line in content.splitlines():
+            if line.startswith("\t"):
+                continue
+            rule = re.match(r"^ *([^#:=]+):(?!=)", line)
+            if rule:
+                targets.update(name for name in rule.group(1).split() if name in VERIFICATIONS)
+            include = re.match(r"^ *(?:-?include|sinclude)\s+(.+)$", line)
+            if not include:
+                continue
+            expression = include.group(1).strip()
+            wildcard = re.fullmatch(r"\$\(wildcard\s+([^()]+)\)", expression)
+            if wildcard:
+                expression = wildcard.group(1)
+            try:
+                names = shlex.split(expression, comments=True)
+            except ValueError:
+                continue
+            for name in names:
+                name = name.replace("$(CURDIR)", str(root)).replace("${CURDIR}", str(root))
+                if "$" in name:
+                    continue
+                for match in glob.iglob(str(root / name)):
+                    if len(pending) >= 64:
+                        break
+                    pending.append(Path(match))
+    return targets
 
 
 def run_verification(
@@ -74,7 +130,7 @@ def run_verification(
     verification: str,
     *,
     timeout_seconds: int = DEFAULT_VERIFICATION_TIMEOUT_SECONDS,
-    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
     monotonic: Callable[[], float] = time.monotonic,
 ) -> dict[str, Any]:
     command = VERIFICATIONS.get(verification)
@@ -96,7 +152,7 @@ def run_verification(
     }
     started = monotonic()
     try:
-        completed = runner(
+        completed = (runner or run_bounded_process)(
             list(command),
             cwd=workspace,
             env=environment,

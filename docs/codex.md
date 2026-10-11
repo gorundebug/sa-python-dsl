@@ -73,6 +73,8 @@ The `sa-dsl-mcp` command starts the local stdio server. It exposes:
 | Tool | Side effects | Purpose |
 | --- | --- | --- |
 | `inspect_project` | Reads the manifest only | Discover project metadata without running Python. |
+| `describe_architecture_object` | Reads bundled guidance and DSL signatures only | Discover object purposes, use/avoid criteria, exact factories and relevant patterns. |
+| `doctor` | Reads project and compatibility metadata | Diagnose setup without executing authoring Python. |
 | `refresh_capabilities` | Calls the public backend and writes compatibility metadata | Cache the exact ServiceGen language and runtime capability revision. |
 | `refresh_validation_contract` | Calls the public backend and writes diagnostic metadata | Cache exact conditions and remediation for every public `SG_*` code. |
 | `validate_project` | Executes trusted project Python | Return stable model diagnostics. |
@@ -90,6 +92,15 @@ The server also exposes focused `servicegen://` resources for semantics, authori
 schemas, examples, patterns, the last exported graph, generated tasks, the local
 operation audit, and cached generator capabilities. Passive workspace resources never
 execute project Python and never perform hidden network requests.
+
+Start object selection with `describe_architecture_object(kind="index")` or
+`servicegen://authoring/object-index`. Request one object (for example `map`,
+`connection`, `substream`, or `http-endpoint`) to obtain a bounded explanation
+and signatures reflected from the installed DSL. These guides do not declare
+backend support: still consult the cached capability contract for the target.
+The authoring expansion plan and working recipe specifications are maintained in
+[`mcp/implementation-plan.md`](mcp/implementation-plan.md) and
+[`mcp/architecture-patterns.md`](mcp/architecture-patterns.md).
 
 Call `refresh_capabilities` explicitly before choosing adapters or generating against a
 new backend deployment. It fetches the unauthenticated `/v1/capabilities` contract and
@@ -201,3 +212,57 @@ protocol, process-group termination, and Python audit rules that reject socket o
 subprocess spawning and ctypes loading. This is hardened fault containment, not a complete
 OS security sandbox. Only execute projects from a trusted workspace; stronger isolation
 should use a container or restricted worker.
+
+## Preview typed Python edits through MCP
+
+The Python DSL remains the editable source of truth. Use the following tools
+instead of editing canonical YAML or introducing an independent graph document:
+
+| Tool | Role |
+| --- | --- |
+| `inspect_python_authoring` | Read sources, declarations, insertion sites and source revisions without executing Python |
+| `add_node` | Prepare a validated node-insertion preview using a real Pipeline factory |
+| `add_endpoint` | Prepare a validated endpoint-insertion preview on an existing connector |
+| `connect_ports` | Preview a data, additional-input or complete error-output connection |
+| `preview_python_changes` | Preview a coherent batch of supported edits in one source file |
+| `apply_python_changes` | Apply an unexpired preview only if its source inputs are unchanged |
+
+Review `sourceDiff` and `architectureDiff` before applying. The editor preserves
+existing source bytes outside its insertions, including factories and comments.
+Unsupported insertion sites or expressions produce diagnostics rather than a
+whole-project rewrite. The preview and apply paths validate the effective model;
+a syntactically valid insertion into an unused factory is not silently accepted
+as an architecture change.
+
+Start object discovery at `servicegen://authoring/object-index` or
+`describe_architecture_object`. Read `servicegen://patterns/index` for intent-first
+recipes, current Python examples and explicit completion/failure contracts.
+[Pattern recipe guidance](mcp/pattern-recipes.md) explains what model validation
+can and cannot establish.
+
+`refresh_capabilities` and `refresh_validation_contract` accept `base_url` and
+`env_file` (default `.env`). URL precedence is an explicit override, then
+`SERVICE_ARCHITECT_API_URL` in the process environment, then that setting in the
+project's selected env file, then the client's default backend. Match `env_file`
+to the file used for generation when a project uses a nondefault configuration.
+Only the backend URL is used: these public metadata requests never attach the
+project's API key or identity token. Env-file paths read by these tools must stay
+inside the Python authoring project. A failed refresh does not replace a valid
+cached document. Cached capabilities are not a promise that an unreachable
+backend is available; report refresh failures instead of assuming support.
+
+Verification remains restricted to the discovered generated Make targets.
+On POSIX, a timed-out verification terminates its process group, including child
+compilers and test processes. Output is drained continuously but only a bounded
+prefix is retained; truncation is reported. Windows uses process-tree termination
+through `taskkill`; platform-specific acceptance must still be run on Windows.
+
+### Generation diagnostics
+
+When ServiceGen rejects generation with structured diagnostics, `generate_project`
+and `preview_generation` return the original `SG_*` code, message, source/path,
+stage and details instead of flattening the problem into one string. MCP attaches
+`validationRuleUri` and, when the matching contract is cached, its remediation
+and contract revision. Read that rule before changing the Python model. A network
+failure or malformed response without usable backend diagnostics still returns a
+local `SA_*` error; it must not be interpreted as a model-validation result.

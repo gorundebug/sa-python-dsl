@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -6,9 +7,10 @@ import yaml
 
 from sa_dsl.ide import graph_snapshot, locate_source
 from sa_dsl.manifest import load_manifest
+from tests.test_manifest_workflow import write_manifest
 
 
-def test_snapshot_is_a_read_only_projection(tmp_path: Path) -> None:
+def test_snapshot_is_read_only_and_saves_the_canonical_artifact(tmp_path: Path) -> None:
     rendered = """services:
   sampleService:
     name: Sample Service
@@ -19,14 +21,19 @@ def test_snapshot_is_a_read_only_projection(tmp_path: Path) -> None:
     links:
       sourceNode_targetNode: {from: sourceNode, to: targetNode, callSemantics: 4}
 """
-    manifest = SimpleNamespace(name="sample", workspace=tmp_path)
+    write_manifest(tmp_path, name="sample")
+    manifest = load_manifest(tmp_path)
+    source = tmp_path / "architecture.py"
+    source.write_text("# User-owned Python remains unchanged\n", encoding="utf-8")
     with patch("sa_dsl.ide.execute_project", return_value=SimpleNamespace(
         succeeded=True, rendered_yaml=rendered)):
         snapshot = graph_snapshot(manifest)
     assert snapshot["status"] == "success"
     assert snapshot["snapshot"]["mode"] == "read-only"
     assert snapshot["snapshot"]["canonicalYaml"] == rendered
-    assert list(tmp_path.iterdir()) == []
+    assert (tmp_path / manifest.canonical.output).read_text(encoding="utf-8") == rendered
+    assert source.read_text(encoding="utf-8") == "# User-owned Python remains unchanged\n"
+    assert ".service-architect/build/" in (tmp_path / ".gitignore").read_text(encoding="utf-8")
 
 
 def test_lookup_node_and_chained_links(tmp_path: Path) -> None:
@@ -57,8 +64,10 @@ def test_lookup_fails_closed_on_ambiguous_names(tmp_path: Path) -> None:
     assert result["status"] == "ambiguous"
 
 
-def test_canonical_example_all_nodes_and_links_have_python_locations() -> None:
-    workspace = Path(__file__).resolve().parents[1] / "examples" / "processorder"
+def test_canonical_example_all_nodes_and_links_have_python_locations(tmp_path: Path) -> None:
+    original = Path(__file__).resolve().parents[1] / "examples" / "processorder"
+    workspace = tmp_path / "processorder"
+    shutil.copytree(original, workspace, ignore=shutil.ignore_patterns("__pycache__", ".venv"))
     manifest = load_manifest(workspace)
     snapshot = graph_snapshot(manifest)
     assert snapshot["status"] == "success"

@@ -7,6 +7,8 @@ from typing import Any
 
 from .auth import load_env
 from .manifest import ManifestError, load_manifest
+from .generation_workspace import generation_directory
+from .mcp_workspace import WorkspaceBoundary, WorkspaceBoundaryError
 from .servicegen_capabilities import (
     CapabilityError,
     compatibility_diagnostics,
@@ -18,7 +20,7 @@ from .servicegen_validation import (
 )
 
 
-def diagnose_project(project: Path, *, env_file: str = ".env") -> dict[str, Any]:
+def diagnose_project(project: Path, *, env_file: str = ".env", boundary_root: Path | None = None) -> dict[str, Any]:
     checks: list[dict[str, str]] = []
     _check(
         checks,
@@ -99,8 +101,8 @@ def diagnose_project(project: Path, *, env_file: str = ".env") -> dict[str, Any]
         manifest.canonical.output if canonical.is_file() else "canonical export is not present yet",
     )
 
-    credentials_path = manifest.workspace / env_file
     try:
+        credentials_path = WorkspaceBoundary(manifest.workspace).resolve(env_file)
         values = load_env(credentials_path) if credentials_path.is_file() else {}
         configured = bool(
             values.get("SERVICE_ARCHITECT_API_KEY")
@@ -119,7 +121,13 @@ def diagnose_project(project: Path, *, env_file: str = ".env") -> dict[str, Any]
     except (OSError, ValueError) as error:
         _check(checks, "credentials", "error", f"cannot read credential configuration: {error}")
 
-    merge_script = manifest.workspace / "scripts/merge.generated.sh"
+    try:
+        destination = generation_directory(manifest, boundary_root=boundary_root)
+    except (OSError, WorkspaceBoundaryError) as error:
+        _check(checks, "generationOutput", "error", str(error))
+        return _payload(checks)
+    _check(checks, "generationOutput", "pass", str(destination))
+    merge_script = destination / "scripts/merge.generated.sh"
     if merge_script.is_file():
         content = merge_script.read_text(encoding="utf-8", errors="replace")
         compatible = "--report-json" in content and "SERVICEGEN_PROJECT_DIR_OVERRIDE" in content

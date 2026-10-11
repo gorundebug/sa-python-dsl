@@ -98,3 +98,11 @@ REVIEW_CHECKLIST = {
     "cycles": ["Only CycleLink closes feedback", "termination or bounded progress is explicit"],
     "proof": ["validate_project succeeds", "semantic diff matches the intent card", "canonical YAML is exported only after review"],
 }
+
+
+# Recipes and conceptual guidance share the same resource catalogue. Keep examples
+# independent of MCP registration so they can also be checked by the export worker.
+from .pattern_recipes import PATTERN_RECIPES
+
+for _name, _recipe in PATTERN_RECIPES.items():
+    PATTERN_CATALOG.setdefault(_name, {}).update(_recipe)

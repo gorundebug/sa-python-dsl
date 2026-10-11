@@ -42,6 +42,20 @@ CONNECTOR_FACTORIES = (
     "custom_connector",
 )
 
+
+def describe_typed_factory(owner: str, method: str) -> dict[str, Any]:
+    """Describe a public DSL method without importing or executing a project."""
+    class_ = next((item for item in PUBLIC_API_CLASSES if item.__name__ == owner), None)
+    member = class_.__dict__.get(method) if class_ is not None else None
+    if method.startswith("_") or not callable(member):
+        raise ValueError(f"Unknown public DSL factory: {owner}.{method}")
+    return {
+        "owner": owner,
+        "resource": f"servicegen://authoring/typed-api-{owner}-{method}",
+        **_method(method, member),
+    }
+
+
 def _annotation(value: Any) -> str | None:
     if value is inspect.Parameter.empty or value is inspect.Signature.empty:
         return None

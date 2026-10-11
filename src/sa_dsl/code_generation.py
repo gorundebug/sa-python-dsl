@@ -75,6 +75,54 @@ class CodeGenerationError(RuntimeError):
         super().__init__(message)
         self.status_code = status_code
         self.details = details
+        self.diagnostics = _backend_diagnostics(details)
+
+
+def _backend_diagnostics(payload: Any) -> tuple[dict[str, Any], ...]:
+    """Preserve ServiceGen diagnostics from direct and gateway problem responses."""
+    for _ in range(8):
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError:
+                return ()
+        if not isinstance(payload, Mapping):
+            return ()
+        items = payload.get("diagnostics")
+        if isinstance(items, list):
+            result = []
+            for item in items:
+                if not isinstance(item, Mapping):
+                    continue
+                code, message = item.get("code"), item.get("message")
+                if not isinstance(code, str) or not re.fullmatch(r"SG_[A-Z0-9_]+", code):
+                    continue
+                if not isinstance(message, str) or not message:
+                    continue
+                source = item.get("source")
+                path = item.get("path")
+                if not isinstance(path, str) or not path:
+                    path = source.get("path") if isinstance(source, Mapping) else None
+                severity = item.get("severity")
+                diagnostic = {
+                    "code": code,
+                    "message": message,
+                    "severity": severity if severity in ("error", "warning", "info") else "error",
+                    "path": path if isinstance(path, str) and path else "$.generation",
+                }
+                for field in ("stage", "source", "details"):
+                    if field in item:
+                        diagnostic[field] = item[field]
+                result.append(diagnostic)
+            return tuple(result)
+        for field in ("body", "problem", "error", "job"):
+            nested = payload.get(field)
+            if isinstance(nested, (str, Mapping)):
+                payload = nested
+                break
+        else:
+            return ()
+    return ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -277,11 +325,12 @@ def to_api_document(document: Mapping[str, Any]) -> dict[str, Any]:
         for field, field_value in value.items():
             if field == "name":
                 continue
-            converted[field] = (
-                _enum("definitionFormat", field_value)
-                if field == "definitionFormat"
-                else field_value
-            )
+            if field == "definitionFormat":
+                converted[field] = _enum("definitionFormat", field_value)
+            elif field in {"valueType", "keyType"}:
+                converted[field] = type_names.get(field_value, field_value)
+            else:
+                converted[field] = field_value
         types.append(converted)
 
     return {
@@ -318,7 +367,7 @@ def yaml_to_api_document(
 
 def _error_message(payload: Any) -> str:
     if isinstance(payload, Mapping):
-        for key in ("message", "error", "body"):
+        for key in ("message", "error", "body", "detail", "title"):
             value = payload.get(key)
             if value:
                 if isinstance(value, str):

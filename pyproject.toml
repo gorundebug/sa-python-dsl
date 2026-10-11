@@ -17,6 +17,9 @@ dependencies = [
     "PyYAML==6.0.3",
 ]
 
+[project.optional-dependencies]
+test = ["pytest==9.1.1"]
+
 [project.urls]
 Homepage = "https://gorundebug.com/"
 Repository = "https://github.com/gorundebug/sa-python-dsl"

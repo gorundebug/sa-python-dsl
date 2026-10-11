@@ -64,7 +64,12 @@ async def verify_mcp(source: str) -> None:
 
     tool_names = {tool.name for tool in tools.tools}
     required = {
+        "add_endpoint",
+        "add_node",
         "apply_generation",
+        "apply_python_changes",
+        "connect_ports",
+        "describe_architecture_object",
         "designer_view",
         "doctor",
         "export_project",
@@ -72,8 +77,10 @@ async def verify_mcp(source: str) -> None:
         "import_yaml_project",
         "inspect_business_tasks",
         "inspect_project",
+        "inspect_python_authoring",
         "preview_architecture_diff",
         "preview_generation",
+        "preview_python_changes",
         "refresh_capabilities",
         "refresh_validation_contract",
         "run_verification",
@@ -98,7 +105,7 @@ def main() -> int:
     source = pinned_source()
     print(f"Pinned source: {source}")
     if not args.skip_tests:
-        run([sys.executable, "-m", "unittest", "discover", "-s", "tests"])
+        run([sys.executable, "-m", "pytest", "tests"])
     run(["uvx", "--refresh", "--from", source, "sa-dsl", "--help"])
     anyio.run(verify_mcp, source)
     return 0

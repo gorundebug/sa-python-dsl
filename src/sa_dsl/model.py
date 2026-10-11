@@ -1005,7 +1005,6 @@ class Pipeline:
         name: str,
         *,
         value_type: TypeDefinition | DataType | str | None = None,
-        function: Function | None = None,
         source: Stream | None = None,
         appearance: Appearance | None = None,
     ) -> Stream:
@@ -1013,7 +1012,6 @@ class Pipeline:
             name,
             StreamType.ERROR,
             value_type=value_type,
-            function=function,
             source=source,
             appearance=appearance,
         )

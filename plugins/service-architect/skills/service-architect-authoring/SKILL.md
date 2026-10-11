@@ -49,6 +49,10 @@ invent ordering, delivery, correlation, retry, compensation, or scheduling
 semantics.
 
 For an unfamiliar factory or method, read
+`servicegen://authoring/object-index` or call `describe_architecture_object`
+first to understand its purpose, use/avoid criteria and related recipes. Request
+one object at a time; the returned factories contain live DSL signatures.
+For the full method catalog, read
 `servicegen://authoring/typed-api` instead of guessing its signature. Before
 choosing a connector for a target language, read
 `servicegen://authoring/connector-capabilities`, then read the authoritative
@@ -92,6 +96,30 @@ introduce nested/overlapping membership or `component_instance`. After changing
 member functions, types or links, validate equivalence again; use the Designer's
 explicit Rebuild preview rather than silently rewriting the business topology.
 
+For supported additions, use `inspect_python_authoring` to get the exact source
+revision and an insertion site. `add_node`, `add_endpoint` and `connect_ports`
+prepare previews rather than immediately changing source. Use
+`preview_python_changes` for a connected batch that must validate as a whole.
+Argument values are typed Python expressions and references, not another JSON
+graph model. Preserve existing names, functions and module organization.
+
+Review both sourceDiff and architectureDiff, including every affected instance
+of a shared factory, before `apply_python_changes`. An expired or stale preview
+must be rebuilt, not forced through. Application is atomic for one source file;
+the editor does not rewrite existing expressions or flatten a modular project.
+If the edit site is unsupported, use the explicit diagnostic rather than
+silently regenerating Python from YAML.
+
+For `connect_ports`, `data` creates the primary edge, `additional` appends a
+Join/MultiJoin/Merge input with `<<`, and `error` creates the edge and registers
+the owner's Error consumer. Do not use a primary connection to append a second
+input. Review Case branch order and result bindings explicitly. No invocation
+semantics is inferred by this operation.
+
+When a pattern resource provides example code, treat it as checked model
+construction, not implemented business logic or proof of runtime behavior.
+Choose domain types and completion/failure policies before adapting the example.
+
 After an edit, use `validate_project`. Export canonical YAML only after validation
 succeeds.
 
@@ -103,3 +131,13 @@ Use `servicegen://authoring/review-checklist` for the final architecture review.
 For a YAML-only architecture, call `import_yaml_project` with workspace-relative
 source and output paths. The output must be absent or empty. Treat the resulting
 Python project as a migration candidate until validation and YAML round-trip agree.
+
+## Projects inside a workspace
+
+Use the `resources` links returned by `inspect_project` for the selected project.
+`servicegen://workspace/current/*` always refers to the registered workspace root;
+calling a tool with `project_path` does not change a global current project.
+For a nested project, the returned links scope the canonical graph, audit, business
+tasks and backend metadata to that project. Use these links as returned, including
+encoded spaces and path separators. Reads are passive; validate/export explicitly
+when a fresh canonical snapshot is required.

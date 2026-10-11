@@ -5,6 +5,7 @@ from typing import Any, Mapping
 
 from .api_catalog import build_connector_capabilities, build_typed_api_catalog
 from .architecture_patterns import PATTERN_CATALOG, REVIEW_CHECKLIST
+from .architecture_objects import architecture_object_index, describe_architecture_object
 
 
 RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
@@ -382,6 +383,9 @@ RESOURCE_CATALOG["examples"]["http-grpc"] = {
 
 
 def catalog_resource(category: str, topic: str) -> str:
+    if category == "authoring" and topic.startswith("object-"):
+        value = architecture_object_index() if topic == "object-index" else describe_architecture_object(topic[7:])
+        return json_resource({"resource": f"servicegen://{category}/{topic}", **value})
     category_values = RESOURCE_CATALOG.get(category)
     value = category_values.get(topic) if category_values else None
     if topic == "index" and category_values is not None:
@@ -394,6 +398,9 @@ def catalog_resource(category: str, topic: str) -> str:
                 for name in sorted(category_values) if name != "index"
             ],
         }
+        if category == "authoring":
+            value["topics"] = sorted([*value["topics"], "object-index"])
+            value["resources"] = sorted([*value["resources"], "servicegen://authoring/object-index"])
     if value is None:
         return json_resource({
             "schemaVersion": "1.0",

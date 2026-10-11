@@ -5,6 +5,7 @@ from pathlib import Path
 
 from sa_dsl.business_tasks import (
     BusinessTaskError,
+    available_verifications,
     inspect_business_tasks,
     run_verification,
 )
@@ -32,6 +33,37 @@ TASK = """# Task 1/1: `MakeOrder`
 
 
 class BusinessTasksTest(unittest.TestCase):
+    def test_verifications_follow_generated_make_includes_without_execution(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="sa-make-includes-") as temporary:
+            workspace = Path(temporary)
+            (workspace / "Makefile").write_text(
+                "include make.generated.mk\n-include optional.mk\n"
+                "include $(shell touch MUST_NOT_RUN)\n", encoding="utf-8")
+            (workspace / "make.generated.mk").write_text(
+                "test lint:\n\t@true\ninclude Makefile\n"
+                "-include $(wildcard make.*.generated.mk)\n", encoding="utf-8")
+            (workspace / "make.go.generated.mk").write_text(
+                "integration-test:\n\t@true\n", encoding="utf-8")
+            self.assertEqual({"test", "lint", "integration-test"},
+                             {item["id"] for item in available_verifications(workspace)})
+            self.assertFalse((workspace / "MUST_NOT_RUN").exists())
+            result = run_verification(workspace, "test", runner=lambda command, **kwargs:
+                                      subprocess.CompletedProcess(command, 0, "", ""))
+            self.assertEqual("success", result["status"])
+
+    def test_make_discovery_does_not_read_outside_workspace(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="sa-make-boundary-") as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace with spaces"
+            workspace.mkdir()
+            (root / "external.mk").write_text("test:\n\t@true\n", encoding="utf-8")
+            (workspace / "linked.mk").symlink_to(root / "external.mk")
+            (workspace / "Makefile").write_text(
+                "include ../external.mk linked.mk\ninclude $(CURDIR)/local.mk\n", encoding="utf-8")
+            (workspace / "local.mk").write_text("lint:\n\t@true\n", encoding="utf-8")
+            self.assertEqual([{"id": "lint", "argv": ["make", "lint"]}],
+                             available_verifications(workspace))
+
     def test_inspect_returns_structured_tasks_and_progress(self) -> None:
         with tempfile.TemporaryDirectory(prefix="sa-tasks-") as temporary:
             workspace = Path(temporary)

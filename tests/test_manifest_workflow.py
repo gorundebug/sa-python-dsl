@@ -197,16 +197,21 @@ class ManifestWorkflowTest(unittest.TestCase):
             )
 
             class Client:
-                def generate_code(self, project):
+                def generate_code(self, project, *, on_progress=None):
                     self.rendered = project.to_yaml()
+                    self.on_progress = on_progress
                     return GeneratedProjectArchive("sample.zip", b"zip-content")
 
             client = Client()
+            progress = []
+            def on_progress(*args):
+                progress.append(args)
+
             with patch("sa_dsl.generation.execute_project", return_value=exported), patch(
                 "sa_dsl.generation.ServiceArchitectClient.from_env",
                 return_value=client,
             ):
-                result = generate_project_archive(manifest)
+                result = generate_project_archive(manifest, on_progress=on_progress)
 
             self.assertTrue(result.succeeded, result.diagnostics)
             self.assertEqual("dist/sample.zip", result.artifact)
@@ -214,6 +219,8 @@ class ManifestWorkflowTest(unittest.TestCase):
                 b"zip-content", (workspace / "dist/sample.zip").read_bytes()
             )
             self.assertEqual(exported.rendered_yaml, client.rendered)
+            self.assertIs(on_progress, client.on_progress)
+            self.assertTrue(progress)
 
 
 if __name__ == "__main__":

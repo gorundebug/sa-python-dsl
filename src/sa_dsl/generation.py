@@ -84,6 +84,12 @@ def generate_project_archive(
         temporary.write_bytes(archive.content)
         temporary.replace(destination)
     except (CodeGenerationError, OSError, ValueError) as error:
+        if isinstance(error, CodeGenerationError) and error.diagnostics:
+            return GenerationResult(
+                status="failed",
+                project_name=manifest.name,
+                diagnostics=error.diagnostics,
+            )
         return _failure(
             manifest,
             "SA_CODE_GENERATION_FAILED",

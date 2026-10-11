@@ -68,6 +68,24 @@ def record_operation(
             os.close(descriptor)
 
 
+def record_operation_safely(
+    workspace: Path,
+    operation: str,
+    payload: dict[str, Any],
+    started: float,
+) -> None:
+    """Keep the actual operation result when optional audit persistence fails."""
+    try:
+        record_operation(workspace, operation, payload, started)
+    except OSError:
+        payload.setdefault("diagnostics", []).append({
+            "code": "SA_AUDIT_WRITE_FAILED",
+            "severity": "warning",
+            "path": "$.audit",
+            "message": "The operation result is available, but its local audit record could not be written. Do not repeat the operation solely to repair the audit log.",
+        })
+
+
 def read_audit(workspace: Path, *, limit: int = 100) -> dict[str, Any]:
     path = workspace / AUDIT_RELATIVE_PATH
     if not path.is_file():

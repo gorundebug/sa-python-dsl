@@ -22,3 +22,8 @@ properties.
 
 Run validation again after related diagnostics have been addressed. Do not export
 or request code generation while validation reports errors.
+
+For a project nested below the MCP workspace, use that project's resource links
+from `inspect_project.resources`. Refresh metadata with the same `project_path`
+used for validation. Follow each returned `validationRuleUri` rather than building
+a workspace-root rule URL: different projects may use different backend contracts.

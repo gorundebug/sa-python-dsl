@@ -58,6 +58,13 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(
                         {
                             "inspect_project",
+                            "describe_architecture_object",
+                            "inspect_python_authoring",
+                            "add_node",
+                            "add_endpoint",
+                            "connect_ports",
+                            "preview_python_changes",
+                            "apply_python_changes",
                             "doctor",
                             "refresh_capabilities",
                             "refresh_validation_contract",
@@ -77,6 +84,31 @@ class McpProtocolTest(unittest.IsolatedAsyncioTestCase):
                     designer_tool = next(
                         tool for tool in tools.tools if tool.name == "designer_view"
                     )
+                    guide = tool_payload(await session.call_tool("describe_architecture_object", {"kind": "map"}))
+                    self.assertEqual("success", guide["status"])
+                    self.assertEqual("Pipeline", guide["factories"][0]["owner"])
+                    self.assertIn("function", guide["factories"][0]["signature"])
+                    authoring = tool_payload(await session.call_tool(
+                        "inspect_python_authoring", {"source_file": "architecture.py"}))
+                    self.assertEqual("success", authoring["status"])
+                    self.assertIn("sourceRevision", authoring)
+                    self.assertTrue(authoring["insertionSites"])
+                    stale = tool_payload(await session.call_tool("add_node", {
+                        "source_file": "architecture.py", "source_revision": "obsolete",
+                        "before_line": 3, "receiver": "pipeline", "factory": "map",
+                        "symbol": "quote", "name": "Calculate Quote",
+                    }))
+                    self.assertEqual("failed", stale["status"])
+                    self.assertEqual("SA_STALE_WORKSPACE", stale["diagnostics"][0]["code"])
+                    outside = tool_payload(await session.call_tool(
+                        "inspect_python_authoring", {"source_file": "../outside.py"}))
+                    self.assertEqual("SA_WORKSPACE_BOUNDARY_VIOLATION", outside["diagnostics"][0]["code"])
+                    invalid_preview = tool_payload(await session.call_tool(
+                        "apply_python_changes", {"preview_id": "../outside", "preview_revision": "unused"}))
+                    self.assertEqual("SA_AUTHORING_PREVIEW_INVALID", invalid_preview["diagnostics"][0]["code"])
+                    authoring_tools = {tool.name: tool for tool in tools.tools}
+                    self.assertTrue(authoring_tools["inspect_python_authoring"].annotations.read_only_hint)
+                    self.assertFalse(authoring_tools["add_node"].annotations.read_only_hint)
                     self.assertEqual(
                         "ui://service-architect/designer",
                         designer_tool.meta["ui"]["resourceUri"],

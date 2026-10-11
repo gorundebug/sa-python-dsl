@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import argparse
+from urllib.parse import quote, unquote
+
+from .project_resources import ProjectResources
 import os
 import time
 from pathlib import Path
@@ -12,17 +15,20 @@ from mcp.server import MCPServer
 from mcp.server.mcpserver import Context
 from mcp.types import ToolAnnotations
 
+from .auth import load_env
 from .business_tasks import BusinessTaskError, inspect_business_tasks as inspect_tasks, run_verification as execute_verification
 from .designer import DEFAULT_ASSET_BASE, DesignerSnapshotServer, designer_document, make_snapshot, validate_asset_base
 from .doctor import diagnose_project
 from .execution import execute_project, write_canonical_yaml
 from .generation import generate_project_archive
 from .generation_transaction import apply_generation_transaction, preview_generation_transaction
+from .generation_workspace import generation_directory
 from .manifest import ManifestError, load_manifest
 from .migration import import_yaml_project as import_yaml_project_application
 from .mcp_workspace import WorkspaceBoundary, WorkspaceBoundaryError
 from .mcp_resources import catalog_resource, json_resource
-from .operation_audit import read_audit, record_operation
+from .architecture_objects import architecture_object_index, describe_architecture_object as describe_object
+from .operation_audit import read_audit, record_operation_safely as record_operation
 from .semantic_diff import SemanticDiffError, preview_architecture_diff as build_architecture_diff
 from .servicegen_capabilities import (
     CACHE_RELATIVE_PATH,
@@ -43,6 +49,10 @@ from .servicegen_validation import (
 
 
 mcp = MCPServer("Service Architect")
+
+from .mcp_authoring import register_authoring_tools
+
+register_authoring_tools(mcp, lambda: _workspace.root)
 UI_RESOURCE_URI = "ui://service-architect/designer"
 _workspace = WorkspaceBoundary(Path.cwd())
 _snapshot_server: DesignerSnapshotServer | None = None
@@ -55,6 +65,37 @@ def configure_workspace(path: str | Path) -> None:
 
 def _project_path(path: str) -> Path:
     return _workspace.resolve(path)
+
+
+def _metadata_base_url(workspace: Path, base_url: str | None, env_file: str) -> str | None:
+    """Select the generation backend without giving public metadata its secrets."""
+    if base_url is not None:
+        return base_url
+    if "SERVICE_ARCHITECT_API_URL" in os.environ:
+        return os.environ["SERVICE_ARCHITECT_API_URL"] or None
+    relative = Path(env_file)
+    if relative.is_absolute() or ".." in relative.parts or "\\" in env_file or "\x00" in env_file:
+        raise WorkspaceBoundaryError("metadata environment file must be relative to the Python project")
+    root = workspace.resolve()
+    path = (root / relative).resolve()
+    if not path.is_relative_to(root):
+        raise WorkspaceBoundaryError("metadata environment file escapes the Python project")
+    return load_env(path).get("SERVICE_ARCHITECT_API_URL") or None
+
+
+@mcp.tool(
+    title="Explain a Service Architect object",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
+)
+def describe_architecture_object(kind: str = "index") -> dict[str, Any]:
+    """Explain when to use an object, alternatives, exact Python factories and patterns.
+
+    Use index to discover object kinds, then request e.g. map, connection,
+    substream, http-endpoint or grpc-endpoint. Never executes project Python.
+    """
+    if kind == "index":
+        return {"operation": "describe-architecture-object", "status": "success", **architecture_object_index()}
+    return {"operation": "describe-architecture-object", **describe_object(kind)}
 
 
 def _asset_base() -> str:
@@ -126,6 +167,33 @@ def patterns_resource(topic: str) -> str:
     return catalog_resource("patterns", topic)
 
 
+_project_resources = ProjectResources(lambda: _workspace, lambda operation, error: _manifest_failure(operation, error))
+
+
+def _attach_project_remediation(payload: dict[str, Any], manifest: Any, project: str) -> dict[str, Any]:
+    payload = attach_remediation(payload, manifest.workspace)
+    template = _project_resources.references(project)["validationRule"]
+    for diagnostic in payload.get("diagnostics", []):
+        if isinstance(diagnostic, dict) and isinstance(diagnostic.get("validationRuleUri"), str):
+            diagnostic["validationRuleUri"] = template.replace("{code}", quote(diagnostic["code"], safe=""))
+    return payload
+
+
+@mcp.resource("servicegen://project/{project}/capabilities/{language}")
+def project_language_resource(project: str, language: str) -> str:
+    return _project_resources.language(unquote(project), unquote(language))
+
+
+@mcp.resource("servicegen://project/{project}/validation/rules/{code}")
+def project_validation_rule_resource(project: str, code: str) -> str:
+    return _project_resources.rule(unquote(project), unquote(code))
+
+
+@mcp.resource("servicegen://project/{project}/{kind}")
+def project_resource(project: str, kind: str) -> str:
+    return _project_resources.read(unquote(project), kind)
+
+
 @mcp.resource("servicegen://workspace/current/capabilities")
 def workspace_capabilities_resource() -> str:
     try:
@@ -170,45 +238,32 @@ def workspace_validation_contract_resource() -> str:
 
 @mcp.resource("servicegen://validation/rules/{code}")
 def validation_rule_resource(code: str) -> str:
-    contract = load_validation_contract(_workspace.root)
-    return json_resource({
-        "schemaVersion": contract["schemaVersion"],
-        "servicegenVersion": contract["servicegenVersion"],
-        "contractRevision": contract["revision"],
-        "capabilityRevision": contract["capabilityRevision"],
-        "diagnostic": diagnostic_descriptor(contract, code),
-    })
+    return _project_resources.rule(".", code)
 
 
 @mcp.resource("servicegen://workspace/current/source")
 def workspace_source_resource() -> str:
-    return json_resource(load_manifest(_workspace.root).inspect_payload())
+    return _project_resources.read(".", "source")
 
 
 @mcp.resource("servicegen://workspace/current/dsl")
 def workspace_dsl_resource() -> str:
-    manifest = load_manifest(_workspace.root)
-    return _canonical_path(manifest.workspace, manifest.canonical.output).read_text(encoding="utf-8")
+    return _project_resources.read(".", "dsl")
 
 
 @mcp.resource("servicegen://workspace/current/graph")
 def workspace_graph_resource() -> str:
-    document = yaml.safe_load(workspace_dsl_resource())
-    if not isinstance(document, dict):
-        raise ValueError("canonical YAML must contain an object")
-    return json_resource(document)
+    return _project_resources.read(".", "graph")
 
 
 @mcp.resource("servicegen://workspace/current/tasks")
 def workspace_tasks_resource() -> str:
-    manifest = load_manifest(_workspace.root)
-    return json_resource(inspect_tasks(manifest.workspace))
+    return _project_resources.read(".", "tasks")
 
 
 @mcp.resource("servicegen://workspace/current/audit")
 def workspace_audit_resource() -> str:
-    manifest = load_manifest(_workspace.root)
-    return json_resource(read_audit(manifest.workspace))
+    return _project_resources.read(".", "audit")
 
 
 @mcp.tool(
@@ -223,7 +278,8 @@ def inspect_project(project_path: str = ".") -> dict[str, Any]:
     """
 
     try:
-        return load_manifest(_project_path(project_path)).inspect_payload()
+        manifest = load_manifest(_project_path(project_path))
+        return {**manifest.inspect_payload(), "resources": _project_resources.references(project_path)}
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("inspect", error)
 
@@ -239,7 +295,7 @@ def doctor(project_path: str = ".", env_file: str = ".env") -> dict[str, Any]:
         project = _project_path(project_path)
     except WorkspaceBoundaryError as error:
         return _manifest_failure("doctor", error)
-    return {"operation": "doctor", **diagnose_project(project, env_file=env_file)}
+    return {"operation": "doctor", **diagnose_project(project, env_file=env_file, boundary_root=_workspace.root)}
 
 
 @mcp.tool(
@@ -253,16 +309,21 @@ def doctor(project_path: str = ".", env_file: str = ".env") -> dict[str, Any]:
 def refresh_capabilities(
     project_path: str = ".",
     base_url: str | None = None,
+    env_file: str = ".env",
 ) -> dict[str, Any]:
-    """Fetch and atomically cache the public ServiceGen capability matrix."""
+    """Cache public capabilities from the selected generation backend.
+
+    An explicit base_url overrides SERVICE_ARCHITECT_API_URL from the environment
+    or project env_file. Credentials are never sent to this public endpoint.
+    """
 
     try:
         manifest = load_manifest(_project_path(project_path))
-        document = fetch_capabilities(base_url)
+        document = fetch_capabilities(_metadata_base_url(manifest.workspace, base_url, env_file))
         output = save_capabilities(manifest.workspace, document)
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("refresh-capabilities", error)
-    except (CapabilityError, OSError) as error:
+    except (CapabilityError, OSError, UnicodeError) as error:
         return _failure(
             "refresh-capabilities",
             "SA_CAPABILITY_REFRESH_FAILED",
@@ -296,16 +357,21 @@ def refresh_capabilities(
 def refresh_validation_contract(
     project_path: str = ".",
     base_url: str | None = None,
+    env_file: str = ".env",
 ) -> dict[str, Any]:
-    """Fetch and atomically cache public ServiceGen diagnostic metadata."""
+    """Cache public validation metadata from the selected generation backend.
+
+    Uses the same URL precedence and project-local env_file as capabilities;
+    credentials are never sent to this public endpoint.
+    """
 
     try:
         manifest = load_manifest(_project_path(project_path))
-        document = fetch_validation_contract(base_url)
+        document = fetch_validation_contract(_metadata_base_url(manifest.workspace, base_url, env_file))
         output = save_validation_contract(manifest.workspace, document)
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("refresh-validation-contract", error)
-    except (ValidationContractError, OSError) as error:
+    except (ValidationContractError, OSError, UnicodeError) as error:
         return _failure(
             "refresh-validation-contract",
             "SA_VALIDATION_CONTRACT_REFRESH_FAILED",
@@ -340,8 +406,8 @@ def validate_project(project_path: str = ".") -> dict[str, Any]:
         manifest = load_manifest(_project_path(project_path))
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("validate", error)
-    return attach_remediation(
-        execute_project(manifest, "validate").to_payload(), manifest.workspace
+    return _attach_project_remediation(
+        execute_project(manifest, "validate").to_payload(), manifest, project_path
     )
 
 
@@ -409,16 +475,18 @@ def generate_project(
         manifest = load_manifest(_project_path(project_path))
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("generate", error)
-    return generate_project_archive(
+    result = generate_project_archive(
         manifest, output=output, env_file=env_file,
         cpp_graph=cpp_graph, cpp_io_backend=cpp_io_backend
     ).to_payload()
+    return _attach_project_remediation(result, manifest, project_path)
 
 
 @mcp.tool(
     title="Preview ServiceGen project generation",
     annotations=ToolAnnotations(
-        read_only_hint=True,
+        read_only_hint=False,
+        destructive_hint=False,
         open_world_hint=True,
     ),
 )
@@ -441,12 +509,13 @@ async def preview_generation(
     result = await anyio.to_thread.run_sync(
         lambda: preview_generation_transaction(
             manifest, env_file=env_file, remove_stale=remove_stale,
-            cpp_graph=cpp_graph, cpp_io_backend=cpp_io_backend
+            cpp_graph=cpp_graph, cpp_io_backend=cpp_io_backend,
+            boundary_root=_workspace.root,
         )
     )
     await ctx.report_progress(3, 3, "Generation preview ready")
     record_operation(manifest.workspace, "preview-generation", result, started)
-    return result
+    return _attach_project_remediation(result, manifest, project_path)
 
 
 @mcp.tool(
@@ -474,6 +543,7 @@ async def apply_generation(
     result = await anyio.to_thread.run_sync(
         lambda: apply_generation_transaction(
             manifest, preview_id=preview_id, preview_revision=preview_revision
+            , boundary_root=_workspace.root
         )
     )
     await ctx.report_progress(2, 2, "Generation apply finished")
@@ -490,7 +560,7 @@ def inspect_business_tasks(project_path: str = ".") -> dict[str, Any]:
 
     try:
         manifest = load_manifest(_project_path(project_path))
-        result = inspect_tasks(manifest.workspace)
+        result = inspect_tasks(generation_directory(manifest, boundary_root=_workspace.root))
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("inspect-business-tasks", error)
     except OSError as error:
@@ -528,9 +598,10 @@ async def run_verification(
     try:
         manifest = load_manifest(_project_path(project_path))
         started = time.monotonic()
+        destination = generation_directory(manifest, boundary_root=_workspace.root)
         await ctx.report_progress(0, 1, f"Running {verification}")
         result = await anyio.to_thread.run_sync(
-            lambda: execute_verification(manifest.workspace, verification)
+            lambda: execute_verification(destination, verification)
         )
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("run-verification", error)
@@ -686,7 +757,12 @@ def designer_view(project_path: str = ".") -> dict[str, Any]:
             "$.authoring.entrypoint",
         )
     snapshot = make_snapshot(manifest.name, result.rendered_yaml)
-    fallback_url = _designer_server().publish(snapshot)
+    try:
+        fallback_url = _designer_server().publish(snapshot)
+    except (OSError, ValueError) as error:
+        return _failure(
+            "designer-view", "SA_DESIGNER_VIEW_FAILED", str(error), "$.designer"
+        )
     return {
         "schemaVersion": "1.0",
         "operation": "designer-view",
