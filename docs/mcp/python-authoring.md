@@ -22,6 +22,31 @@ mutation. Preview runs the normal Python export/validation worker on an isolated
 copy. Apply repeats validation and atomically replaces a single source file.
 Neither operation performs code generation or contacts the generation backend.
 
+## From the model to a working service
+
+After reviewing and applying the architecture, use `preview_generation` and
+`apply_generation`, then `inspect_business_tasks` to locate the generated
+business-function files. Implement those contracts using ordinary source-file
+tools. Read the actual runtime interfaces used by a stub instead of guessing
+method names from DSL terminology; for example, Go `runtime.Collect[T]` exposes
+`Out(ctx, value)`, whereas an HTTP endpoint stream context exposes `Collect`.
+
+Use `run_verification` with `verification: "build"` to compile the generated
+project through its existing `make build` target, including its binding-generation
+prerequisites. Then run `test` and `merge-validate` when available. Build is only
+advertised when the project supplies that Make target; it does not install a
+compiler or replace project configuration. Arbitrary commands and Make variable
+overrides are not accepted. Compilation and model validation alone do not prove
+business behavior: exercise the requested routes, branch outcomes and failures.
+
+Generated `spec/<owner>/taskN.md` files are refreshed during project merge;
+they describe the current function contracts and are not the progress ledger.
+Keep completion entries in the preserved `spec/progress.md`. MCP matches the
+owner, function name and language in those entries, so adding an alphabetically
+earlier function cannot mark a different task complete after renumbering.
+Entries containing only an old task filename are insufficient evidence of
+completion and remain pending.
+
 ## Operation vocabulary
 
 `add_node` and `add_endpoint` receive an existing Python `receiver`, a typed

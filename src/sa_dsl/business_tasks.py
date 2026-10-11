@@ -13,6 +13,7 @@ from .process_execution import MAX_CAPTURED_OUTPUT, run_bounded_process
 
 
 VERIFICATIONS: Mapping[str, tuple[str, ...]] = {
+    "build": ("make", "build"),
     "test": ("make", "test"),
     "lint": ("make", "lint"),
     "integration-test": ("make", "integration-test"),
@@ -24,7 +25,11 @@ _TASK_TITLE = re.compile(r"^# Task (\d+)/(\d+): `([^`]+)`$", re.MULTILINE)
 _TABLE_ROW = re.compile(r"^\|\s*([^|]+?)\s*\|\s*`?([^|`]+?)`?\s*\|$", re.MULTILINE)
 _TYPE_LINE = re.compile(r"^- (Input|Output|Key): `([^`]+)`(?:.*?`([^`]+)`)?.*$", re.MULTILINE)
 _RUN_COMMAND = re.compile(r"^- \[ \] Run `([^`]+)`", re.MULTILINE)
-_COMPLETED = re.compile(r"^- \[x\] ([^\s]+/task\d+\.md)\s+", re.MULTILINE)
+_COMPLETED = re.compile(
+    r"^- \[x\] ([^\s]+/task\d+\.md)[ \t]+[-\u2013\u2014][ \t]+"
+    r"(.+?)[ \t]+[-\u2013\u2014][ \t]+(.+?)[ \t]+[-\u2013\u2014][ \t]+done(?:[ \t]+[^\r\n]*)?$",
+    re.MULTILINE,
+)
 
 
 class BusinessTaskError(ValueError):
@@ -38,7 +43,12 @@ def inspect_business_tasks(workspace: Path) -> dict[str, Any]:
     spec = workspace / "spec"
     progress_path = spec / "progress.md"
     progress = progress_path.read_text(encoding="utf-8") if progress_path.is_file() else ""
-    completed = set(_COMPLETED.findall(progress))
+    # Task numbers change when generation adds/removes sorted functions.
+    # Progress belongs to the function in its owner/runtime, not its old slot.
+    completed = {
+        (Path(path).parent.as_posix(), name, language)
+        for path, name, language in _COMPLETED.findall(progress)
+    }
     tasks: list[dict[str, Any]] = []
     if spec.is_dir():
         for path in sorted(spec.glob("*/task*.md")):
@@ -182,7 +192,7 @@ def run_verification(
 def _parse_task(
     workspace: Path,
     path: Path,
-    completed: set[str],
+    completed: set[tuple[str, str, str]],
 ) -> dict[str, Any] | None:
     content = path.read_text(encoding="utf-8", errors="replace")
     title = _TASK_TITLE.search(content)
@@ -212,7 +222,7 @@ def _parse_task(
         "index": int(title.group(1)),
         "totalForOwner": int(title.group(2)),
         "name": title.group(3),
-        "status": "complete" if relative.removeprefix("spec/") in completed else "pending",
+        "status": "complete" if (path.parent.name, title.group(3), fields.get("language")) in completed else "pending",
         "owner": path.parent.name,
         "language": fields.get("language"),
         "kind": fields.get("kind"),
@@ -225,6 +235,8 @@ def _parse_task(
 
 def _verification_id(command: str) -> str | None:
     normalized = command.strip()
+    if normalized == "make build":
+        return "build"
     if normalized == "make test" or normalized == "cargo test --workspace --all-targets":
         return "test"
     if normalized in {"make lint", "./scripts/python/typecheck.generated.sh"}:

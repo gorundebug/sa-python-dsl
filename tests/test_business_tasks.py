@@ -33,6 +33,81 @@ TASK = """# Task 1/1: `MakeOrder`
 
 
 class BusinessTasksTest(unittest.TestCase):
+    def test_adjacent_progress_lines_are_all_counted(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="sa-progress-lines-") as temporary:
+            workspace = Path(temporary)
+            directory = workspace / "spec/orders"
+            directory.mkdir(parents=True)
+            entries = []
+            for index, name in enumerate(("First", "Second", "Third"), start=1):
+                (directory / f"task{index}.md").write_text(TASK.replace("MakeOrder", name), encoding="utf-8")
+                entries.append(f"- [x] orders/task{index}.md \u2014 {name} \u2014 Go \u2014 done\n")
+            (workspace / "spec/progress.md").write_text("".join(entries), encoding="utf-8")
+            self.assertEqual(3, inspect_business_tasks(workspace)["summary"]["complete"])
+
+    def test_progress_follows_function_not_task_number_after_regeneration(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="sa-renumbered-tasks-") as temporary:
+            workspace = Path(temporary)
+            directory = workspace / "spec/orders"
+            directory.mkdir(parents=True)
+            (directory / "task1.md").write_text(TASK.replace("MakeOrder", "AnotherFunction"), encoding="utf-8")
+            (directory / "task2.md").write_text(TASK.replace("Task 1/1", "Task 2/2"), encoding="utf-8")
+            other = workspace / "spec/other"
+            other.mkdir()
+            (other / "task1.md").write_text(TASK, encoding="utf-8")
+            (directory / "task3.md").write_text(TASK.replace("`Go`", "`Rust`"), encoding="utf-8")
+            for separator in ("-", "\u2014"):
+                with self.subTest(separator=separator):
+                    (workspace / "spec/progress.md").write_text(
+                        f"- [x] orders/task1.md {separator} MakeOrder {separator} Go {separator} done\n",
+                        encoding="utf-8")
+                    result = inspect_business_tasks(workspace)
+                    completed = [task["id"] for task in result["tasks"] if task["status"] == "complete"]
+                    self.assertEqual(["spec/orders/task2.md"], completed)
+
+    def test_progress_without_identity_does_not_complete_reused_slot(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="sa-ambiguous-progress-") as temporary:
+            workspace = Path(temporary)
+            directory = workspace / "spec/orders"
+            directory.mkdir(parents=True)
+            (directory / "task1.md").write_text(TASK, encoding="utf-8")
+            (workspace / "spec/progress.md").write_text("- [x] orders/task1.md\n", encoding="utf-8")
+            self.assertEqual("pending", inspect_business_tasks(workspace)["tasks"][0]["status"])
+
+    def test_build_is_discovered_from_includes_and_runs_with_fixed_argv(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="sa-build-verification-") as temporary:
+            workspace = Path(temporary)
+            (workspace / "Makefile").write_text("include make.generated.mk\n", encoding="utf-8")
+            (workspace / "make.generated.mk").write_text("build:\n\t@true\n", encoding="utf-8")
+            directory = workspace / "spec/orders"
+            directory.mkdir(parents=True)
+            (directory / "task1.md").write_text(
+                TASK.replace("make test", "make build"), encoding="utf-8")
+            self.assertEqual([{"id": "build", "argv": ["make", "build"]}],
+                             available_verifications(workspace))
+            self.assertEqual(["build"], inspect_business_tasks(workspace)["tasks"][0]["verificationIds"])
+            captured = []
+
+            def runner(command, **kwargs):
+                captured.append(command)
+                return subprocess.CompletedProcess(command, 0, "compiled\n", "")
+
+            result = run_verification(workspace, "build", runner=runner)
+            self.assertEqual([["make", "build"]], captured)
+            self.assertEqual("success", result["status"])
+
+    def test_build_unavailable_without_target_and_rejects_arguments(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="sa-build-verification-") as temporary:
+            workspace = Path(temporary)
+            (workspace / "Makefile").write_text("test:\n\t@true\n", encoding="utf-8")
+            with self.assertRaises(BusinessTaskError) as raised:
+                run_verification(workspace, "build")
+            self.assertEqual("SA_VERIFICATION_UNAVAILABLE", raised.exception.code)
+            for command in ("build; touch unsafe", "build GO=unsafe", "make build"):
+                with self.subTest(command=command), self.assertRaises(BusinessTaskError) as raised:
+                    run_verification(workspace, command)
+                self.assertEqual("SA_VERIFICATION_NOT_ALLOWED", raised.exception.code)
+
     def test_verifications_follow_generated_make_includes_without_execution(self) -> None:
         with tempfile.TemporaryDirectory(prefix="sa-make-includes-") as temporary:
             workspace = Path(temporary)

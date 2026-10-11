@@ -84,7 +84,7 @@ The `sa-dsl-mcp` command starts the local stdio server. It exposes:
 | `preview_generation` | Calls the backend and stores an immutable preview | Report exact ServiceGen merge actions and revisions. |
 | `apply_generation` | Applies one immutable preview | Merge only when preview, archive and workspace hashes still match. |
 | `inspect_business_tasks` | Reads generated task files | Return implementation files, types, completion and verification IDs. |
-| `run_verification` | Runs one allow-listed Make target | Execute `test`, `lint`, `integration-test`, or `merge-validate`. |
+| `run_verification` | Runs one allow-listed Make target | Execute `build`, `test`, `lint`, `integration-test`, or `merge-validate`. |
 | `import_yaml_project` | Creates a new project directory | Migrate canonical YAML into modular typed Python and create its manifest. |
 | `designer_view` | Executes trusted project Python and starts a local snapshot view | Inspect the exact exported revision as a read-only graph. |
 
