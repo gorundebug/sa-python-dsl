@@ -1,5 +1,27 @@
 # MCP release check
 
+## Plugin 0.1.23: build verification and stable task completion
+
+The plugin pins its MCP runtime to
+`41eca14526026dd15805e3e6f51cba3268608b69`. The existing `run_verification`
+tool now supports the allow-listed `build` target when the generated workspace
+provides it. Arbitrary commands and Make variable overrides remain disallowed.
+
+Business-task completion is matched by owner, function name and language rather
+than a task-file number that can change during regeneration. Adjacent progress
+entries are parsed independently; ambiguous filename-only entries stay pending.
+
+Before release preparation, the runtime passed 319 tests and 239 subtests.
+Three Go architecture scenarios were exercised through MCP authoring, real code
+generation, compilation and eight HTTP cases. Initial generations used AWS;
+the generator-side fix for refreshing task descriptions was checked on a local
+generator. That separate ServiceGen change is not deployed by this plugin release.
+Compilation used Go 1.26.4 and the local servicelib checkout.
+
+This remains a Git-backed plugin release, not a PyPI publication. Python package
+metadata stays at `0.1.0`, and Designer assets stay at `0.1.10`. Updating the
+repository does not replace an already running MCP process.
+
 ## Plugin 0.1.22: typed Python authoring and verified generation
 
 The plugin pins its MCP runtime to
