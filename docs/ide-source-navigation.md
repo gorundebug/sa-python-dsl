@@ -43,3 +43,19 @@ code uses the installed IDE language provider's current symbols in the configure
 generated directory, with a file match fallback when symbols are unavailable. It
 supports Go, C++ userver/Coro, Rust, Python and TypeScript without a generator map.
 File-level/ambiguous matches retain all associated nodes rather than choosing one.
+
+## Browser Designer
+
+`python_files_to_snapshot(files, entrypoint)` uses the same evaluated-object
+capture inside the browser's Python worker. It returns canonical `yaml` alongside
+`sourceLocations`; the ordinary `python_files_to_yaml` API remains unchanged.
+No CLI, server execution, generator support or changes to authoring files are
+required for browser navigation.
+
+The Designer's Python Code node action opens and selects the creation expression
+in its multi-file Python editor. Editor cursor changes highlight related nodes;
+Show in Graph explicitly focuses one of them. Shared factory bodies retain all
+instances. Changed Python files invalidate their snapshot until Refresh navigation
+or Apply evaluates them again. Navigation does not apply Python changes to the
+graph. Node identities/declarations must match; unrelated layout and link execution
+policies do not relocate the expressions and are not navigation identities.

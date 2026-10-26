@@ -88,7 +88,7 @@ from .code_generation import (
     yaml_to_api_document,
 )
 from .auth import AuthenticationError, CognitoAuthenticator
-from .browser import python_files_to_yaml
+from .browser import python_files_to_yaml, python_files_to_snapshot
 
 __all__ = [
     "NativeTypeBinding",
@@ -182,5 +182,6 @@ __all__ = [
     "yaml_to_python_project",
     "yaml_to_python_files",
     "python_files_to_yaml",
+    "python_files_to_snapshot",
     "yaml_to_api_document",
 ]

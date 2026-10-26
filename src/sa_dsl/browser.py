@@ -3,14 +3,25 @@ from __future__ import annotations
 import importlib
 import sys
 import tempfile
+from contextlib import nullcontext
 from pathlib import Path, PurePosixPath
 from typing import Mapping
 
 from .model import Project
+from .source_locations import capture_source_locations
 
 
 def python_files_to_yaml(files: Mapping[str, str], entrypoint: str) -> str:
     """Execute a generated Python workspace and return its canonical YAML."""
+    return _evaluate(files, entrypoint, False)["yaml"]
+
+
+def python_files_to_snapshot(files: Mapping[str, str], entrypoint: str) -> dict:
+    """Browser navigation metadata from evaluated objects; never added to YAML."""
+    return _evaluate(files, entrypoint, True)
+
+
+def _evaluate(files: Mapping[str, str], entrypoint: str, capture: bool) -> dict:
     module_name, separator, attribute_name = entrypoint.partition(":")
     if not separator or not module_name or not attribute_name:
         raise ValueError("Entrypoint must use module.path:attribute syntax")
@@ -40,13 +51,17 @@ def python_files_to_yaml(files: Mapping[str, str], entrypoint: str) -> str:
         sys.path.insert(0, str(workspace))
         importlib.invalidate_caches()
         try:
-            module = importlib.import_module(module_name)
-            project = getattr(module, attribute_name)
-            if callable(project) and not isinstance(project, Project):
-                project = project()
+            with (capture_source_locations(workspace) if capture else nullcontext()) as locations:
+                module = importlib.import_module(module_name)
+                project = getattr(module, attribute_name)
+                if callable(project) and not isinstance(project, Project):
+                    project = project()
             if not isinstance(project, Project):
                 raise TypeError(f"{entrypoint} must reference a Project")
-            return project.to_yaml()
+            result = {"yaml": project.to_yaml()}
+            if locations is not None:
+                result["sourceLocations"] = locations.document(project)
+            return result
         finally:
             sys.path.pop(0)
             for loaded_name in list(sys.modules):
