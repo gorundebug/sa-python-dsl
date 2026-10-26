@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Literal, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 from urllib.parse import urlparse
 
 
@@ -28,6 +28,8 @@ class DesignerSnapshot(TypedDict):
     mode: Literal["read-only"]
     project: DesignerProject
     canonicalYaml: str
+    implementations: NotRequired[dict[str, dict[str, list[dict[str, Any]]]]]
+    generationOutputDirectory: NotRequired[str]
 
 
 def validate_asset_base(value: str) -> str:

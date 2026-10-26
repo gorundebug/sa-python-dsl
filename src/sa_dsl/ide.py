@@ -16,6 +16,7 @@ import yaml
 from .designer import make_snapshot
 from .execution import execute_project, write_canonical_yaml
 from .manifest import ProjectManifest
+from .ide_implementations import implementation_targets
 
 
 STREAM_METHODS = frozenset({
@@ -57,7 +58,10 @@ def graph_snapshot(manifest: ProjectManifest) -> dict[str, Any]:
         write_canonical_yaml(manifest, result.rendered_yaml)
     except (OSError, ValueError) as error:
         return {'status': 'failed', 'message': f'Cannot save canonical YAML: {error}'}
-    return {"status": "success", "snapshot": make_snapshot(manifest.name, result.rendered_yaml)}
+    snapshot = make_snapshot(manifest.name, result.rendered_yaml)
+    snapshot["implementations"] = implementation_targets(yaml.safe_load(result.rendered_yaml))
+    snapshot["generationOutputDirectory"] = manifest.generation.output_directory or "."
+    return {"status": "success", "snapshot": snapshot}
 
 
 def _python_files(workspace: Path) -> list[Path]:
