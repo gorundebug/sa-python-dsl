@@ -30,6 +30,7 @@ class DesignerSnapshot(TypedDict):
     canonicalYaml: str
     implementations: NotRequired[dict[str, dict[str, list[dict[str, Any]]]]]
     generationOutputDirectory: NotRequired[str]
+    sourceLocations: NotRequired[dict[str, Any]]
 
 
 def validate_asset_base(value: str) -> str:

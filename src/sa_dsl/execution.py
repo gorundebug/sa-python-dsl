@@ -25,6 +25,7 @@ class ExecutionResult:
     diagnostics: tuple[dict[str, Any], ...] = ()
     rendered_yaml: str | None = None
     source_files: tuple[str, ...] = ()
+    source_locations: dict[str, Any] | None = None
 
     @property
     def succeeded(self) -> bool:
@@ -48,6 +49,7 @@ def execute_project(
     operation: Operation,
     *,
     timeout_seconds: int = DEFAULT_EXECUTION_TIMEOUT_SECONDS,
+    capture_locations: bool = False,
 ) -> ExecutionResult:
     """Execute a declared Python entrypoint in a bounded child process."""
 
@@ -87,6 +89,8 @@ def execute_project(
             "--result",
             str(result_path),
         ]
+        if capture_locations:
+            command.append("--source-locations")
         try:
             process = subprocess.Popen(
                 command,
@@ -155,6 +159,11 @@ def execute_project(
             manifest, operation, "SA_EXECUTION_PROTOCOL_ERROR",
             "Python authoring returned invalid source file metadata",
         )
+    source_locations = payload.get("sourceLocations")
+    if source_locations is not None and (not isinstance(source_locations, dict)
+            or any(not isinstance(source_locations.get(key), dict) for key in ("nodes", "links"))):
+        return _execution_failure(manifest, operation, "SA_EXECUTION_PROTOCOL_ERROR",
+                                  "Python authoring returned invalid source location metadata")
     status = payload.get("status")
     if status not in {"success", "failed"}:
         return _execution_failure(
@@ -177,6 +186,7 @@ def execute_project(
         diagnostics=tuple(diagnostics),
         rendered_yaml=rendered_yaml,
         source_files=tuple(source_files),
+        source_locations=source_locations,
     )
 
 

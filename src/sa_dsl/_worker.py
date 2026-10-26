@@ -4,10 +4,12 @@ import argparse
 import importlib
 import json
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
 from .model import Project
+from .source_locations import capture_source_locations
 
 
 _DENIED_AUDIT_EVENTS = frozenset(
@@ -40,13 +42,15 @@ def main() -> None:
     parser.add_argument("--entrypoint", required=True)
     parser.add_argument("--project-name", required=True)
     parser.add_argument("--result", type=Path, required=True)
+    parser.add_argument("--source-locations", action="store_true")
     args = parser.parse_args()
     _install_authoring_policy()
 
     payload: dict[str, Any]
     exit_code = 0
     try:
-        project = _load_entrypoint(args.workspace, args.entrypoint)
+        with (capture_source_locations(args.workspace) if args.source_locations else nullcontext()) as locations:
+            project = _load_entrypoint(args.workspace, args.entrypoint)
         if project.name != args.project_name:
             raise ValueError(
                 "manifest project name does not match the Python Project name: "
@@ -69,6 +73,8 @@ def main() -> None:
                 if source.is_relative_to(workspace):
                     source_files.add(source.relative_to(workspace).as_posix())
             payload["sourceFiles"] = sorted(source_files)
+            if locations is not None:
+                payload["sourceLocations"] = locations.document(project)
         if diagnostics:
             exit_code = 1
     except Exception as error:

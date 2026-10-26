@@ -60,6 +60,11 @@ source positions are added to YAML. Build the Designer bundle, then package the 
 compiled assets in both IDE plugins with `python3 sa-python-dsl/scripts/sync_ide_assets.py`
 from the workspace root. There is no separate IDE graph implementation.
 
+Both IDE plugins also highlight nodes from the current Python DSL/business-code
+caret without moving the graph. **Show in Graph** explicitly focuses a node and
+offers a chooser for shared functions. See [IDE source navigation](docs/ide-source-navigation.md)
+for factory instances, snapshot freshness and supported language-provider matching.
+
 The IDE command `ide-materialize` evaluates the current Python DSL, exports canonical
 YAML in a temporary directory, and imports it into `python-dsl/model/` for Git review.
 It never replaces the authoring source. Repeated runs update only previously generated,
