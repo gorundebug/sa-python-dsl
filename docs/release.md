@@ -1,5 +1,24 @@
 # MCP release check
 
+## Plugin 0.1.24: interval scheduling and evaluated source navigation
+
+The MCP runtime is pinned to `d9812ea72639fb977a3194f371d25ef488a59349`.
+It includes typed `IntervalSchedule` authoring, validation and lossless YAML
+import/export, with matching MCP discovery resources and a local interval example.
+The same runtime includes evaluated Python source ranges and business
+implementation identities used by the IDE navigation hosts.
+
+JetBrains 0.1.19 and VS Code 0.1.12 bundle these CLI sources and use new private
+CLI environment versions. Their shared Designer assets remain at 0.1.14;
+Codex's remote Designer selection remains at 0.1.10. No UI asset deployment or
+PyPI publication is implied. The Python distribution metadata remains 0.1.0;
+the immutable Git revision and bundled CLI environment identify the update.
+
+Release verification: 42 focused tests and three subtests passed. A clean
+installation of the pinned runtime exposed 21 MCP tools and eight resources.
+Both IDE plugins were built and tested in Docker; all 53 bundled DSL files in
+each installable package match this runtime's source files byte-for-byte.
+
 ## Plugin 0.1.23: build verification and stable task completion
 
 The plugin pins its MCP runtime to
