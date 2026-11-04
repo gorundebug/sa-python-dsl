@@ -1,0 +1,23 @@
+// Acceptance implementation of the generated contract, not production domain code.
+package functions
+
+import (
+    "context"
+    "github.com/gorundebug/servicelib/runtime"
+    "github.com/gorundebug/servicelib/runtime/environment"
+    "github.com/gorundebug/servicelib/transformation"
+)
+
+type PendingResolver interface { Resolve(context.Context, string) string }
+type ResolvePendingOutcomes struct { Resolver PendingResolver }
+
+var _ transformation.MapFunction[string, string] = (*ResolvePendingOutcomes)(nil)
+
+func (f *ResolvePendingOutcomes) Map(ctx context.Context, _ runtime.Stream, value string, out runtime.Collect[string]) {
+    if f.Resolver != nil { value = f.Resolver.Resolve(ctx, value) }
+    out.Out(ctx, value)
+}
+
+func MakeResolvePendingOutcomes(context.Context, environment.ServiceEnvironment) (*ResolvePendingOutcomes, error) {
+    return &ResolvePendingOutcomes{}, nil
+}

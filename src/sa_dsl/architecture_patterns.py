@@ -94,7 +94,7 @@ REVIEW_CHECKLIST = {
     "state": ["Join storage is supported", "TTL and renewTTL match retention needs", "correlation is explicit"],
     "failure": ["Failure owner has at most one Error stream", "retry, domain failure, and compensation are distinct", "partial failure behavior is stated"],
     "durability": ["Temporal is used only for durable orchestration", "Workflow code remains deterministic", "timeouts and retry ownership are explicit"],
-    "scheduling": ["Cron expression is five-field", "Temporal schedule has stable ID", "timezone/overlap/missed-run policies are intentional"],
+    "scheduling": ["Local scheduling uses five-field CronSchedule or bounded IntervalSchedule", "Temporal uses a five-field expression and stable ID, never a local interval", "timezone/overlap/missed-run policies are intentional", "Replica ownership and completion are explicit; a local restart does not replay missed work"],
     "cycles": ["Only CycleLink closes feedback", "termination or bounded progress is explicit"],
     "proof": ["validate_project succeeds", "semantic diff matches the intent card", "canonical YAML is exported only after review"],
 }

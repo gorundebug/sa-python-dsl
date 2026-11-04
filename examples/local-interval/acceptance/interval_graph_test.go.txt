@@ -1,0 +1,134 @@
+package app
+
+import (
+    "context"
+    "os"
+    "path/filepath"
+    "strings"
+    "sync"
+    "sync/atomic"
+    "testing"
+    "time"
+
+    "example.com/interval/maintenance/internal/config"
+    "example.com/interval/maintenance/internal/functions"
+    "github.com/gorundebug/servicelib/runtime"
+    "github.com/gorundebug/servicelib/runtime/environment"
+)
+
+type intervalOwnerKey struct{}
+
+type intervalProbe struct {
+    t *testing.T
+    deadline time.Time
+    started atomic.Int32
+    resolved atomic.Int32
+    triggers chan runtime.ScheduleTrigger
+    dispatched chan struct{}
+    entered chan struct{}
+    release chan struct{}
+    releaseOnce sync.Once
+}
+
+func (p *intervalProbe) checkContext(ctx context.Context) {
+    if ctx.Value(intervalOwnerKey{}) != "owner" { p.t.Error("lost scheduler owner context") }
+    deadline, ok := ctx.Deadline()
+    if !ok || !deadline.Equal(p.deadline) { p.t.Errorf("owner deadline changed: %v", deadline) }
+}
+
+func (p *intervalProbe) TriggerStarted(ctx context.Context, trigger runtime.ScheduleTrigger) {
+    p.checkContext(ctx)
+    p.started.Add(1)
+    p.triggers <- trigger
+}
+
+func (p *intervalProbe) TriggerDispatched(ctx context.Context) {
+    p.checkContext(ctx)
+    p.dispatched <- struct{}{}
+}
+
+func (p *intervalProbe) Resolve(ctx context.Context, value string) string {
+    p.checkContext(ctx)
+    if p.resolved.Add(1) == 1 {
+        close(p.entered)
+        select {
+        case <-p.release:
+        case <-ctx.Done():
+        }
+    }
+    return value
+}
+
+func (p *intervalProbe) unblock() { p.releaseOnce.Do(func() { close(p.release) }) }
+
+func TestGeneratedIntervalGraphReturnsResults(t *testing.T) {
+    for _, name := range []string{"SERVICELIB_NOOP_METRICS", "SERVICELIB_NOOP_LOGS", "SERVICELIB_NOOP_TRACING"} {
+        t.Setenv(name, "true")
+    }
+    owner, cancel := context.WithTimeout(context.WithValue(t.Context(), intervalOwnerKey{}, "owner"), 8*time.Second)
+    defer cancel()
+    deadline, _ := owner.Deadline()
+    probe := &intervalProbe{t: t, deadline: deadline, triggers: make(chan runtime.ScheduleTrigger, 32), dispatched: make(chan struct{}, 32), entered: make(chan struct{}), release: make(chan struct{})}
+    configPath, err := filepath.Abs("../../config/config.yaml")
+    if err != nil { t.Fatal(err) }
+    valuesPath := filepath.Join(t.TempDir(), "overrides.yaml")
+    values, err := os.ReadFile("../../config/overrides.yaml")
+    if err != nil { t.Fatal(err) }
+    // Do not bind the example's fixed ports in a shared test environment.
+    values = []byte(strings.NewReplacer(
+        "httpHost: 0.0.0.0", "httpHost: 127.0.0.1",
+        "grpcHost: 0.0.0.0", "grpcHost: 127.0.0.1",
+        "httpPort: 8080", "httpPort: 0",
+        "grpcPort: 9090", "grpcPort: 0",
+    ).Replace(string(values)))
+    if err = os.WriteFile(valuesPath, values, 0600); err != nil { t.Fatal(err) }
+    service, err := runtime.MakeService[*Service, *config.Config](owner, "Maintenance", &serviceDependencies{}, &configPath, &valuesPath, func() *Service { return &Service{} }, func() *config.Config { return config.MakeConfig() })
+    if err != nil { t.Fatal(err) }
+    if cfg := service.ServiceConfig(); cfg.HttpHost != "127.0.0.1" || cfg.HttpPort != 0 || cfg.GrpcHost != "127.0.0.1" || cfg.GrpcPort != 0 {
+        release, cancelRelease := context.WithTimeout(context.WithoutCancel(t.Context()), 2*time.Second)
+        defer cancelRelease()
+        service.Release(release)
+        t.Fatalf("isolated port overrides did not take effect: http=%s:%d grpc=%s:%d", cfg.HttpHost, cfg.HttpPort, cfg.GrpcHost, cfg.GrpcPort)
+    }
+    service.makers.startPendingSweepSourceMaker = func(context.Context, environment.ServiceEnvironment) (*functions.StartPendingSweepSource, error) {
+        return &functions.StartPendingSweepSource{Observer: probe}, nil
+    }
+    service.makers.resolvePendingOutcomesMaker = func(context.Context, environment.ServiceEnvironment) (*functions.ResolvePendingOutcomes, error) {
+        return &functions.ResolvePendingOutcomes{Resolver: probe}, nil
+    }
+    t.Cleanup(func() {
+        probe.unblock()
+        shutdown, cancelShutdown := context.WithTimeout(context.WithoutCancel(t.Context()), 2*time.Second)
+        defer cancelShutdown()
+        service.StopService(shutdown)
+        service.Release(shutdown)
+    })
+    if err = service.StartService(owner); err != nil { t.Fatal(err) }
+    wait := func(ch <-chan struct{}, description string) {
+        t.Helper()
+        select {
+        case <-ch:
+        case <-owner.Done(): t.Fatalf("waiting for %s: %v", description, owner.Err())
+        }
+    }
+    wait(probe.entered, "asynchronous downstream work")
+    wait(probe.dispatched, "source callback return before graph result")
+    time.Sleep(250*time.Millisecond)
+    if got := probe.started.Load(); got != 1 { t.Fatalf("overlap while graph result is pending: %d", got) }
+    probe.unblock()
+    var previous runtime.ScheduleTrigger
+    for index := 0; index < 3; index++ {
+        select {
+        case trigger := <-probe.triggers:
+            if trigger.Backend != runtime.ScheduleBackendLocal || trigger.TriggerID == "" { t.Fatalf("invalid trigger: %+v", trigger) }
+            if index > 0 {
+                delta := trigger.ScheduledAt.Sub(previous.ScheduledAt)
+                if delta <= 0 || delta % (100*time.Millisecond) != 0 { t.Fatalf("cadence drift: %s", delta) }
+                if trigger.TriggerID == previous.TriggerID { t.Fatal("reused trigger identity") }
+            }
+            previous = trigger
+        case <-owner.Done(): t.Fatalf("graph did not complete scheduled invocation: %v", owner.Err())
+        }
+    }
+    t.Log("generated async Input -> Map -> result graph: overlap, owner context, completion and fixed cadence passed")
+}

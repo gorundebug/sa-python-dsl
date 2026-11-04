@@ -193,6 +193,7 @@ def _dsl_imports(body: str) -> str:
         "CppCoro",
         "CppUserver",
         "CronSchedule",
+        "IntervalSchedule",
         "DataConnectorImplementation",
         "DataType",
         "Environment",
@@ -597,9 +598,24 @@ def yaml_to_python_files(
                 method = "endpoint"
             endpoint_values = _property_values(endpoint_values)
             if connector_type == "Cron":
+                schedule = endpoint_values.get("schedule", "")
+                interval_match = (
+                    re.fullmatch(r"@every ([1-9][0-9]{0,7})ms", schedule)
+                    if isinstance(schedule, str) else None
+                )
+                interval_ms = int(interval_match.group(1)) if interval_match else 0
+                local_interval = (
+                    10 <= interval_ms <= 86_400_000
+                    and endpoint_values.get("timezone", "UTC") == "UTC"
+                )
+                if local_interval:
+                    endpoint_values["schedule"] = interval_ms
+                    endpoint_values.pop("timezone", None)
                 endpoint_values["trigger"] = _object_code(
                     endpoint_values,
-                    "CronSchedule",
+                    "IntervalSchedule" if local_interval else "CronSchedule",
+                    (("milliseconds", "schedule"), ("overlap_policy", "overlapPolicy"), ("missed_run_policy", "missedRunPolicy"))
+                    if local_interval else
                     (("expression", "schedule"), ("timezone", "timezone"), ("overlap_policy", "overlapPolicy"), ("missed_run_policy", "missedRunPolicy")),
                 )
             elif connector_type == "Temporal":

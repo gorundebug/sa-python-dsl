@@ -492,6 +492,27 @@ class CronSchedule:
 
 
 @dataclass(frozen=True, slots=True)
+class IntervalSchedule:
+    """Process-local fixed cadence; no durable replay across service restarts."""
+
+    milliseconds: int
+    overlap_policy: ScheduleOverlapPolicy = ScheduleOverlapPolicy.SKIP
+    missed_run_policy: ScheduleMissedRunPolicy = ScheduleMissedRunPolicy.SKIP
+
+    def __post_init__(self) -> None:
+        if type(self.milliseconds) is not int or not 10 <= self.milliseconds <= 86_400_000:
+            raise DslValidationError("IntervalSchedule.milliseconds must be an integer from 10 to 86400000")
+
+    def to_properties(self) -> dict[str, Any]:
+        return _properties({
+            "schedule": f"@every {self.milliseconds}ms",
+            "timezone": "UTC",
+            "overlap_policy": self.overlap_policy,
+            "missed_run_policy": self.missed_run_policy,
+        })
+
+
+@dataclass(frozen=True, slots=True)
 class TemporalSchedule:
     expression: str
     id: str
@@ -1207,12 +1228,12 @@ class CronConnector(Connector):
         name: str,
         *,
         function: Function,
-        trigger: CronSchedule,
+        trigger: CronSchedule | IntervalSchedule,
         enabled: bool = True,
         tracing_enabled: bool | None = None,
     ) -> Endpoint:
-        if not isinstance(trigger, CronSchedule):
-            raise DslValidationError("Cron trigger must be a CronSchedule")
+        if not isinstance(trigger, (CronSchedule, IntervalSchedule)):
+            raise DslValidationError("Cron trigger must be a CronSchedule or IntervalSchedule")
         return self._endpoint(
             name,
             function=function,

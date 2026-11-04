@@ -81,7 +81,33 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
         "transports": {
             "connectors": ["HTTP", "gRPC", "Kafka", "Custom", "Cron", "Temporal"],
             "temporalEndpoints": ["Activity", "Workflow"],
-            "schedule": "Cron uses portable five-field expressions; Temporal schedules also require a stable schedule ID.",
+            "schedule": "Local Cron accepts CronSchedule with five fields or IntervalSchedule in integer milliseconds; Temporal requires a five-field expression and a stable schedule ID, not a local interval.",
+            "scheduleResource": "servicegen://semantics/local-scheduling",
+        },
+        "local-scheduling": {
+            "purpose": "Run a bounded local maintenance stage through a Cron Input, without an application-owned polling loop.",
+            "apiResources": ["servicegen://authoring/typed-api-Project-cron_connector", "servicegen://authoring/typed-api-CronConnector-schedule"],
+            "example": "connector.schedule('Pending sweep', trigger=IntervalSchedule(milliseconds=100), function=Function('StartPendingSweep', module=LOCAL_MODULE))",
+            "interval": {
+                "constructor": "IntervalSchedule",
+                "fields": {
+                    "milliseconds": {"type": "int", "required": True, "minimum": 10, "maximum": 86400000, "description": "Fixed local cadence in whole milliseconds; bool is not accepted."},
+                    "overlap_policy": {"type": "ScheduleOverlapPolicy", "default": "Skip", "values": ["Skip", "Allow"]},
+                    "missed_run_policy": {"type": "ScheduleMissedRunPolicy", "default": "Skip", "values": ["Skip", "FireOnce"]},
+                },
+                "timezone": "UTC",
+                "wireFormat": "@every Nms",
+            },
+            "rules": [
+                "Use CronSchedule(expression='*/5 * * * *') for a calendar schedule; use IntervalSchedule(milliseconds=100) for subsecond local maintenance.",
+                "An interval is local-only. TemporalSchedule requires its own five-field expression and stable ID.",
+                "First occurrence is one interval after a process-local millisecond anchor; later slots do not drift with business completion.",
+                "Skip discards a coalesced backlog; FireOnce emits its latest slot. Neither replays every missed occurrence.",
+                "A restart establishes a new anchor, not durable catch-up. Replicas schedule independently; inject narrow domain ownership through makers.",
+                "Connect the completed business stage back to the scheduled Input when overlap must cover asynchronous downstream work.",
+                "Keep one meaningful bounded maintenance stage, not a graph of timer internals or per-record conditions.",
+                "Use matching DSL, generator and SDK versions; this extension is not a claim about already published packages.",
+            ],
         },
         "call-semantics": {
             "values": {
@@ -186,7 +212,7 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
             "Activity": "Externally executed operation called by Temporal orchestration.",
             "onDemand": "A Temporal Sink submission path does not imply a schedule.",
             "scheduled": "Supply a five-field cron expression and a stable Temporal schedule ID.",
-            "ordinaryCron": "Cron requires a schedule expression and does not use Temporal schedule ID.",
+            "ordinaryCron": "Local Cron uses CronSchedule or IntervalSchedule, without a Temporal schedule ID or durable replay.",
         },
         "authoring-api": {
             "connectionMethods": [

@@ -265,16 +265,34 @@ order = project.type("Order", DataType.CUSTOM, public_type=True, module=model)
 
 ## Cron and Temporal schedules
 
-A Cron endpoint requires a portable five-field expression without seconds:
+A local Cron endpoint supports a calendar expression or a fixed interval:
 
 ```python
-cron.endpoint(
+from sa_dsl import CronSchedule, Function, IntervalSchedule, LOCAL_MODULE
+
+cron = project.cron_connector("Maintenance")
+cron.schedule(
     "Weekday Trigger",
-    function_name="WeekdayTrigger",
-    schedule="0 9 * * 1-5",
-    timezone="UTC",
+    trigger=CronSchedule(expression="0 9 * * 1-5"),
+    function=Function("WeekdayTrigger", module=LOCAL_MODULE),
+)
+cron.schedule(
+    "Pending Sweep",
+    trigger=IntervalSchedule(milliseconds=100),
+    function=Function("StartPendingSweep", module=LOCAL_MODULE),
 )
 ```
+
+Calendar expressions have five fields, without seconds. Intervals use canonical
+integer milliseconds from 10 through 86400000 and serialize as `@every Nms`.
+Both use UTC and explicit overlap/missed-run policies. An interval is local,
+not a Temporal schedule: restarting establishes a new anchor rather than durable
+replay. Each replica schedules independently, so makers must inject only its
+owned state. Connect the business completion back to the scheduled Input when
+overlap must include downstream work. See the
+[local interval example](examples/local-interval/project.py) and the MCP resource
+`servicegen://semantics/local-scheduling`. Matching generator and SDK versions
+are required; this is not a claim about older published packages.
 
 Most Temporal endpoints are called on demand through a Temporal Sink. Both schedule
 fields should be empty in that case:

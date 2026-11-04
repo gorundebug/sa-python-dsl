@@ -774,15 +774,19 @@ class Validator:
         )
         if valid and fields[2] != "*" and fields[4] != "*":
             valid = False
+        interval = re.fullmatch(r"@every ([1-9][0-9]{0,7})ms", schedule)
+        if not temporal and interval is not None:
+            valid = 10 <= int(interval.group(1)) <= 86_400_000
         if schedule.strip() and not valid:
             self.add(
                 RANGE,
                 "schema",
-                f"scheduled endpoint {endpoint.name!r} requires a portable five-field cron expression",
+                f"scheduled endpoint {endpoint.name!r} requires a portable five-field cron expression"
+                + ("" if temporal else " or @every <10..86400000>ms"),
                 path + ".schedule",
                 "endpoint",
                 endpoint.name,
-                contract="portable-five-field",
+                contract="portable-five-field" if temporal else "portable-local-schedule",
             )
         if temporal:
             self.required(
@@ -1442,6 +1446,7 @@ class Validator:
                     response_type = response
         for endpoint_key, endpoint_inputs in inputs.items():
             for input_stream in endpoint_inputs:
+                endpoint = input_stream.endpoint
                 for sink in sinks[endpoint_key]:
                     request_in = self.output_wire_type(input_stream)
                     request_out = self.output_wire_type(sink.source)

@@ -1,6 +1,6 @@
 import unittest
 
-from sa_dsl import Function, Golang, Project, ServiceModule
+from sa_dsl import Function, Golang, KafkaCluster, Project, ServiceModule
 from sa_dsl.model import Endpoint, Stream
 from sa_dsl.validation import DUPLICATE, TYPE_MISMATCH, Validator
 

@@ -1,0 +1,32 @@
+// Acceptance implementation of the generated contract, not production domain code.
+package functions
+
+import (
+    "context"
+    "github.com/gorundebug/servicelib/datasource"
+    "github.com/gorundebug/servicelib/runtime"
+    "github.com/gorundebug/servicelib/runtime/environment"
+)
+
+type TriggerObserver interface {
+    TriggerStarted(context.Context, runtime.ScheduleTrigger)
+    TriggerDispatched(context.Context)
+}
+
+type StartPendingSweepSource struct { Observer TriggerObserver }
+
+var _ runtime.ScheduleEndpointFunction[string] = (*StartPendingSweepSource)(nil)
+
+func MakeEndpointConsumerStartPendingSweepSource[T, R, E any](stream runtime.TypedInputStream[T, R, E], function runtime.ScheduleEndpointFunction[T]) (runtime.Consumer[T], error) {
+    return datasource.GocronEndpointConsumer(stream, function)
+}
+
+func (f *StartPendingSweepSource) OnTrigger(ctx context.Context, trigger runtime.ScheduleTrigger, out runtime.Collect[string]) {
+    if f.Observer != nil { f.Observer.TriggerStarted(ctx, trigger) }
+    out.Out(ctx, trigger.TriggerID)
+    if f.Observer != nil { f.Observer.TriggerDispatched(ctx) }
+}
+
+func MakeStartPendingSweepSource(context.Context, environment.ServiceEnvironment) (*StartPendingSweepSource, error) {
+    return &StartPendingSweepSource{}, nil
+}
