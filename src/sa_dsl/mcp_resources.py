@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, Mapping
 
+from .architecture_guidance import GUIDANCE_RESOURCES, IMPLEMENTATION_GUIDE
 from .api_catalog import build_connector_capabilities, build_typed_api_catalog
 from .architecture_patterns import PATTERN_CATALOG, REVIEW_CHECKLIST
 from .architecture_objects import architecture_object_index, describe_architecture_object
@@ -34,7 +35,8 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
         },
         "overview": {
             "sourceOfTruth": "typed Python for Python-authored workspaces; canonical YAML is generated IR",
-            "modelingGuide": "servicegen://authoring/business-modeling",
+            "modelingGuide": GUIDANCE_RESOURCES["modeling"],
+            "implementationGuide": GUIDANCE_RESOURCES["implementation"],
             "rules": [
                 "Model meaningful business stages and process-level execution boundaries, not source-code AST or every condition and call.",
                 "Use concrete typed factories and object references.",
@@ -316,7 +318,9 @@ RESOURCE_CATALOG["authoring"].update(
     {
         "typed-api": build_typed_api_catalog(),
         "connector-capabilities": build_connector_capabilities(),
+        "implementation-guidelines": IMPLEMENTATION_GUIDE,
         "business-modeling": {
+            "implementationResource": GUIDANCE_RESOURCES["implementation"],
             "purpose": "Reduce the context needed to understand a system, simplify changes, accelerate review, and communicate explicit constraints on agent changes to functionality. The graph is not intended to represent or generate all application code.",
             "rules": [
                 "Code generation is a supporting capability, not the graph's purpose or a measure of model completeness. Optimize for concise understanding, change impact, and reviewable behavioral contracts.",
@@ -331,10 +335,10 @@ RESOURCE_CATALOG["authoring"].update(
                 "Expose streaming, ordering, concurrency, completion, durability, and failure semantics when they matter to understanding or changing the process. Do not hide a boundary the user explicitly wants to control.",
                 "Case/When represents a business alternative, not every local condition. Split/Join represents graph-visible branches and completion, not every pair of internal concurrent calls.",
                 "Examples and operator recipes demonstrate capabilities, not mandatory decompositions. Two internal parallel calculations and result combination may belong in one business function.",
-                "Simple external calls, Kafka log publication, or database writes may be implementation details of a stage. Add transport operators only when exposing a real architectural boundary; do not invent an Input for an internal helper.",
+                "Use supported native endpoints for external message ingress/egress and scheduled processing. Do not hide Kafka readers/producers or process orchestration inside a generic Process or Custom Sink. Cohesive SQL, encoding and algorithms can remain inside the owning stage; do not create a node per library call.",
                 "Expose errors that affect process continuation, fallback, compensation, or business outcomes. Locally handled technical errors need not have separate nodes.",
                 "After choosing graph-visible boundaries, honor their actual operator and transport contracts. Abstraction is not permission to invent ordering, drop completion events, or hide important outcomes.",
-                "Reuse the same function identity and equivalent meaningful fragment when business logic is shared. Different argument preparation outside a stage does not change that shared logic.",
+                "Each independent handler owns a named pipeline and fresh processing/error/reply nodes. Reuse function identities and construction helpers, not stream instances. Never merge unrelated handlers merely because they share types or code.",
                 "Discover components from actual repeated business logic; do not split stages merely to manufacture repeated fragments or increase component counts.",
             ],
             "reviewQuestions": [
@@ -344,6 +348,8 @@ RESOURCE_CATALOG["authoring"].update(
                 "What business purpose or independently important execution contract justifies each node and branch?",
                 "Would merging this technical step into its owner preserve the process contract and improve readability?",
                 "Are independently meaningful stages and outcome-changing decisions still visible?",
+                "Can each independent handler be opened and changed as its own pipeline without changing another handler?",
+                "Are native SDK mechanisms used and stage-specific capabilities injected, rather than hidden orchestration behind business labels?",
                 "Was an operator demonstration mistakenly treated as a universal modeling requirement?",
             ],
             "reviewResource": "servicegen://authoring/review-checklist",

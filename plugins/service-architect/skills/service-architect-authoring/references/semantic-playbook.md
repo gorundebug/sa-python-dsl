@@ -29,6 +29,18 @@ graph. They are not a requirement to expose every implementation detail. A
 Split/KeyBy/Join example demonstrates operators; a cohesive business function
 may perform equivalent internal parallel work without exposing those operators.
 
+Independent handlers own separate named pipelines and fresh node instances,
+including reply/error stages. Reuse function identities or construction helpers,
+not nodes that join unrelated requests. A deliberately shared endpoint contract
+with an event discriminator is a separate API decision. Business joins and
+callable SubStreams remain valid when their purpose is explicit.
+
+Read `servicegen://authoring/implementation-guidelines` before wiring transport,
+state or lifecycle. Use supported native endpoints and narrow makers. Keep real
+input/result payloads in typed graph messages; do not hide an unmodeled process
+in a registry, context, generic Process or Custom Sink. A documented startup/CLI
+caller can be a valid trigger without a fabricated graph link.
+
 ## 1. Build an intent card
 
 Record these decisions before editing:

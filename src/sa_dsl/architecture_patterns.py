@@ -6,6 +6,7 @@ from typing import Any, Mapping
 PATTERN_CATALOG: Mapping[str, dict[str, Any]] = {
     "index": {
         "selectionRule": "Choose meaningful business-stage boundaries using servicegen://authoring/business-modeling before selecting a recipe. Recipes describe graph-visible semantics, not a requirement to expose internal calls or conditions.",
+        "implementationResource": "servicegen://authoring/implementation-guidelines",
         "topics": [
             "kafka-processing",
             "iterable-worker-aggregation",
@@ -83,8 +84,28 @@ REVIEW_CHECKLIST = {
         "Every node or branch exposes a meaningful business responsibility, outcome, or process-level execution contract, not merely a source-code statement",
         "Technical conditions, helpers, waits, logging and storage details remain inside their owner unless independently meaningful",
         "Independently meaningful stages are not hidden inside one oversized endpoint function",
-        "Shared business logic retains the same function identity and equivalent fragment regardless of external argument preparation",
+        "Shared function identity is reused on distinct nodes in independent handler pipelines",
         "Operator examples are not treated as mandatory decompositions; components are not manufactured by over-fragmenting the model",
+    ],
+    "implementationResource": "servicegen://authoring/implementation-guidelines",
+    "handlerOwnership": [
+        "Every independent handler has a selectable named pipeline and fresh processing/error/reply nodes",
+        "Changing a handler stage does not alter another handler; shared factories create fresh instances",
+        "No artificial merge of unrelated inputs or reply-routing machinery to undo it",
+        "Endpoint consolidation is deliberate and limited to one request/response contract; genuine shared business boundaries remain explicit",
+    ],
+    "framework": [
+        "Existing SDK contracts and canonical examples were inspected before custom orchestration or extensions",
+        "Native transport/scheduling/result/error mechanisms are used where supported; no hidden parallel execution framework",
+        "Makers inject only stage-specific capabilities; context and ID registries do not conceal business payload/control flow",
+        "Record messages use struct_type; custom_type represents interfaces or genuinely opaque shapes",
+        "SDK changes have a demonstrated reusable gap and an explicit implementation/verification matrix across applicable backends",
+    ],
+    "lifecycleAndModules": [
+        "Every pipeline has a known endpoint, schedule, SubStream or startup/CLI trigger",
+        "Startup coordination respects actual SDK concurrency and cancellation instead of assuming new phases are required",
+        "Service API modules own their contracts independently of service implementations",
+        "Destination merge hooks and existing ownership contracts are preserved",
     ],
     "identity": ["Names derive stable unique keys", "references use project-owned objects"],
     "types": ["Every edge has compatible value types", "KeyBy uses a comparable key type", "Join inputs share key type"],
@@ -96,7 +117,7 @@ REVIEW_CHECKLIST = {
     "durability": ["Temporal is used only for durable orchestration", "Workflow code remains deterministic", "timeouts and retry ownership are explicit"],
     "scheduling": ["Local scheduling uses five-field CronSchedule or bounded IntervalSchedule", "Temporal uses a five-field expression and stable ID, never a local interval", "timezone/overlap/missed-run policies are intentional", "Replica ownership and completion are explicit; a local restart does not replay missed work"],
     "cycles": ["Only CycleLink closes feedback", "termination or bounded progress is explicit"],
-    "proof": ["validate_project succeeds", "semantic diff matches the intent card", "canonical YAML is exported only after review"],
+    "proof": ["validate_project succeeds", "semantic diff matches the intent card", "canonical YAML is exported only after review", "Implementation changes compile and exercise affected generated paths through makers/endpoints, not just isolated functions", "Verify complete connected changes together and repeat only affected acceptance; distinguish implemented, tested and unsupported behavior"],
 }
 
 

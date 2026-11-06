@@ -1,5 +1,21 @@
 # MCP release check
 
+## Plugin 0.1.26: implementation guidance and local SubStream analysis
+
+The Git-pinned runtime exposes implementation guidance through MCP handshake,
+project inspection and object discovery. The plugin also ships the new
+`service-architect-implementation` skill. These are engineering recommendations,
+not new model validation rules or changes to SDK contracts.
+
+Go SubStream analysis handles generated acronym casing and follows helper bodies
+in other local modules. VS Code 0.1.18 and JetBrains 0.1.25 bundle this runtime,
+use private CLI environment 0.1.21 and matching EmbeddedDesigner 0.1.15 assets.
+JetBrains labels the explicit refresh action "Refresh graph & calls".
+
+The Codex MCP manifest pins the published runtime by immutable Git revision;
+its remote Designer selection remains 0.1.10. Python package metadata remains
+0.1.0. Publication uses GitHub Releases, not PyPI or IDE marketplaces.
+
 ## Plugin 0.1.25 and IDE SubStream call analysis
 
 Codex 0.1.25 pins the published DSL runtime through its immutable Git revision in

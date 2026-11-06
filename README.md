@@ -450,3 +450,23 @@ callable SubStream and is not substituted for one during generation.
 Use `bindings={target: NativeTypeBinding(...)}` on a type factory to describe a
 native type for a selected template target. See [native type bindings](docs/native-types.md)
 for the fields, YAML/Python round trip, and removed language-slot parameters.
+
+
+### Architecture and implementation guidance for agents
+
+The MCP initialization instructions link to three passive resources, also returned
+by `inspect_project` and `describe_architecture_object`:
+
+- `servicegen://authoring/business-modeling`: meaningful stages and independent handler pipelines.
+- `servicegen://authoring/implementation-guidelines`: existing SDK mechanisms, typed messages,
+  narrow makers, startup/completion, API ownership and generated-path verification.
+- `servicegen://authoring/review-checklist`: checks before reporting a model or implementation change complete.
+
+The Codex plugin includes `service-architect-implementation` for work in generated
+services, alongside the authoring and modeling skills. This guidance is shared
+across projects; it contains no application-specific architecture or execution
+policy. It does not add DSL fields or automatically enforce review rules.
+
+Local source changes do not update an already installed plugin or its pinned MCP
+revision. A release must publish the tested server commit, update the plugin's
+immutable `.mcp.json` source pin and plugin version, and verify that exact revision.

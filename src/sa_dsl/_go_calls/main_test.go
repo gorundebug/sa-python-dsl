@@ -15,15 +15,21 @@ func TestMakersHelpersAndMultipleBusinessOwners(t *testing.T) {
 		"svc/api/api.go": `package api; type Stream interface { Consume(int) }`,
 		"svc/internal/functions/work/work.go": `package work
  import "fixture/svc/api"
+ import "fixture/shared"
  type First struct { Stream api.Stream }
  func (f *First) Process() { helper(f.Stream) }
- func helper(s api.Stream) { invoke(func(){s.Consume(1)}) }
+ func helper(s api.Stream) { invoke(func(){shared.Invoke(s,1)}) }
  func invoke(f func()) { f() }
  type Second struct { Other api.Stream }
  func (f *Second) Process() { f.Other.Consume(2) }
  // Recursion must terminate during analysis.
  func recursive(s api.Stream, n int) { if n>0 { recursive(s,n-1) }; s.Consume(n) }
  func Unowned(s api.Stream) { recursive(s,1) }
+ `,
+		// This local helper is imported but is outside the ./svc/... pattern.
+		"shared/invoke.go": `package shared
+ import "fixture/svc/api"
+ func Invoke(s api.Stream, n int) { s.Consume(n) }
  `,
 		"svc/internal/app/substreams.generated.go": `package app
  import "fixture/svc/api"

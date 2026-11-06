@@ -27,6 +27,7 @@ from .manifest import ManifestError, load_manifest
 from .migration import import_yaml_project as import_yaml_project_application
 from .mcp_workspace import WorkspaceBoundary, WorkspaceBoundaryError
 from .mcp_resources import catalog_resource, json_resource
+from .architecture_guidance import GUIDANCE_RESOURCES, SERVER_INSTRUCTIONS
 from .architecture_objects import architecture_object_index, describe_architecture_object as describe_object
 from .operation_audit import read_audit, record_operation_safely as record_operation
 from .semantic_diff import SemanticDiffError, preview_architecture_diff as build_architecture_diff
@@ -48,7 +49,7 @@ from .servicegen_validation import (
 )
 
 
-mcp = MCPServer("Service Architect")
+mcp = MCPServer("Service Architect", instructions=SERVER_INSTRUCTIONS)
 
 from .mcp_authoring import register_authoring_tools
 
@@ -279,7 +280,8 @@ def inspect_project(project_path: str = ".") -> dict[str, Any]:
 
     try:
         manifest = load_manifest(_project_path(project_path))
-        return {**manifest.inspect_payload(), "resources": _project_resources.references(project_path)}
+        return {**manifest.inspect_payload(), "resources": _project_resources.references(project_path),
+                "guidance": GUIDANCE_RESOURCES}
     except (ManifestError, WorkspaceBoundaryError) as error:
         return _manifest_failure("inspect", error)
 

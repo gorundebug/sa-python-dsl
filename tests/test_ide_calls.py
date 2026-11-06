@@ -69,3 +69,15 @@ def test_shared_module_is_separate_from_service_owner(tmp_path):
     document["services"]["orders"]["pipelines"]["main"]["work"]["functionModule"] = "shared"
     request = analysis_request(document, tmp_path, "orders")
     assert Path(request["business"][0]["directory"]) == tmp_path / "shared_go/pkg/functions/orders"
+
+
+def test_default_go_template_acronyms_are_resolved_without_losing_original_names(tmp_path):
+    document = model()
+    pipeline = document['services']['orders']['pipelines']['main']
+    pipeline['publishDSPBillingNotice'] = {'type': 'SubStream', 'name': 'Publish DSP billing notice'}
+    pipeline['work']['functionName'] = 'PublishDSPNotice'
+    request = analysis_request(document, tmp_path, 'orders')
+    target = next(item for item in request['substreams'] if item['key'] == 'publishDSPBillingNotice')
+    assert target['symbols'] == ['PublishDSPBillingNotice', 'PublishDspBillingNotice']
+    assert 'PublishDSPNotice' in request['business'][0]['symbols']
+    assert 'PublishDspNotice' in request['business'][0]['symbols']

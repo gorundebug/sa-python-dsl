@@ -76,6 +76,27 @@ func analyze(req Request) (Result, error) {
 	if err != nil {
 		return result, err
 	}
+	// Helpers in other local modules also carry interface values and calls.
+	// Load their bodies without expanding SSA to the SDK and all third-party code.
+	initial := map[string]bool{}
+	for _, p := range pkgs {
+		initial[p.PkgPath] = true
+	}
+	var localDependencies []string
+	packages.Visit(pkgs, func(p *packages.Package) bool {
+		if !initial[p.PkgPath] && len(p.GoFiles) > 0 && inside(req.Root, p.GoFiles[0]) {
+			localDependencies = append(localDependencies, p.PkgPath)
+		}
+		return true
+	}, nil)
+	if len(localDependencies) > 0 {
+		sort.Strings(localDependencies)
+		patterns := append(append([]string(nil), req.Patterns...), localDependencies...)
+		pkgs, err = packages.Load(&packages.Config{Dir: req.Root, Mode: packages.LoadSyntax}, patterns...)
+		if err != nil {
+			return result, err
+		}
+	}
 	var loadErrors []string
 	packages.Visit(pkgs, nil, func(p *packages.Package) {
 		for _, e := range p.Errors {

@@ -23,6 +23,14 @@ from .ide_implementations import implementation_targets
 from .manifest import ProjectManifest
 
 
+def _pascal_identifier(name: str) -> str:
+    """Default templates title-case words, including acronyms (DSP -> Dsp)."""
+    words = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
+    words = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", words)
+    return "".join(part[:1].upper() + part[1:].lower()
+                   for part in re.split(r"[^\w]+|_", words) if part)
+
+
 def _directory(root: Path, name: str) -> Path:
     name = re.sub(r"\s", "", name).lower()
     if not name or name in {".", ".."} or "/" in name or "\\" in name:
@@ -58,7 +66,8 @@ def analysis_request(document: dict[str, Any], root: Path, service_key: str) -> 
             if not location.is_relative_to(owner):
                 raise ValueError("Function package escapes its owner")
             owners.add(owner)
-            business.append({"key": key, "directory": str(location), "symbols": target["symbols"]})
+            symbols = list(dict.fromkeys([*target["symbols"], *map(_pascal_identifier, target["symbols"])]))
+            business.append({"key": key, "directory": str(location), "symbols": symbols})
     substreams = []
     for pipeline in service.get("pipelines", {}).values():
         for key, node in pipeline.items():
@@ -67,7 +76,9 @@ def analysis_request(document: dict[str, Any], root: Path, service_key: str) -> 
             name = node.get("name") or key
             # The ordinary generated Go accessor uses the public PascalCase name.
             symbol = "".join(word[:1].upper() + word[1:] for word in re.split(r"[^\w]+|_", name) if word)
-            substreams.append({"key": key, "symbols": list(dict.fromkeys([symbol, key[:1].upper() + key[1:]]))})
+            substreams.append({"key": key, "symbols": list(dict.fromkeys([
+                symbol, key[:1].upper() + key[1:], _pascal_identifier(name), _pascal_identifier(key),
+            ]))})
     return {"root": str(root), "serviceDirectory": str(service_dir),
             "patterns": ["./" + p.relative_to(root).as_posix() + "/..." for p in sorted(owners)],
             "business": business, "substreams": substreams}

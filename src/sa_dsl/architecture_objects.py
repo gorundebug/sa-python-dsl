@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .architecture_guidance import GUIDANCE_RESOURCES
 from .api_catalog import describe_typed_factory
 
 
@@ -170,6 +171,7 @@ def architecture_object_index() -> dict[str, Any]:
     return {
         "schemaVersion": "1.0",
         "sourceOfTruth": "typed Python DSL; this catalog is guidance, not another model",
+        "guidance": GUIDANCE_RESOURCES,
         "objects": [
             {"kind": kind, "purpose": guide["purpose"],
              "resource": f"servicegen://authoring/object-{kind}"}
@@ -190,6 +192,7 @@ def describe_architecture_object(kind: str) -> dict[str, Any]:
         }
     return {
         "schemaVersion": "1.0", "status": "success", "kind": normalized,
+        "guidance": GUIDANCE_RESOURCES,
         **{key: value for key, value in guide.items() if key != "factories"},
         "factories": [describe_typed_factory(owner, method) for owner, method in guide["factories"]],
         "capabilityRule": "Check cached servicegen://capabilities/{language}; a DSL factory is not proof of backend support.",

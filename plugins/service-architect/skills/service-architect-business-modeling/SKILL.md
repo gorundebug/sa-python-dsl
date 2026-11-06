@@ -14,6 +14,8 @@ details. Apply this principle before choosing operators or searching for repeate
 components. For MCP guidance, read
 `servicegen://authoring/business-modeling`; use
 `servicegen://authoring/review-checklist` when reviewing the resulting model.
+Before wiring implementation, makers or lifecycle, also read
+`servicegen://authoring/implementation-guidelines`.
 
 ## Choose meaningful boundaries
 
@@ -50,10 +52,11 @@ rules.
   calculations can legitimately remain inside one function.
 - An operator tutorial showing two Maps, KeyBy, and Join demonstrates a supported
   construction. It is not a mandatory decomposition for every similar code fragment.
-- A database write, Kafka log publication, or simple external call can remain
-  inside a business stage. Introduce Input/Sink and endpoints when the chosen
-  architecture actually exposes a transport boundary, not merely because the
-  implementation uses an SDK. Never invent an event source for an internal helper.
+- Use supported native endpoints for external message ingress/egress and scheduled
+  processing. Do not hide a Kafka reader/producer or background orchestration in
+  a generic Process or Custom Sink when the SDK already covers it. SQL statements,
+  codecs, indexes and cohesive algorithms stay in ordinary code; do not expose
+  every library call or invent an event source for an internal helper.
 - Expose errors that change process continuation, fallback, compensation, or the
   business result. Locally handled technical errors do not need separate nodes.
 
@@ -84,9 +87,32 @@ Update the graph when process-level behavior changes, and use the semantic diff
 to review affected responsibilities, contracts, and outcomes rather than AST
 coverage or generated-code volume.
 
-When the same business function is used by different endpoints, preserve its
-function identity and equivalent meaningful subgraph. Different argument
-preparation outside that stage does not make the shared logic different.
+Every independent handler owns a named pipeline and fresh processing, error and
+reply nodes. Reuse the same function identity/package on distinct nodes; helpers
+that construct pipelines must create fresh instances for each handler. Shared
+state and libraries do not imply shared graph nodes. A handler's full flow must
+be selectable and independently editable. Do not merge unrelated inputs because
+their types match or add return-routing Case/Split machinery to undo that merge.
+
+A deliberately unified endpoint with one request/response contract may use a
+bounded event discriminator. Use Case only for genuinely different behavior;
+keep different contracts separate. This is an API design decision, not permission
+to merge existing independent handlers. Real business joins, fan-out and callable
+SubStreams remain valid when they serve an explicit process purpose.
+
+A pipeline must have an identifiable trigger: endpoint, schedule, SubStream caller
+or startup/CLI invocation. Document that role in the model. IDE code-call overlays
+are evidence of possible calls, not persisted links or execution proof; do not
+invent a business ancestor for a startup-only call.
+
+Carry real typed inputs and results between stages. Do not pass only an ID while
+hiding the payload or next operation in context/global registries. Records use
+`struct_type`, including existing external records; reserve `custom_type` for
+interfaces and genuinely opaque shapes. A service can own shared state, while
+makers inject only the capabilities required by each individual stage.
+
+Keep service-owned API contracts in separate API modules; service implementation
+modules and unrelated shared libraries must not become the contract owner.
 Find visual components from actual repeated logic; do not fragment pipelines
 merely to manufacture matches or component counts.
 

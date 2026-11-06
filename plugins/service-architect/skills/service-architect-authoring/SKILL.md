@@ -29,6 +29,13 @@ the relevant `servicegen://semantics/{topic}` resources. Do not select an API
 method from a keyword alone: classify the trigger, cardinality, execution
 boundary, completion behavior, durability, correlation, and failure path first.
 
+Before wiring sources, sinks, makers or startup, read
+`servicegen://authoring/implementation-guidelines`. Inspect existing SDK contracts
+and canonical examples first. Keep each independent handler in its own named
+pipeline with fresh nodes; reuse function implementations, not handler nodes.
+Pass business data in typed messages and inject narrow stage capabilities.
+A meaningful label on Process does not justify hidden transport orchestration.
+
 Separate cardinality, topology, and invocation semantics. `FlatMap` or
 `FlatMapIterable` expands one value into multiple values. `Split` broadcasts
 each existing value to multiple graph consumers. `PriorityTaskPool` selects a
