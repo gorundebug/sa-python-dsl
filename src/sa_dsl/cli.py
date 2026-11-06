@@ -13,6 +13,7 @@ from .generation import generate_project_archive
 from .ide import graph_snapshot, locate_source
 from .ide_materialize import materialize_project
 from .ide_generation import generate_and_merge
+from .ide_calls import substream_calls
 from .generation_progress import write_progress
 from .project_init import initialize_project
 from .manifest import ManifestError, load_manifest
@@ -121,6 +122,12 @@ def main() -> None:
     )
     ide_snapshot.add_argument("--project", type=Path, default=Path("."))
 
+    ide_calls = subparsers.add_parser("ide-substream-calls", help="Analyze possible Go SubStream calls without changing the model")
+    ide_calls.add_argument("--project", type=Path, default=Path("."))
+    ide_calls.add_argument("--service", help="Selected service; omit to analyze all Go services with SubStreams")
+    ide_calls.add_argument("--revision", required=True)
+    ide_calls.add_argument("--output-dir")
+
     ide_locate = subparsers.add_parser(
         "ide-locate", help="Find a Python declaration or link by its graph key"
     )
@@ -169,12 +176,14 @@ def main() -> None:
         if payload["status"] != "success":
             raise SystemExit(1)
         return
-    if args.command in {"ide-snapshot", "ide-locate", "ide-materialize", "ide-generate"}:
+    if args.command in {"ide-snapshot", "ide-locate", "ide-materialize", "ide-generate", "ide-substream-calls"}:
         try:
             manifest = load_manifest(args.project)
             if manifest.authoring.mode != "python":
                 raise ManifestError("IDE graph requires Python authoring", path="$.authoring.mode")
             payload = (graph_snapshot(manifest) if args.command == "ide-snapshot"
+                       else substream_calls(manifest, service=args.service, revision=args.revision,
+                                            output_dir=args.output_dir) if args.command == "ide-substream-calls"
                        else materialize_project(manifest, args.output_dir) if args.command == "ide-materialize"
                        else generate_and_merge(manifest, output_dir=args.output_dir,
                                                env_file=args.env_file, cpp_graph=args.cpp_graph,

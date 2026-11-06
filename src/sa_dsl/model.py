@@ -1321,9 +1321,12 @@ class TemporalConnector(Connector):
 
 class CustomConnector(Connector):
     def endpoint(
-        self, name: str, *, function: Function, tracing_enabled: bool | None = None
+        self, name: str, *, function: Function, enabled: bool = True,
+        tracing_enabled: bool | None = None
     ) -> Endpoint:
-        return self._endpoint(name, function=function, tracing_enabled=tracing_enabled)
+        return self._endpoint(
+            name, function=function, enabled=enabled, tracing_enabled=tracing_enabled
+        )
 
 
 @dataclass(slots=True)

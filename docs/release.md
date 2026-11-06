@@ -1,5 +1,38 @@
 # MCP release check
 
+## Plugin 0.1.25 and IDE SubStream call analysis
+
+Codex 0.1.25 pins the published DSL runtime through its immutable Git revision in
+`plugins/service-architect/.mcp.json`. It includes Custom endpoint `enabled`
+support and the read-only Go SubStream call-analysis CLI. The Python distribution
+metadata remains 0.1.0; this is a Git-backed release, not a PyPI publication.
+Codex's remote Designer selection remains 0.1.10; no cloud UI deployment is implied.
+
+VS Code 0.1.17 and JetBrains 0.1.24 bundle the same DSL sources, including the
+Go analyzer, and use private CLI environment 0.1.20. Their Refresh action can show
+possible Go SubStream calls without modifying Python/YAML topology. See
+[the analysis contract and requirements](ide-substream-calls.md). External CLI
+overrides and project virtual environments must be updated separately.
+
+The IDE packages include matching updated viewer bundles for the call overlay.
+They do not change the Codex plugin's independently selected remote Designer UI.
+Both installable IDE packages are built and tested in Docker and published as
+GitHub Release assets; this does not publish them to the IDE marketplaces.
+
+## IDE packages: Custom endpoint enablement
+
+JetBrains 0.1.20 (private CLI environment 0.1.17) and VS Code 0.1.13
+(private CLI environment 0.1.11) bundle `CustomConnector.endpoint(enabled=...)`.
+The default is `True`; `False` is preserved in the canonical model. Increasing
+both private environment versions prevents reuse of an older managed CLI.
+Explicit external CLI paths and project virtual environments remain user-selected
+and must contain the same updated DSL.
+
+These are local IDE packages. Codex plugin 0.1.24 still pins the previous published
+Git revision; rebuilding IDE packages does not update that MCP runtime. A Codex
+release requires publishing the DSL change and pinning its immutable commit.
+
+
 ## Plugin 0.1.24: interval scheduling and evaluated source navigation
 
 The MCP runtime is pinned to `d9812ea72639fb977a3194f371d25ef488a59349`.
