@@ -19,6 +19,27 @@ def fixture():
 
 
 class SubStreamTest(unittest.TestCase):
+    def test_input_result_binding_terminates_body_traversal(self):
+        project, pipeline, entry, result, text = fixture()
+        endpoint = project.custom_connector("Transport").endpoint("Receive", function=Function("Receive"))
+        reply = pipeline.split("Reply", source=result)
+        received = pipeline.input("Received", endpoint=endpoint, value_type=text, source=reply)
+        completed = pipeline.map("Completed", source=reply, value_type=text, function=Function("Complete"))
+        completed >> entry
+        # This independent request body must not become part of the callable.
+        unrelated = pipeline.map("Unrelated", source=received, value_type=text, function=Function("Unrelated"))
+        self.assertEqual([], project.validate())
+        unrelated >> entry
+        self.assertTrue(any("reachable" in item.message for item in project.validate()))
+
+    def test_input_result_binding_cannot_cross_services(self):
+        project, pipeline, _, result, text = fixture()
+        endpoint = project.custom_connector("Transport").endpoint("Receive", function=Function("Receive"))
+        other = project.service("Other", language=Golang(), module=ServiceModule("example.com/other"))
+        received = other.pipeline("incoming").input("Received", endpoint=endpoint, value_type=text)
+        received.source = result
+        self.assertTrue(any("SubStream body must stay" in item.message for item in project.validate()))
+
     def test_all_languages_validate_and_round_trip(self) -> None:
         for language in (Golang(), Python(), TypeScript(), Rust(), CppCoro(), CppUserver()):
             with self.subTest(language=language.programming_language):

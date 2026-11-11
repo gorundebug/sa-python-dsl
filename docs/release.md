@@ -1,5 +1,16 @@
 # MCP release check
 
+## Runtime correction: SubStream result bindings
+
+An Input reached through its incoming result binding terminates SubStream body
+traversal. It does not re-enter that Input's independent request body. The callable
+still requires its own reachable return, and cross-service result bindings remain
+invalid. This is a generic validator correction, not an SDK/application exception.
+
+Python distribution metadata remains 0.1.0; Git-backed consumers must pin the
+immutable runtime commit containing this correction. Existing Codex manifests,
+IDE bundles and explicit CLI environments do not update merely because main moves.
+
 ## Plugin 0.1.26: implementation guidance and local SubStream analysis
 
 The Git-pinned runtime exposes implementation guidance through MCP handshake,

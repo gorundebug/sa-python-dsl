@@ -1099,13 +1099,18 @@ class Validator:
                 if stream is entry or stream.key in reachable:
                     continue
                 reachable.add(stream.key)
-                if stream.service is not entry.service or stream.type in {"Input", "SubStream"}:
+                if stream.service is not entry.service or stream.type == "SubStream":
                     self.add(
                         TYPE_MISMATCH, "semantic",
                         "SubStream body must stay in its service and return to its own entry",
                         self.stream_path(stream), "stream", stream.name,
                         substream=entry.key,
                     )
+                    continue
+                # An Input's incoming source is a result binding, not an
+                # execution entry. Do not follow its outgoing request body.
+                if stream.type == "Input":
+                    reachable.remove(stream.key)
                     continue
                 pending.extend(self.normal_consumers[stream.key])
                 pending.extend(self.error_consumers[stream.key])
