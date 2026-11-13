@@ -1,5 +1,20 @@
 # MCP release check
 
+## IDE viewer 0.1.17: consistent SubStream result selection
+
+JetBrains 0.1.28 and VS Code 0.1.21 bundle the same immutable viewer 0.1.17.
+Visual validation treats an Input result binding as passive, matching semantic
+validation instead of falsely coloring a valid callable red. The filtered
+SubStream result selector excludes an independent Input request body while
+preserving the existing unfiltered authoring mode. Input result bindings can
+still select a Split inside a callable body. These interactions were exercised
+through Designer's actual properties UI; 20 focused model/generation/history
+tests pass. A dedicated browser regression is included for CI.
+
+The Python runtime and managed CLI environment 0.1.22 are unchanged. Codex
+0.1.27 keeps its deployed remote viewer selection; the Designer MR must be
+deployed separately. This is an IDE asset correction, not an SDK release.
+
 ## Plugin 0.1.27: SubStream Input result bindings
 
 Codex pins runtime `09f45bdd8e4e5e39d4051cac4391167acbb01d86`, which
