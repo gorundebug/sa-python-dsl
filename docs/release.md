@@ -1,5 +1,18 @@
 # MCP release check
 
+## Plugin 0.1.27: SubStream Input result bindings
+
+Codex pins runtime `09f45bdd8e4e5e39d4051cac4391167acbb01d86`, which
+stops SubStream traversal at passive Input result bindings without weakening
+return ownership or service boundaries. Its remote Designer stays at the
+deployed 0.1.10; publishing this plugin does not deploy the Designer MR.
+
+JetBrains 0.1.27 and VS Code 0.1.20 package that runtime and the matching
+immutable EmbeddedDesigner 0.1.16. Both advance their private CLI environment
+to 0.1.22 so managed installations do not reuse the old validator. Explicit
+external CLI overrides must be updated separately. Python package metadata
+remains 0.1.0. Packages are published as GitHub Releases, not to IDE marketplaces.
+
 ## Runtime correction: SubStream result bindings
 
 An Input reached through its incoming result binding terminates SubStream body
