@@ -1,5 +1,17 @@
 # MCP release check
 
+## Codex 0.1.29: broker MCP guidance correction
+
+Pins runtime `41b56018356498856d50ab0584ee874ea48aa6be`. MCP discovery and authoring guidance now share
+support and limitation descriptions for all five broker profiles. RabbitMQ
+TypeScript remains Sink-only; the guidance identifies upstream PR #94 and the
+release/integration requirements for bounded Input support. No transport behavior
+or Designer assets change; the remote viewer remains 0.1.19.
+
+Publication uses GitHub Releases, not PyPI. Seven focused resource/release tests
+pass; `make mcp-conformance` passed against the exact published runtime
+(21 tools, eight resources). Heavy acceptance is not repeated for this guidance update.
+
 ## Broker release: Codex 0.1.28 / VS Code 0.1.22 / JetBrains 0.1.29
 
 Prepared with official NATS Core/JetStream, Pulsar, Redis Streams and RabbitMQ
