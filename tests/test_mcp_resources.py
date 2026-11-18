@@ -38,6 +38,24 @@ class McpResourcesTest(unittest.TestCase):
             resource = json.loads(catalog_resource(category, "http-grpc"))
             self.assertNotIn("status", resource)
 
+    def test_broker_guidance_is_shared_and_direction_aware(self) -> None:
+        transports = json.loads(catalog_resource("semantics", "transports"))
+        authoring = json.loads(catalog_resource("semantics", "boundaries"))
+        profiles = transports["brokerProfiles"]
+        expected = {
+            "NATS": ("no durable storage", "request/reply", "last value"),
+            "JetStream": ("durable pull", "FILE", "one replica", "Done never ACKs"),
+            "Pulsar": ("KeyShared", "no cumulative ACK", "batching is disabled"),
+            "RedisStreams": ("no Cluster", "Sentinel", "does not fence", "userver"),
+            "RabbitMQ": ("Sink only (publication)", "Input is rejected", "AMQP 1.0"),
+        }
+        self.assertEqual(set(expected), set(profiles))
+        for broker, phrases in expected.items():
+            self.assertEqual(profiles[broker], authoring[broker])
+            for phrase in phrases:
+                self.assertIn(phrase, profiles[broker])
+        self.assertNotIn("saturation closes the connection", profiles["RabbitMQ"])
+
     def test_workspace_resources_do_not_execute_python(self) -> None:
         with tempfile.TemporaryDirectory(prefix="sa-resource-") as temporary:
             workspace = Path(temporary)
