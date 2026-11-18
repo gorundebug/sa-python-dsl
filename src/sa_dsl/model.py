@@ -10,7 +10,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Literal, Mapping, Sequence
 
 import yaml
 from .visual_components import normalize_components
@@ -94,6 +94,11 @@ class ConnectorType(str, Enum):
     CUSTOM = "Custom"
     CRON = "Cron"
     TEMPORAL = "Temporal"
+    NATS = "NATS"
+    JETSTREAM = "JetStream"
+    RABBITMQ = "RabbitMQ"
+    REDIS_STREAMS = "RedisStreams"
+    PULSAR = "Pulsar"
 
 
 class DataConnectorImplementation(str, Enum):
@@ -1222,6 +1227,118 @@ class KafkaConnector(Connector):
         )
 
 
+class NATSConnector(Connector):
+    def subject(
+        self, name: str, *, function: Function, subject: str,
+        queue_group: str | None = None, enabled: bool = True,
+        tracing_enabled: bool | None = None,
+    ) -> Endpoint:
+        """Core pub/sub; queue groups apply only to Input endpoints, without ACKs."""
+        return self._endpoint(
+            name, function=function, subject=subject, queue_group=queue_group,
+            enabled=enabled, tracing_enabled=tracing_enabled,
+        )
+
+
+class JetStreamConnector(Connector):
+    def subject(
+        self, name: str, *, function: Function, subject: str, stream_name: str,
+        durable_name: str | None = None, create_stream: bool | None = None,
+        create_consumer: bool | None = None, enabled: bool = True,
+        tracing_enabled: bool | None = None,
+    ) -> Endpoint:
+        """Durable pub/sub; Input requires a pull consumer with explicit ACKs.
+
+        Omitted creation flags mean existing resources only. No implicit provisioning.
+        """
+        return self._endpoint(
+            name, function=function, subject=subject, stream_name=stream_name,
+            durable_name=durable_name, create_stream=create_stream,
+            create_consumer=create_consumer, enabled=enabled,
+            tracing_enabled=tracing_enabled,
+        )
+
+
+class PulsarConnector(Connector):
+    def endpoint(
+        self, name: str, *, function: Function, topic: str,
+        subscription_name: str | None = None,
+        subscription_type: Literal["Shared", "Exclusive", "Failover"] | None = None,
+        create_topic: bool | None = None, partitions: int | None = None,
+        create_subscription: bool | None = None,
+        subscription_initial_position: Literal["Earliest", "Latest"] | None = None,
+        receiver_queue_size: int | None = None,
+        negative_ack_redelivery_delay_ms: int | None = None,
+        publisher_max_in_flight: int | None = None,
+        enabled: bool = True, tracing_enabled: bool | None = None,
+    ) -> Endpoint:
+        """Persistent Pulsar topic. ACK is explicit; Done never settles a delivery.
+
+        Creation is opt-in. Tenant/namespace and disabled auto-creation policies
+        must already exist; initial position never resets an existing subscription.
+        """
+        return self._endpoint(
+            name, function=function, topic=topic, subscription_name=subscription_name,
+            subscription_type=subscription_type, create_topic=create_topic, partitions=partitions,
+            create_subscription=create_subscription,
+            subscription_initial_position=subscription_initial_position,
+            receiver_queue_size=receiver_queue_size,
+            negative_ack_redelivery_delay_ms=negative_ack_redelivery_delay_ms,
+            publisher_max_in_flight=publisher_max_in_flight,
+            enabled=enabled, tracing_enabled=tracing_enabled,
+        )
+
+
+class RedisStreamsConnector(Connector):
+    def endpoint(
+        self, name: str, *, function: Function, stream_key: str,
+        consumer_group: str | None = None, consumer_name: str | None = None,
+        create_consumer_group: bool | None = None, group_start_id: str | None = None,
+        read_count: int | None = None, read_block_ms: int | None = None,
+        claim_idle_ms: int | None = None, claim_interval_ms: int | None = None,
+        create_stream: bool | None = None, publisher_max_in_flight: int | None = None,
+        enabled: bool = True, tracing_enabled: bool | None = None,
+    ) -> Endpoint:
+        """Standalone Redis stream; explicit XACK is independent of request completion.
+
+        Group creation and sink stream creation are opt-in. Reclaim may duplicate
+        processing; it does not fence a previous worker's business side effects.
+        """
+        return self._endpoint(
+            name, function=function, stream_key=stream_key, consumer_group=consumer_group,
+            consumer_name=consumer_name, create_consumer_group=create_consumer_group,
+            group_start_id=group_start_id, read_count=read_count, read_block_ms=read_block_ms,
+            claim_idle_ms=claim_idle_ms, claim_interval_ms=claim_interval_ms,
+            create_stream=create_stream, publisher_max_in_flight=publisher_max_in_flight,
+            enabled=enabled, tracing_enabled=tracing_enabled,
+        )
+
+
+class RabbitMQConnector(Connector):
+    def endpoint(
+        self, name: str, *, function: Function,
+        queue_name: str | None = None, exchange_name: str | None = None,
+        routing_key: str | None = None, queue_type: Literal["quorum", "classic"] | None = None,
+        exchange_type: Literal["direct", "topic", "fanout"] | None = None, create_queue: bool | None = None,
+        create_exchange: bool | None = None, create_binding: bool | None = None,
+        consumer_credits: int | None = None, publisher_max_in_flight: int | None = None,
+        enabled: bool = True, tracing_enabled: bool | None = None,
+    ) -> Endpoint:
+        """AMQP 1.0 queue input or queue/exchange output with explicit settlement.
+
+        Resource creation is opt-in. Completing a request does not accept a delivery.
+        consumer_credits applies to inputs; publisher_max_in_flight to outputs.
+        """
+        return self._endpoint(
+            name, function=function, queue_name=queue_name, exchange_name=exchange_name,
+            routing_key=routing_key, queue_type=queue_type, exchange_type=exchange_type,
+            create_queue=create_queue, create_exchange=create_exchange,
+            create_binding=create_binding, consumer_credits=consumer_credits,
+            publisher_max_in_flight=publisher_max_in_flight, enabled=enabled,
+            tracing_enabled=tracing_enabled,
+        )
+
+
 class CronConnector(Connector):
     def schedule(
         self,
@@ -2306,6 +2423,136 @@ class Project:
             async_=async_,
             **cluster.to_properties(),
             **(security.to_properties() if security else {}),
+        )
+
+    def nats_connector(
+        self, name: str, *, servers: list[str],
+        implementations: Mapping[str, str] | None = None,
+        connect_timeout_ms: int | None = None,
+        operation_timeout_ms: int | None = None,
+        username: str | None = None, password: str | None = None,
+        token: str | None = None, credentials_file: str | None = None,
+        tls_enabled: bool | None = None, tls_server_name: str | None = None,
+        tls_ca_file: str | None = None, tls_cert_file: str | None = None,
+        tls_key_file: str | None = None,
+    ) -> NATSConnector:
+        """Author native pub/sub configuration, without selecting a runtime adapter.
+
+        Supply secrets through runtime overrides, never in topology source. Timeouts
+        are integer milliseconds; omitted defaults are 2000 connect / 5000 operation.
+        """
+        return self._connector(
+            name, ConnectorType.NATS, connector_class=NATSConnector,
+            implementations=implementations,
+            servers=list(servers) if isinstance(servers, list) else servers,
+            connect_timeout_ms=connect_timeout_ms,
+            operation_timeout_ms=operation_timeout_ms,
+            username=username,
+            password=password,
+            token=token,
+            credentials_file=credentials_file,
+            tls_enabled=tls_enabled,
+            tls_server_name=tls_server_name,
+            tls_ca_file=tls_ca_file,
+            tls_cert_file=tls_cert_file,
+            tls_key_file=tls_key_file,
+        )
+
+    def jetstream_connector(
+        self, name: str, *, servers: list[str],
+        implementations: Mapping[str, str] | None = None,
+        connect_timeout_ms: int | None = None,
+        operation_timeout_ms: int | None = None,
+        username: str | None = None, password: str | None = None,
+        token: str | None = None, credentials_file: str | None = None,
+        tls_enabled: bool | None = None, tls_server_name: str | None = None,
+        tls_ca_file: str | None = None, tls_cert_file: str | None = None,
+        tls_key_file: str | None = None,
+    ) -> JetStreamConnector:
+        """Author native pub/sub configuration, without selecting a runtime adapter.
+
+        Supply secrets through runtime overrides, never in topology source. Timeouts
+        are integer milliseconds; omitted defaults are 2000 connect / 5000 operation.
+        """
+        return self._connector(
+            name, ConnectorType.JETSTREAM, connector_class=JetStreamConnector,
+            implementations=implementations,
+            servers=list(servers) if isinstance(servers, list) else servers,
+            connect_timeout_ms=connect_timeout_ms,
+            operation_timeout_ms=operation_timeout_ms,
+            username=username,
+            password=password,
+            token=token,
+            credentials_file=credentials_file,
+            tls_enabled=tls_enabled,
+            tls_server_name=tls_server_name,
+            tls_ca_file=tls_ca_file,
+            tls_cert_file=tls_cert_file,
+            tls_key_file=tls_key_file,
+        )
+
+    def rabbitmq_connector(
+        self, name: str, *, servers: list[str], virtual_host: str | None = None,
+        implementations: Mapping[str, str] | None = None,
+        connect_timeout_ms: int | None = None, operation_timeout_ms: int | None = None,
+        username: str | None = None, password: str | None = None,
+        tls_enabled: bool | None = None, tls_server_name: str | None = None,
+        tls_ca_file: str | None = None, tls_cert_file: str | None = None,
+        tls_key_file: str | None = None,
+    ) -> RabbitMQConnector:
+        """Official AMQP 1.0 transport; credentials must be runtime overrides.
+
+        servers uses amqp:// or amqps:// without credentials or paths. Virtual host
+        is configured separately. No queue/exchange is created implicitly.
+        """
+        return self._connector(
+            name, ConnectorType.RABBITMQ, connector_class=RabbitMQConnector,
+            servers=list(servers) if isinstance(servers, list) else servers,
+            virtual_host=virtual_host, implementations=implementations,
+            connect_timeout_ms=connect_timeout_ms, operation_timeout_ms=operation_timeout_ms,
+            username=username, password=password, tls_enabled=tls_enabled,
+            tls_server_name=tls_server_name, tls_ca_file=tls_ca_file,
+            tls_cert_file=tls_cert_file, tls_key_file=tls_key_file,
+        )
+
+    def pulsar_connector(
+        self, name: str, *, servers: list[str], admin_url: str,
+        implementations: Mapping[str, str] | None = None,
+        connect_timeout_ms: int | None = None, operation_timeout_ms: int | None = None,
+        tls_ca_file: str | None = None, tls_cert_file: str | None = None,
+        tls_key_file: str | None = None,
+    ) -> PulsarConnector:
+        """Official Pulsar binary and admin URLs; token credentials are runtime-only."""
+        return self._connector(
+            name, ConnectorType.PULSAR, connector_class=PulsarConnector,
+            servers=list(servers) if isinstance(servers, list) else servers,
+            admin_url=admin_url, implementations=implementations,
+            connect_timeout_ms=connect_timeout_ms, operation_timeout_ms=operation_timeout_ms,
+            tls_ca_file=tls_ca_file, tls_cert_file=tls_cert_file, tls_key_file=tls_key_file,
+        )
+
+    def redis_streams_connector(
+        self, name: str, *, servers: list[str], redis_database: int | None = None,
+        implementations: Mapping[str, str] | None = None,
+        connect_timeout_ms: int | None = None, operation_timeout_ms: int | None = None,
+        username: str | None = None, password: str | None = None,
+        tls_enabled: bool | None = None, tls_server_name: str | None = None,
+        tls_ca_file: str | None = None, tls_cert_file: str | None = None,
+        tls_key_file: str | None = None,
+    ) -> RedisStreamsConnector:
+        """Standalone redis:// or rediss:// server; credentials are runtime-only.
+
+        Supply exactly one server and a separate database index. No implicit
+        creation, trimming, retry of ambiguous publications or automatic XACK.
+        """
+        return self._connector(
+            name, ConnectorType.REDIS_STREAMS, connector_class=RedisStreamsConnector,
+            servers=list(servers) if isinstance(servers, list) else servers,
+            redis_database=redis_database, implementations=implementations,
+            connect_timeout_ms=connect_timeout_ms, operation_timeout_ms=operation_timeout_ms,
+            username=username, password=password, tls_enabled=tls_enabled,
+            tls_server_name=tls_server_name, tls_ca_file=tls_ca_file,
+            tls_cert_file=tls_cert_file, tls_key_file=tls_key_file,
         )
 
     def cron_connector(

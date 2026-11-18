@@ -348,6 +348,24 @@ to lock review and CI to a known ServiceGen capability revision.
 
 ## Validation contract and remediation
 
+### Message broker capability discovery
+
+Native broker declarations include NATS Core, JetStream, Apache Pulsar, Redis
+Streams and RabbitMQ AMQP 1.0. Choose a service language first and read its current
+`servicegen://capabilities/<language>` resource before selecting an implementation.
+The generator capability revision is authoritative; there is no blanket promise
+that every broker works on every language. In particular, userver support requires
+proven integration with its execution model, not just an available C++ SDK.
+
+Use the typed connector/endpoint methods exposed by MCP schema discovery. Resource
+creation is opt-in, and secrets belong in runtime environment/Vault settings.
+Generated handler tasks describe explicit settlement and native publication
+outcomes: completing a graph request does not ACK input, and admission to an async
+producer is not a broker confirmation. Preserve transport-specific differences
+instead of inventing a generic offset, ACK or exactly-once contract.
+
+### Validation
+
 ServiceGen remains the only authoritative evaluator of graph rules. The Python
 package can explicitly cache its versioned diagnostic metadata without sending
 credentials:

@@ -11,6 +11,11 @@ from .model import (
     GrpcConnector,
     HttpConnector,
     KafkaConnector,
+    NATSConnector,
+    JetStreamConnector,
+    RabbitMQConnector,
+    RedisStreamsConnector,
+    PulsarConnector,
     Pipeline,
     Project,
     Service,
@@ -28,6 +33,11 @@ PUBLIC_API_CLASSES = (
     HttpConnector,
     GrpcConnector,
     KafkaConnector,
+    NATSConnector,
+    JetStreamConnector,
+    RabbitMQConnector,
+    RedisStreamsConnector,
+    PulsarConnector,
     CronConnector,
     TemporalConnector,
     CustomConnector,
@@ -37,6 +47,10 @@ CONNECTOR_FACTORIES = (
     "http_connector",
     "grpc_connector",
     "kafka_connector",
+    "nats_connector",
+    "jetstream_connector",
+    "rabbitmq_connector",
+    "redis_streams_connector",
     "cron_connector",
     "temporal_connector",
     "custom_connector",
@@ -115,6 +129,7 @@ def build_typed_api_catalog() -> dict[str, Any]:
 
 
 def build_connector_capabilities() -> dict[str, Any]:
+    from .connector_directions import direction_capabilities
     connectors: dict[str, Any] = {}
     for factory_name in CONNECTOR_FACTORIES:
         signature = inspect.signature(getattr(Project, factory_name))
@@ -134,6 +149,7 @@ def build_connector_capabilities() -> dict[str, Any]:
     return {
         "generated": True,
         "source": "Project connector factory signatures",
-        "scope": "Authoring factory parameters only; supported transports and defaults belong to the selected template packs and generator capabilities.",
+        "scope": "Factory parameters and builtin direction guidance; selected template packs remain generation authority.",
+        "directionCapabilities": direction_capabilities(),
         "connectors": connectors,
     }

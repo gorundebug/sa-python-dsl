@@ -8,10 +8,10 @@ import shutil
 
 ROOT = Path(__file__).resolve().parents[2]
 DESIGNER = ROOT.parent / "service_architect" / "service_architect_vue3"
-VERSION = "0.1.17"
+VERSION = "0.1.19"
 SOURCE = DESIGNER / "public" / "mcp-ui" / VERSION
 ASSET_DIGESTS = {
-    "designer.js": "c9cdda8128e46b0ab0ff6108200f91a1e51793bb9ebe1104fd69da405c177ae4",
+    "designer.js": "6fb9300d732c34c95974f520c6e90c773761df805afff73cdd2f9581f1b2b224",
     "designer.css": "8177430f824bad516fb497d9a3a6b6443b91d35280d2e608d5b89b780157f35c",
 }
 DESTINATIONS = (

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from typing import Any, Iterable
+from urllib.parse import urlsplit
 
+from .pulsar_validation import validate_connector as validate_pulsar_connector, validate_endpoint as validate_pulsar_endpoint
 from .model import NULL, Connector, Endpoint, Project, Service, Stream
 from .retired_backends import CPP_BOOST_RETIREMENT, is_retired_language
 from .connector_bindings import REMOVED_CONNECTOR_FIELDS, normalize_connector_implementations
@@ -46,7 +49,7 @@ LANGUAGES = {"GoLang", "CppUserver", "Python", "Rust", "CppCoro", "TypeScript"}
 ENVIRONMENTS = {"", "local", "debug", "staging", "production"}
 LOG_LEVELS = {"", "CRITICAL", "FATAL", "ERROR", "WARNING", "INFO", "DEBUG"}
 WORKLOADS = {"Deployment", "StatefulSet"}
-CONNECTOR_TYPES = {"HTTP", "gRPC", "Kafka", "Custom", "Cron", "Temporal"}
+CONNECTOR_TYPES = {"HTTP", "gRPC", "Kafka", "Custom", "Cron", "Temporal", "NATS", "JetStream", "RabbitMQ", "RedisStreams", "Pulsar"}
 STREAM_TYPES = {
     "Input",
     "SubStream",
@@ -331,6 +334,16 @@ class Validator:
                 generated[identifier] = value.name
 
     def validate(self) -> list[Diagnostic]:
+        from .connector_directions import unsupported_direction
+        for stream in self.streams.values():
+            direction = {"Input": "source", "Sink": "sink"}.get(stream.type)
+            if not direction or stream.endpoint is None:
+                continue
+            reason = unsupported_direction(stream.service.programming_language, stream.endpoint.connector.type, direction)
+            if reason:
+                self.add(UNSUPPORTED, "capability", reason, self.stream_path(stream) + ".endpoint",
+                         "stream", stream.name, feature=direction, direction=direction,
+                         connector=stream.endpoint.connector.type, language=stream.service.programming_language)
         self.required(
             self.project.name, "$.settings.name", "settings", self.project.name, "name"
         )
@@ -549,6 +562,336 @@ class Validator:
                 "queueCapacity",
             )
 
+    def validate_redis_connector(self, connector: Connector, path: str) -> None:
+        def invalid(key: str, message: str, code: str = RANGE) -> None:
+            self.add(code, "schema", message, path + "." + key, "dataConnector", connector.name)
+        if connector.type != "RedisStreams":
+            if "redisDatabase" in connector.properties:
+                invalid("redisDatabase", "redisDatabase requires RedisStreams", UNKNOWN_FIELD)
+            return
+        servers = _prop(connector, "servers")
+        tls_url, plain_url = False, False
+        if not isinstance(servers, list) or len(servers) != 1:
+            invalid("servers", "RedisStreams requires an exactly one standalone server URL", REQUIRED)
+        else:
+            for server in servers:
+                try:
+                    url = urlsplit(server) if isinstance(server, str) else None
+                    valid = (url is not None and url.scheme in {"redis", "rediss"}
+                             and server.startswith(("redis://", "rediss://"))
+                             and bool(url.hostname) and url.username is None and url.password is None
+                             and not url.path and "?" not in server and "#" not in server
+                             and not url.netloc.endswith(":")
+                             and not any(c.isspace() or unicodedata.category(c) == "Cc" for c in server))
+                    if url is not None:
+                        valid = valid and (url.port is None or 1 <= url.port <= 65535)
+                except ValueError:
+                    valid = False
+                if not valid:
+                    invalid("servers", "Expected redis:// or rediss:// without credentials, path, query, fragment or controls; port must be 1..65535")
+                    break
+                tls_url |= url.scheme == "rediss"
+                plain_url |= url.scheme == "redis"
+        if "redisDatabase" in connector.properties:
+            value = _prop(connector, "redisDatabase")
+            if type(value) is not int or value < 0:
+                invalid("redisDatabase", "Database index must be a nonnegative integer")
+        for key in ("connectTimeoutMs", "operationTimeoutMs"):
+            if key in connector.properties and (type(_prop(connector, key)) is not int or not 1 <= _prop(connector, key) <= 9223372036854):
+                invalid(key, "Timeout must be an integer between 1 and 9223372036854 milliseconds")
+        for key in ("username", "password"):
+            if key in connector.properties:
+                invalid(key, "Credentials must be supplied by runtime overrides, never topology", UNSUPPORTED)
+        for key in ("tlsServerName", "tlsCaFile", "tlsCertFile", "tlsKeyFile"):
+            if key in connector.properties:
+                value = _prop(connector, key)
+                if not isinstance(value, str) or not value or any(unicodedata.category(c) == "Cc" for c in value):
+                    invalid(key, "Expected nonempty string without control characters")
+        if "tlsEnabled" in connector.properties and type(_prop(connector, "tlsEnabled")) is not bool:
+            invalid("tlsEnabled", "tlsEnabled must be boolean")
+        if bool(_prop(connector, "tlsCertFile")) != bool(_prop(connector, "tlsKeyFile")):
+            invalid("tlsKeyFile", "TLS client certificate and key must be supplied together")
+        if _prop(connector, "tlsEnabled") is not True:
+            if tls_url and plain_url:
+                invalid("servers", "Mixed TLS/plain servers require tlsEnabled")
+            if not tls_url and any(k in connector.properties for k in ("tlsServerName", "tlsCaFile", "tlsCertFile", "tlsKeyFile")):
+                invalid("tlsEnabled", "TLS settings require tlsEnabled or rediss://")
+        for key in ("brokers", "version", "dialTimeout", "securityProtocol", "saslMechanism", "usePartitioner", "async", "address", "host", "port", "namespace", "identity", "apiKey", "workerStopTimeout", "connectionsCount", "useDedicatedListener", "module"):
+            if key in connector.properties:
+                invalid(key, "Field does not apply to RedisStreams", UNKNOWN_FIELD)
+
+    def validate_rabbitmq_connector(self, connector: Connector, path: str) -> None:
+        def invalid(key: str, message: str, code: str = RANGE) -> None:
+            self.add(code, "schema", message, path + "." + key, "dataConnector", connector.name)
+        if connector.type != "RabbitMQ":
+            if "virtualHost" in connector.properties:
+                invalid("virtualHost", "virtualHost requires RabbitMQ", UNKNOWN_FIELD)
+            return
+        servers = _prop(connector, "servers")
+        tls_url, plain_url = False, False
+        if not isinstance(servers, list) or not servers:
+            invalid("servers", "RabbitMQ requires an explicit nonempty server URL list", REQUIRED)
+        else:
+            for server in servers:
+                try:
+                    url = urlsplit(server) if isinstance(server, str) else None
+                    valid = (url is not None and url.scheme in {"amqp", "amqps"}
+                             and server.startswith(("amqp://", "amqps://"))
+                             and bool(url.hostname) and url.username is None and url.password is None
+                             and not url.path and "?" not in server and "#" not in server
+                             and not url.netloc.endswith(":")
+                             and not any(c.isspace() or unicodedata.category(c) == "Cc" for c in server))
+                    if url is not None:
+                        valid = valid and (url.port is None or 1 <= url.port <= 65535)
+                except ValueError:
+                    valid = False
+                if not valid:
+                    invalid("servers", "Expected amqp:// or amqps:// without credentials, path, query, fragment or controls; port must be 1..65535")
+                    break
+                tls_url |= url.scheme == "amqps"
+                plain_url |= url.scheme == "amqp"
+        for key in ("connectTimeoutMs", "operationTimeoutMs"):
+            if key in connector.properties and (type(_prop(connector, key)) is not int or not 1 <= _prop(connector, key) <= 9223372036854):
+                invalid(key, "Timeout must be an integer between 1 and 9223372036854 milliseconds")
+        for key in ("username", "password"):
+            if key in connector.properties:
+                invalid(key, "Credentials must be supplied by runtime overrides, never topology", UNSUPPORTED)
+        for key in ("virtualHost", "tlsServerName", "tlsCaFile", "tlsCertFile", "tlsKeyFile"):
+            if key in connector.properties:
+                value = _prop(connector, key)
+                if not isinstance(value, str) or not value or any(unicodedata.category(c) == "Cc" for c in value):
+                    invalid(key, "Expected nonempty string without control characters")
+        if "tlsEnabled" in connector.properties and type(_prop(connector, "tlsEnabled")) is not bool:
+            invalid("tlsEnabled", "tlsEnabled must be boolean")
+        if bool(_prop(connector, "tlsCertFile")) != bool(_prop(connector, "tlsKeyFile")):
+            invalid("tlsKeyFile", "TLS client certificate and key must be supplied together")
+        if _prop(connector, "tlsEnabled") is not True:
+            if tls_url and plain_url:
+                invalid("servers", "Mixed TLS/plain servers require tlsEnabled")
+            if not tls_url and any(k in connector.properties for k in ("tlsServerName", "tlsCaFile", "tlsCertFile", "tlsKeyFile")):
+                invalid("tlsEnabled", "TLS settings require tlsEnabled or amqps://")
+        for key in ("brokers", "version", "dialTimeout", "securityProtocol", "saslMechanism", "usePartitioner", "async", "address", "host", "port", "namespace", "identity", "apiKey", "workerStopTimeout", "connectionsCount", "useDedicatedListener", "module"):
+            if key in connector.properties:
+                invalid(key, "Field does not apply to RabbitMQ", UNKNOWN_FIELD)
+
+    def validate_rabbitmq_typescript(self, endpoint: Endpoint, path: str, connector_path: str) -> None:
+        connector = endpoint.connector
+
+        def unsupported(obj, obj_path, kind, field, reason):
+            self.add(UNSUPPORTED, "capability", reason, obj_path + "." + field, kind, obj.name)
+
+        if _prop(connector, "virtualHost") not in (None, "/"):
+            unsupported(connector, connector_path, "dataConnector", "virtualHost",
+                        "Official RabbitMQ JS client supports only the default virtual host")
+        for field in ("connectTimeoutMs", "operationTimeoutMs"):
+            value = _prop(connector, field)
+            if isinstance(value, int) and value > 2147483647:
+                unsupported(connector, connector_path, "dataConnector", field,
+                            "Node timers support at most 2147483647 milliseconds")
+        tls_name = _prop(connector, "tlsServerName")
+        servers = _prop(connector, "servers")
+        if tls_name and isinstance(servers, list):
+            for server in servers:
+                try:
+                    hostname = urlsplit(server).hostname
+                except (ValueError, TypeError, AttributeError):
+                    continue  # Generic URI validation owns malformed URLs.
+                if hostname != tls_name:
+                    unsupported(connector, connector_path, "dataConnector", "tlsServerName",
+                                "Official RabbitMQ JS client requires TLS name matching each server hostname")
+                    break
+        for field in ("queueName", "exchangeName", "routingKey"):
+            value = _prop(endpoint, field)
+            if isinstance(value, str) and any(char in value for char in "/?#%"):
+                unsupported(endpoint, path, "endpoint", field,
+                            "Official RabbitMQ JS resource addresses cannot contain URI delimiters")
+
+    def validate_redis_endpoint(self, endpoint: Endpoint, path: str) -> None:
+        unique = {"streamKey", "consumerName", "createConsumerGroup", "groupStartId", "readCount", "readBlockMs", "claimIdleMs", "claimIntervalMs"}
+        def invalid(key, message, code=RANGE):
+            self.add(code, "schema", message, path + "." + key, "endpoint", endpoint.name)
+        if endpoint.connector.type != "RedisStreams":
+            for key in sorted(unique.intersection(endpoint.properties)):
+                invalid(key, "Field requires RedisStreams", UNKNOWN_FIELD)
+            return
+        for key in ("streamKey", "consumerName", "consumerGroup"):
+            value = _prop(endpoint, key)
+            if key == "streamKey" or key in endpoint.properties:
+                if not isinstance(value, str) or not value or any(unicodedata.category(c) == "Cc" for c in value):
+                    invalid(key, "Expected nonempty name without controls")
+        for key in ("createStream", "createConsumerGroup"):
+            if key in endpoint.properties and type(_prop(endpoint, key)) is not bool:
+                invalid(key, "Creation flag must be boolean")
+        for key, maximum in (("readCount",4096),("readBlockMs",60000),("claimIdleMs",2147483647),("claimIntervalMs",2147483647),("publisherMaxInFlight",4096)):
+            if key in endpoint.properties:
+                value = _prop(endpoint, key)
+                if type(value) is not int or not 1 <= value <= maximum:
+                    invalid(key, f"Expected integer in 1..{maximum}")
+        if "groupStartId" in endpoint.properties:
+            if _prop(endpoint, "groupStartId") not in ("0-0", "$"):
+                invalid("groupStartId", "Creation position must be 0-0 or $")
+            if _prop(endpoint, "createConsumerGroup") is not True:
+                invalid("groupStartId", "Requires explicit consumer group creation")
+        for key in ("topic", "createTopic", "partitions", "replicationFactor"):
+            if key in endpoint.properties:
+                invalid(key, "Kafka field does not apply to RedisStreams", UNKNOWN_FIELD)
+
+    def validate_rabbitmq_endpoint(self, endpoint: Endpoint, path: str) -> None:
+        fields = {"queueName", "exchangeName", "routingKey", "queueType", "exchangeType", "createQueue", "createExchange", "createBinding", "consumerCredits", "publisherMaxInFlight"}
+        def invalid(key: str, message: str, code: str = RANGE) -> None:
+            self.add(code, "schema", message, path + "." + key, "endpoint", endpoint.name)
+        if endpoint.connector.type != "RabbitMQ":
+            if endpoint.connector.type in {"RedisStreams", "Pulsar"}:
+                fields -= {"publisherMaxInFlight"}
+            for key in fields.intersection(endpoint.properties):
+                invalid(key, "Field requires RabbitMQ", UNKNOWN_FIELD)
+            return
+        for key in ("queueName", "exchangeName", "routingKey"):
+            if key in endpoint.properties:
+                value = _prop(endpoint, key)
+                if not isinstance(value, str) or (key != "routingKey" and not value) or any(unicodedata.category(c) == "Cc" for c in value):
+                    invalid(key, "Invalid entity name or routing key")
+        for key in ("createQueue", "createExchange", "createBinding"):
+            if key in endpoint.properties and type(_prop(endpoint, key)) is not bool:
+                invalid(key, "Creation flags must be boolean; omitted means false")
+        for key in ("consumerCredits", "publisherMaxInFlight"):
+            if key in endpoint.properties and (type(_prop(endpoint, key)) is not int or not 1 <= _prop(endpoint, key) <= 4096):
+                invalid(key, "Native admission limit must be an integer between 1 and 4096")
+        for key, allowed in (("queueType", {"quorum", "classic"}), ("exchangeType", {"direct", "topic", "fanout"})):
+            if key in endpoint.properties and (not isinstance(_prop(endpoint, key), str) or _prop(endpoint, key) not in allowed):
+                invalid(key, "Unsupported RabbitMQ resource type")
+        if (_prop(endpoint, "createQueue") or "queueType" in endpoint.properties) and not _prop(endpoint, "queueName"):
+            invalid("queueName", "Queue settings require queueName", REQUIRED)
+        if (_prop(endpoint, "createExchange") or "exchangeType" in endpoint.properties or _prop(endpoint, "routingKey")) and not _prop(endpoint, "exchangeName"):
+            invalid("exchangeName", "Exchange settings require exchangeName", REQUIRED)
+        if _prop(endpoint, "createBinding") and not (_prop(endpoint, "queueName") and _prop(endpoint, "exchangeName")):
+            invalid("createBinding", "Binding requires queueName and exchangeName")
+        if "exchangeType" in endpoint.properties and _prop(endpoint, "createExchange") is not True:
+            invalid("exchangeType", "Exchange type is a creation setting and requires createExchange")
+        for key in ("topic", "consumerGroup", "createTopic", "partitions", "replicationFactor", "httpMethodType", "path", "grpcMethodType", "methodName", "schedule", "taskQueue", "temporalExecutionType"):
+            if key in endpoint.properties:
+                invalid(key, "Field does not apply to RabbitMQ", UNKNOWN_FIELD)
+
+    def validate_nats_connector(self, connector: Connector, path: str) -> None:
+        native_fields = {"servers", "connectTimeoutMs", "operationTimeoutMs", "token", "credentialsFile"}
+        if connector.type in {"RabbitMQ", "RedisStreams", "Pulsar"}:
+            native_fields -= {"servers", "connectTimeoutMs", "operationTimeoutMs"}
+        if connector.type == "Pulsar":
+            native_fields -= {"token"}
+        if connector.type not in {"NATS", "JetStream"}:
+            for key in sorted(native_fields.intersection(connector.properties)):
+                self.add(UNKNOWN_FIELD, "schema", f"{key} requires NATS or JetStream",
+                         path + "." + key, "dataConnector", connector.name)
+            return
+
+        def invalid(key: str, message: str, code: str = RANGE) -> None:
+            self.add(code, "capability" if code == UNSUPPORTED else "schema", message,
+                     path + "." + key, "dataConnector", connector.name)
+
+        servers = _prop(connector, "servers")
+        tls_url, plain_url = False, False
+        if not isinstance(servers, list) or not servers:
+            invalid("servers", "NATS/JetStream requires an explicit nonempty server URL list", REQUIRED)
+        else:
+            for server in servers:
+                try:
+                    url = urlsplit(server) if isinstance(server, str) else None
+                    valid = (url is not None and url.scheme in {"nats", "tls"}
+                             and server.startswith(("nats://", "tls://"))
+                             and bool(url.hostname) and url.username is None and url.password is None
+                             and not url.path and "?" not in server and "#" not in server
+                             and not url.netloc.endswith(":")
+                             and not any(c.isspace() or unicodedata.category(c) == "Cc" for c in server))
+                    if url is not None:
+                        valid = valid and (url.port is None or 1 <= url.port <= 65535)
+                except ValueError:
+                    valid = False
+                if not valid:
+                    invalid("servers", "Each server must be a nats:// or tls:// URI without credentials, path, query, fragment, empty port, whitespace or controls; ports must be 1..65535")
+                    break
+                tls_url = tls_url or url.scheme == "tls"
+                plain_url = plain_url or url.scheme == "nats"
+        for key in ("connectTimeoutMs", "operationTimeoutMs"):
+            if key in connector.properties:
+                value = _prop(connector, key)
+                if type(value) is not int or not 1 <= value <= 9223372036854:
+                    invalid(key, f"{key} must be an integer between 1 and 9223372036854 milliseconds")
+        if "tlsEnabled" in connector.properties and type(_prop(connector, "tlsEnabled")) is not bool:
+            invalid("tlsEnabled", "tlsEnabled must be a boolean")
+        for key in ("username", "password", "token", "credentialsFile", "tlsServerName", "tlsCaFile", "tlsCertFile", "tlsKeyFile"):
+            if key in connector.properties:
+                value = _prop(connector, key)
+                if not isinstance(value, str) or not value.strip():
+                    invalid(key, f"{key} must be a nonempty string")
+        # Match the existing Kafka contract: topology artifacts cannot hold secrets.
+        for key in ("username", "password", "token"):
+            if _prop(connector, key):
+                invalid(key, f"{key} must be supplied through a runtime override, not topology source", UNSUPPORTED)
+        auth_modes = [bool(_prop(connector, "token")), bool(_prop(connector, "credentialsFile")),
+                      bool(_prop(connector, "username") or _prop(connector, "password"))]
+        if sum(auth_modes) > 1:
+            invalid("credentialsFile", "NATS authentication modes are mutually exclusive")
+        if bool(_prop(connector, "username")) != bool(_prop(connector, "password")):
+            invalid("password", "username and password must be supplied together")
+        if bool(_prop(connector, "tlsCertFile")) != bool(_prop(connector, "tlsKeyFile")):
+            invalid("tlsKeyFile", "tlsCertFile and tlsKeyFile must be supplied together")
+        tls_enabled = _prop(connector, "tlsEnabled") is True
+        if tls_url and plain_url and not tls_enabled:
+            invalid("servers", "Mixed TLS and plain URLs require tlsEnabled to prevent a downgrade")
+        if not tls_enabled and not tls_url and any(
+            key in connector.properties for key in ("tlsServerName", "tlsCaFile", "tlsCertFile", "tlsKeyFile")
+        ):
+            invalid("tlsEnabled", "TLS settings require tlsEnabled or a tls:// server URI")
+        for key in ("brokers", "version", "dialTimeout", "securityProtocol", "saslMechanism",
+                    "usePartitioner", "async", "address", "host", "port", "namespace", "identity",
+                    "apiKey", "workerStopTimeout", "connectionsCount", "useDedicatedListener", "module"):
+            if key in connector.properties:
+                invalid(key, f"{key} is not a NATS/JetStream connection field", UNKNOWN_FIELD)
+
+    def validate_nats_endpoint(self, endpoint: Endpoint, path: str) -> None:
+        kind = endpoint.connector.type
+        native_fields = {"subject", "queueGroup", "streamName", "durableName", "createStream", "createConsumer"}
+        if kind not in {"NATS", "JetStream"}:
+            forbidden = native_fields - ({"createStream"} if kind == "RedisStreams" else set())
+        else:
+            forbidden = {"topic", "consumerGroup", "createTopic", "partitions", "replicationFactor",
+                         "httpMethodType", "path", "grpcMethodType", "methodName", "schedule", "scheduleId",
+                         "taskQueue", "temporalExecutionType", "timezone", "overlapPolicy", "missedRunPolicy",
+                         "maxConcurrentActivities", "maxConcurrentWorkflowTasks", "workflowExecutionTimeout",
+                         "activityStartToCloseTimeout", "activityHeartbeatTimeout", "maximumAttempts"}
+            forbidden |= ({"streamName", "durableName", "createStream", "createConsumer"}
+                          if kind == "NATS" else {"queueGroup"})
+        for key in sorted(forbidden.intersection(endpoint.properties)):
+            self.add(UNKNOWN_FIELD, "schema", f"{key} does not apply to {kind} endpoints",
+                     path + "." + key, "endpoint", endpoint.name)
+        if kind not in {"NATS", "JetStream"}:
+            return
+
+        def invalid(key: str, message: str, code: str = RANGE) -> None:
+            self.add(code, "schema", message, path + "." + key, "endpoint", endpoint.name)
+
+        for key in ("subject", "streamName") if kind == "JetStream" else ("subject",):
+            value = _prop(endpoint, key)
+            if not isinstance(value, str) or not value.strip():
+                invalid(key, f"{kind} requires {key}", REQUIRED)
+        subject = _prop(endpoint, "subject")
+        if isinstance(subject, str):
+            tokens = subject.split(".")
+            if (any(c.isspace() or ord(c) < 32 for c in subject) or any(not token for token in tokens)
+                or any(("*" in token and token != "*") or (">" in token and (token != ">" or i != len(tokens)-1))
+                       for i, token in enumerate(tokens))):
+                invalid("subject", "Subject tokens must be nonempty; wildcards occupy a whole token and > must be last")
+        for key in ("streamName", "durableName", "queueGroup"):
+            if key in endpoint.properties:
+                value = _prop(endpoint, key)
+                forbidden_chars = "*>" if key == "queueGroup" else ".*>/\\"
+                if (not isinstance(value, str) or not value
+                    or any(c.isspace() or ord(c) < 32 or c in forbidden_chars for c in value)):
+                    invalid(key, f"{key} must be a nonempty native name without whitespace or wildcards")
+        for key in ("createStream", "createConsumer"):
+            if key in endpoint.properties and type(_prop(endpoint, key)) is not bool:
+                invalid(key, f"{key} must be a boolean; omitted means false")
+
     def validate_connectors(self) -> None:
         self.duplicate_names(
             "dataConnector", self.project.connectors.values(), "$.dataConnectors"
@@ -582,6 +925,10 @@ class Validator:
                 "type",
                 True,
             )
+            self.validate_nats_connector(connector, path)
+            self.validate_rabbitmq_connector(connector, path)
+            self.validate_redis_connector(connector, path)
+            validate_pulsar_connector(connector, lambda key, msg: self.add(RANGE, "schema", msg, path + "." + key, "dataConnector", connector.name))
             if connector.type == "gRPC":
                 self.minimum(
                     _prop(connector, "connectionsCount"),
@@ -626,6 +973,10 @@ class Validator:
                 )
             for endpoint in connector.endpoints.values():
                 ep_path = path + f".endpoints.{endpoint.key}"
+                self.validate_nats_endpoint(endpoint, ep_path)
+                self.validate_rabbitmq_endpoint(endpoint, ep_path)
+                self.validate_redis_endpoint(endpoint, ep_path)
+                validate_pulsar_endpoint(endpoint, None, lambda key, msg: self.add(RANGE, "schema", msg, ep_path + "." + key, "endpoint", endpoint.name))
                 self.minimum(
                     _prop(endpoint, "partitions"),
                     1,
@@ -1298,6 +1649,50 @@ class Validator:
                         value=method,
                     )
                 grpc_methods.add(method_key)
+            elif connector.type == "Pulsar":
+                for user in users:
+                    validate_pulsar_endpoint(endpoint, user.type == "Input", lambda key, msg: self.add(RANGE, "semantic", msg, path + "." + key, "endpoint", endpoint.name))
+            elif connector.type == "RedisStreams":
+                if any(user.service.programming_language == "TypeScript" for user in users):
+                    for key in ("connectTimeoutMs", "operationTimeoutMs", "redisDatabase"):
+                        value = _prop(connector, key)
+                        if type(value) is int and value > 2147483647:
+                            self.add(UNSUPPORTED, "capability", "Value exceeds TypeScript runtime limit 2147483647", connector_path + "." + key, "dataConnector", connector.name)
+                source = any(user.type == "Input" for user in users)
+                sink = any(user.type == "Sink" for user in users)
+                if source:
+                    self.required(_prop(endpoint, "consumerGroup"), path + ".consumerGroup", "endpoint", endpoint.name, "consumerGroup")
+                source_fields = {"consumerGroup", "consumerName", "createConsumerGroup", "groupStartId", "readCount", "readBlockMs", "claimIdleMs", "claimIntervalMs"}
+                forbidden = (source_fields if sink else set()) | ({"createStream", "publisherMaxInFlight"} if source else set())
+                for key in sorted(forbidden.intersection(endpoint.properties)):
+                    self.add(RANGE, "semantic", "Redis setting applies to the opposite endpoint direction", path + "." + key, "endpoint", endpoint.name)
+            elif connector.type == "RabbitMQ":
+                if any(user.service.programming_language == "TypeScript" for user in users):
+                    self.validate_rabbitmq_typescript(endpoint, path, connector_path)
+                source = any(user.type == "Input" for user in users)
+                sink = any(user.type == "Sink" for user in users)
+                if source and not _prop(endpoint, "queueName"):
+                    self.required(None, path + ".queueName", "endpoint", endpoint.name, "queueName")
+                if sink and not (_prop(endpoint, "queueName") or _prop(endpoint, "exchangeName")):
+                    self.required(None, path + ".queueName", "endpoint", endpoint.name, "queueName or exchangeName")
+                for field_name, forbidden in (("consumerCredits", sink), ("publisherMaxInFlight", source)):
+                    if forbidden and field_name in endpoint.properties:
+                        self.add(RANGE, "semantic", "Native admission setting applies to the opposite endpoint direction", path + "." + field_name, "endpoint", endpoint.name)
+            elif connector.type in {"NATS", "JetStream"}:
+                source = any(user.type == "Input" for user in users)
+                sink = any(user.type == "Sink" for user in users)
+                if source and connector.type == "JetStream":
+                    self.required(_prop(endpoint, "durableName"), path + ".durableName",
+                                  "endpoint", endpoint.name, "durableName")
+                if sink:
+                    for field_name in ("queueGroup", "durableName", "createConsumer"):
+                        if field_name in endpoint.properties:
+                            self.add(RANGE, "semantic", f"{field_name} is source-only",
+                                     path + "." + field_name, "endpoint", endpoint.name)
+                    subject = _prop(endpoint, "subject")
+                    if isinstance(subject, str) and any(char in subject for char in "*>"):
+                        self.add(RANGE, "semantic", "Sink requires a concrete publish subject",
+                                 path + ".subject", "endpoint", endpoint.name)
             elif connector.type == "Kafka":
                 self.required(
                     _prop(connector, "brokers"),

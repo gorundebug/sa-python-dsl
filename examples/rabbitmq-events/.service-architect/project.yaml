@@ -1,0 +1,11 @@
+version: 1
+project:
+  name: RabbitMQEvents
+authoring:
+  mode: python
+  entrypoint: project:project
+canonical:
+  output: build/project.yaml
+generation:
+  targets: [go]
+  outputDirectory: build/generated

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0",
+  "source": "ServiceGen language-pack targets.json features.source/features.sink",
+  "languages": [
+    {
+      "id": 1,
+      "name": "GoLang",
+      "backend": "golang",
+      "connectors": {}
+    },
+    {
+      "id": 2,
+      "name": "CppUserver",
+      "backend": "cppUserver",
+      "connectors": {}
+    },
+    {
+      "id": 3,
+      "name": "Python",
+      "backend": "python",
+      "connectors": {}
+    },
+    {
+      "id": 4,
+      "name": "Rust",
+      "backend": "rust",
+      "connectors": {}
+    },
+    {
+      "id": 6,
+      "name": "TypeScript",
+      "backend": "typescript",
+      "connectors": {
+        "RabbitMQ": {
+          "source": {
+            "supported": false,
+            "reason": "RabbitMQ source is unsupported for TypeScript: official rabbitmq-amqp-js-client 1.0.0 lacks native receive credit control and pause/drain. Use a supported source runtime; RabbitMQ sinks remain supported."
+          },
+          "sink": {
+            "supported": true
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "name": "CppCoro",
+      "backend": "cppCoro",
+      "connectors": {}
+    }
+  ]
+}

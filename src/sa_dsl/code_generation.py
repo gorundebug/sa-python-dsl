@@ -42,7 +42,7 @@ _ENUM_VALUES = {
         "GoLang": 1, "CppUserver": 2, "Python": 3, "Rust": 4,
         "TypeScript": 6, "CppCoro": 7,
     },
-    "connectorType": {"HTTP": 1, "gRPC": 2, "Kafka": 3, "Custom": 4, "Cron": 5, "Temporal": 6},
+    "connectorType": {"HTTP": 1, "gRPC": 2, "Kafka": 3, "Custom": 4, "Cron": 5, "Temporal": 6, "NATS": 7, "JetStream": 8, "RabbitMQ": 9, "RedisStreams": 10, "Pulsar": 11},
     "joinType": {"Inner": 1, "Left": 2, "Right": 3, "Outer": 4},
     "joinStorage": {"HashMap": 1, "RocksDB": 2, "Aerospike": 3},
     "processPattern": {"Execute": 1, "Collect": 2},

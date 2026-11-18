@@ -532,6 +532,11 @@ def yaml_to_python_files(
         "HTTP": "http_connector",
         "gRPC": "grpc_connector",
         "Kafka": "kafka_connector",
+        "NATS": "nats_connector",
+        "JetStream": "jetstream_connector",
+        "RabbitMQ": "rabbitmq_connector",
+        "RedisStreams": "redis_streams_connector",
+        "Pulsar": "pulsar_connector",
         "Cron": "cron_connector",
         "Temporal": "temporal_connector",
         "Custom": "custom_connector",
@@ -589,6 +594,8 @@ def yaml_to_python_files(
                 }[endpoint_values.pop("grpcMethodType", "NoStreaming")]
             elif connector_type == "Kafka":
                 method = "topic"
+            elif connector_type in {"NATS", "JetStream"}:
+                method = "subject"
             elif connector_type == "Cron":
                 method = "schedule"
             elif connector_type == "Temporal":
