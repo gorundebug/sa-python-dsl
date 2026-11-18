@@ -1,5 +1,16 @@
 # MCP release check
 
+## Broker release: Codex 0.1.28 / VS Code 0.1.22 / JetBrains 0.1.29
+
+Prepared with official NATS Core/JetStream, Pulsar, Redis Streams and RabbitMQ
+capabilities. TypeScript RabbitMQ remains sink-only. The immutable DSL revision
+is `c0e3c57c97f6175dfdca0cd1ee138d7ded9934fd`; embedded Designer is 0.1.19
+and managed IDE CLI cache is 0.1.24. Framework dependencies release together as
+v0.2.182. Publication must wait for the production Designer assets and exact
+pinned-runtime verification. Packages go to GitHub Releases, not marketplaces.
+Per user instruction, reuse completed functional acceptance; do not repeat heavy
+tests during publication.
+
 ## IDE viewer 0.1.17: consistent SubStream result selection
 
 JetBrains 0.1.28 and VS Code 0.1.21 bundle the same immutable viewer 0.1.17.
