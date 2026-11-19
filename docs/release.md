@@ -1,3 +1,18 @@
+## Query release 0.1.30 — prepared for publication
+
+Runtime pin: `012ff85563ff67979257f97f436d4ee8669d9f3f` (published).
+Designer: 0.1.20; MR !199 targets beta, not master:
+https://gitlab.com/sergeyalexeev/service_architect_vue3/-/merge_requests/199.
+VS Code 0.1.23 and JetBrains 0.1.30 bundle identical immutable assets and CLI
+cache 0.1.26. Codex 0.1.30 selects the new runtime and remote asset version.
+The wheel retains distribution version 0.1.0; Git-backed clients pin the commit.
+
+Exact pinned MCP install/handshake passed (21 tools, eight resources); all 62 DSL
+files match both IDE archives and wheel, and Query declarations exist at the pin.
+Native six-runtime acceptance is reused. Release must not be marked published
+until remote assets and uploaded artifacts are verified; source manifest
+alignment alone does not establish remote availability.
+
 ## Query preparation — unpublished
 
 Local sources support standalone Query, PostgreSQL and S3 across six targets.
