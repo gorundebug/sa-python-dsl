@@ -1,0 +1,29 @@
+# Disposable Query acceptance stores. Never use production credentials or volumes.
+services:
+  postgres:
+    image: ${SA_QUERY_PG_IMAGE:-postgres:17-alpine}
+    network_mode: bridge
+    environment:
+      POSTGRES_USER: query
+      POSTGRES_PASSWORD: disposable-query
+      POSTGRES_DB: query
+    ports:
+      - '127.0.0.1::5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U query -d query']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  s3:
+    image: ${SA_QUERY_S3_IMAGE:?Set a MinIO-compatible test image}
+    network_mode: bridge
+    command: ['server', '/data']
+    environment:
+      MINIO_ROOT_USER: queryexample
+      MINIO_ROOT_PASSWORD: disposable-query-secret
+    ports:
+      - '127.0.0.1::9000'
+    tmpfs:
+      - /data

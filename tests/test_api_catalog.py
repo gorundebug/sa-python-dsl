@@ -42,8 +42,13 @@ class ApiCatalogTest(unittest.TestCase):
             catalog_resource("authoring", "connector-capabilities")
         )
         temporal = catalog["connectors"]["temporal_connector"]
-        for connector in catalog["connectors"].values():
+        for name, connector in catalog["connectors"].items():
             self.assertNotIn("languageAdapters", connector)
+            if name.startswith(("postgresql_", "s3_")):
+                self.assertIsNone(connector["selection"]["parameter"])
+                self.assertEqual("connector type selects the native library", connector["selection"]["defaultSource"])
+                self.assertEqual("servicegen://semantics/query", connector["selection"]["semanticsResource"])
+                continue
             self.assertEqual("implementations", connector["selection"]["parameter"])
             self.assertEqual("selected template pack", connector["selection"]["defaultSource"])
             self.assertIn("Mapping[str, str]", connector["selection"]["type"])

@@ -29,7 +29,7 @@ from .semantic_diff import preview_architecture_diff
 
 
 NODE_FACTORIES = frozenset((
-    "input", "sink", "substream", "map", "filter", "flat_map",
+    "input", "sink", "query", "substream", "map", "filter", "flat_map",
     "flat_map_iterable", "key_by", "join", "multi_join", "merge", "split",
     "case", "when", "process", "delay", "cycle_link", "error",
 ))

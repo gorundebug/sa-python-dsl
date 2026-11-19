@@ -65,6 +65,36 @@ a fresh archive's default hook is not the installed project's policy. Preserve
 existing template path/name headers and ownership contracts. Review stale-file
 removal and protect user-owned files and data.
 
+## Implement request-driven storage with Query
+
+For Query work, read `servicegen://semantics/query` for the selected backend's
+operations and limitations. Query is independent from Sink: the connector selects
+the library, the endpoint selects the operation, and the stream declares emitted
+result types. It can emit zero or many results. `EndRequest(..., out)` allows an
+application-defined completion value; do not add a separate completion port.
+Empty success emits zero values. If a callable SubStream awaits a reply, define
+the application's empty/error reply or use a caller deadline; routing an error
+does not itself return a SubStream result.
+
+Create shared pools and native clients through service infrastructure makers,
+as for gRPC. Endpoints reuse them; main and per-request handlers do not create
+clients. Preserve native resource ownership through service shutdown, release
+request cursors/bodies before EndRequest, and use the received context. Completion
+of Query is not proof that asynchronously scheduled downstream work has finished.
+The normal error lifecycle is not a panic/process-crash recovery guarantee.
+Keep downstream business errors on their own Error paths; do not label an
+exception from downstream code as a native database/storage failure.
+
+Use parameterized native query builders or user-owned SQL files. Keep secrets in
+runtime configuration. Do not silently retry partial results or writes whose
+outcome is unknown. Check native buffering and pagination capabilities rather
+than assuming every S3 implementation streams bytes or uses identical tokens.
+Go's default Bun connector uses pgx through database/sql for native cancellation;
+custom pool makers must preserve request cancellation and deadlines. Rust Query
+handlers use `servicelib::dataquery::Collector`, matching generated endpoint
+traits, and delegate delivery to the ordinary graph collector.
+Authoring support alone does not prove runtime acceptance for a target language.
+
 ## Verify connected behavior
 
 Complete the connected capability before heavyweight acceptance. Prepare tests

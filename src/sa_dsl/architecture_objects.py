@@ -65,6 +65,12 @@ OBJECT_GUIDES = {
         "An external operation is an explicit stage of the architecture.",
         "A local implementation detail is being exposed only because it uses an SDK.",
         [("Pipeline", "sink")], semantics="boundaries"),
+    "query": _guide(
+        "Execute a request-driven PostgreSQL or S3 operation with zero or more typed results.",
+        "A meaningful storage interaction belongs explicitly in the pipeline.",
+        "You need unsolicited broker ingress or are merely exposing each SQL expression as a node.",
+        [("Pipeline", "query"), ("PostgreSQLConnector", "endpoint"), ("S3Connector", "endpoint")],
+        semantics="query"),
     "substream": _guide(
         "A service-local callable subgraph with typed arguments and collected results.",
         "Business code needs to invoke and collect results from a reusable graph section.",
@@ -170,6 +176,17 @@ for _transport, (_owner, _methods) in _ENDPOINTS.items():
         semantics="transports",
         patterns={"kafka": ("kafka-processing",), "temporal": ("temporal-sequential", "temporal-parallel", "temporal-scheduled")}.get(_transport, ()),
     )
+
+
+for _profile in ("postgresql_bun", "postgresql_kysely", "postgresql_sqlalchemy",
+                 "postgresql_sqlx", "postgresql_userver", "postgresql_libpq", "s3_aws", "s3_userver"):
+    _owner = "PostgreSQLConnector" if _profile.startswith("postgresql_") else "S3Connector"
+    OBJECT_GUIDES[f"{_profile.replace('_', '-')}-endpoint"] = _guide(
+        "Declare a storage endpoint referenced by Query, with an explicit native library and operation.",
+        "A request initiates a PostgreSQL or S3 operation.",
+        "You need a streaming Input/Sink transport or an implicit completion port.",
+        [("Project", f"{_profile}_connector"), (_owner, "endpoint"), ("Pipeline", "query")],
+        semantics="query")
 
 
 def architecture_object_index() -> dict[str, Any]:

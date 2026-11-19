@@ -99,6 +99,15 @@ class ConnectorType(str, Enum):
     RABBITMQ = "RabbitMQ"
     REDIS_STREAMS = "RedisStreams"
     PULSAR = "Pulsar"
+    POSTGRESQL_BUN = "PostgreSQLBun"
+    POSTGRESQL_KYSELY = "PostgreSQLKysely"
+    POSTGRESQL_SQLALCHEMY = "PostgreSQLSQLAlchemy"
+    POSTGRESQL_SQLX = "PostgreSQLSQLx"
+    POSTGRESQL_USERVER = "PostgreSQLUserver"
+    POSTGRESQL_LIBPQ = "PostgreSQLLibpq"
+    S3_AWS = "S3AWS"
+    S3_USERVER = "S3Userver"
+
 
 
 class DataConnectorImplementation(str, Enum):
@@ -146,6 +155,7 @@ class StreamType(str, Enum):
     SPLIT = "Split"
     CASE = "Case"
     SINK = "Sink"
+    QUERY = "Query"
     CYCLE_LINK = "CycleLink"
     ERROR = "Error"
     DELAY = "Delay"
@@ -1021,6 +1031,24 @@ class Pipeline:
             appearance=appearance,
         )
 
+    def query(
+        self,
+        name: str,
+        *,
+        endpoint: Endpoint,
+        value_type: TypeDefinition | DataType | str | None = None,
+        source: Stream | None = None,
+        appearance: Appearance | None = None,
+    ) -> Stream:
+        return self._stream(
+            name,
+            StreamType.QUERY,
+            endpoint=endpoint,
+            value_type=value_type,
+            source=source,
+            appearance=appearance,
+        )
+
     def cycle_link(
         self, name: str, *, source: Stream | None = None, appearance: Appearance | None = None
     ) -> Stream:
@@ -1434,6 +1462,26 @@ class TemporalConnector(Connector):
             **(retry or RetryPolicy()).to_properties(),
             **schedule_properties,
         )
+
+
+class PostgreSQLConnector(Connector):
+    def endpoint(
+        self, name: str, *, function: Function, query_operation: str = "Rows",
+        sql_file: str | None = None, fetch_size: int = 256,
+        enabled: bool = True,
+    ) -> Endpoint:
+        return self._endpoint(name, function=function, query_operation=query_operation,
+                              sql_file=sql_file, fetch_size=fetch_size, enabled=enabled)
+
+
+class S3Connector(Connector):
+    def endpoint(
+        self, name: str, *, function: Function, query_operation: str,
+        bucket: str | None = None, fetch_size: int = 256,
+        enabled: bool = True,
+    ) -> Endpoint:
+        return self._endpoint(name, function=function, query_operation=query_operation,
+                              bucket=bucket, fetch_size=fetch_size, enabled=enabled)
 
 
 class CustomConnector(Connector):
@@ -2399,6 +2447,93 @@ class Project:
             address=address,
             connections_count=connections_count,
         )
+
+    def postgresql_bun_connector(
+        self, name: str, *, connection_string: str | None = None,
+        connections_count: int = 10,
+        connect_timeout_ms: int | None = None, operation_timeout_ms: int | None = None,
+    ) -> PostgreSQLConnector:
+        return self._connector(name, ConnectorType.POSTGRESQL_BUN,
+                               connector_class=PostgreSQLConnector,
+                               connection_string=connection_string,
+                               connections_count=connections_count,
+                               connect_timeout_ms=connect_timeout_ms,
+                               operation_timeout_ms=operation_timeout_ms)
+
+    def postgresql_kysely_connector(
+        self, name: str, *, connection_string: str | None = None,
+        connections_count: int = 10,
+        connect_timeout_ms: int | None = None, operation_timeout_ms: int | None = None,
+    ) -> PostgreSQLConnector:
+        return self._connector(name, ConnectorType.POSTGRESQL_KYSELY,
+                               connector_class=PostgreSQLConnector,
+                               connection_string=connection_string,
+                               connections_count=connections_count,
+                               connect_timeout_ms=connect_timeout_ms,
+                               operation_timeout_ms=operation_timeout_ms)
+
+    def postgresql_sqlalchemy_connector(
+        self, name: str, *, connection_string: str | None = None,
+        connections_count: int = 10,
+        connect_timeout_ms: int | None = None, operation_timeout_ms: int | None = None,
+    ) -> PostgreSQLConnector:
+        return self._connector(name, ConnectorType.POSTGRESQL_SQLALCHEMY,
+                               connector_class=PostgreSQLConnector,
+                               connection_string=connection_string,
+                               connections_count=connections_count,
+                               connect_timeout_ms=connect_timeout_ms,
+                               operation_timeout_ms=operation_timeout_ms)
+
+    def postgresql_sqlx_connector(
+        self, name: str, *, connection_string: str | None = None,
+        connections_count: int = 10,
+        connect_timeout_ms: int | None = None, operation_timeout_ms: int | None = None,
+    ) -> PostgreSQLConnector:
+        return self._connector(name, ConnectorType.POSTGRESQL_SQLX,
+                               connector_class=PostgreSQLConnector,
+                               connection_string=connection_string,
+                               connections_count=connections_count,
+                               connect_timeout_ms=connect_timeout_ms,
+                               operation_timeout_ms=operation_timeout_ms)
+
+    def postgresql_userver_connector(
+        self, name: str, *, connection_string: str | None = None,
+        connections_count: int = 10,
+        operation_timeout_ms: int | None = None,
+    ) -> PostgreSQLConnector:
+        return self._connector(name, ConnectorType.POSTGRESQL_USERVER,
+                               connector_class=PostgreSQLConnector,
+                               connection_string=connection_string,
+                               connections_count=connections_count,
+                               operation_timeout_ms=operation_timeout_ms)
+
+    def postgresql_libpq_connector(
+        self, name: str, *, connection_string: str | None = None,
+        connections_count: int = 10,
+        connect_timeout_ms: int | None = None, operation_timeout_ms: int | None = None,
+    ) -> PostgreSQLConnector:
+        return self._connector(name, ConnectorType.POSTGRESQL_LIBPQ,
+                               connector_class=PostgreSQLConnector,
+                               connection_string=connection_string,
+                               connections_count=connections_count,
+                               connect_timeout_ms=connect_timeout_ms,
+                               operation_timeout_ms=operation_timeout_ms)
+
+    def s3_aws_connector(
+        self, name: str, *, region: str | None = None,
+        address: str | None = None, force_path_style: bool = False,
+    ) -> S3Connector:
+        return self._connector(name, ConnectorType.S3_AWS,
+                               connector_class=S3Connector, region=region,
+                               address=address, force_path_style=force_path_style)
+
+    def s3_userver_connector(
+        self, name: str, *, region: str | None = None,
+        address: str | None = None, force_path_style: bool = False,
+    ) -> S3Connector:
+        return self._connector(name, ConnectorType.S3_USERVER,
+                               connector_class=S3Connector, region=region,
+                               address=address, force_path_style=force_path_style)
 
     def kafka_connector(
         self,

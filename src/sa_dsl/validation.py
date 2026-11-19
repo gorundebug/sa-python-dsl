@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Iterable
 from urllib.parse import urlsplit
 
+from .query_validation import POSTGRES_TARGETS, validate_query_bindings, validate_query_connector
 from .pulsar_validation import validate_connector as validate_pulsar_connector, validate_endpoint as validate_pulsar_endpoint
 from .model import NULL, Connector, Endpoint, Project, Service, Stream
 from .retired_backends import CPP_BOOST_RETIREMENT, is_retired_language
@@ -49,7 +50,7 @@ LANGUAGES = {"GoLang", "CppUserver", "Python", "Rust", "CppCoro", "TypeScript"}
 ENVIRONMENTS = {"", "local", "debug", "staging", "production"}
 LOG_LEVELS = {"", "CRITICAL", "FATAL", "ERROR", "WARNING", "INFO", "DEBUG"}
 WORKLOADS = {"Deployment", "StatefulSet"}
-CONNECTOR_TYPES = {"HTTP", "gRPC", "Kafka", "Custom", "Cron", "Temporal", "NATS", "JetStream", "RabbitMQ", "RedisStreams", "Pulsar"}
+CONNECTOR_TYPES = {"HTTP", "gRPC", "Kafka", "Custom", "Cron", "Temporal", "NATS", "JetStream", "RabbitMQ", "RedisStreams", "Pulsar", "PostgreSQLBun", "PostgreSQLKysely", "PostgreSQLSQLAlchemy", "PostgreSQLSQLx", "PostgreSQLUserver", "PostgreSQLLibpq", "S3AWS", "S3Userver"}
 STREAM_TYPES = {
     "Input",
     "SubStream",
@@ -65,6 +66,7 @@ STREAM_TYPES = {
     "Split",
     "Case",
     "Sink",
+    "Query",
     "CycleLink",
     "Error",
     "Delay",
@@ -141,6 +143,7 @@ OUTPUT_TYPES = {
     "FlatMapIterable",
     "KeyBy",
     "Sink",
+    "Query",
     "Error",
     "When",
 }
@@ -155,7 +158,7 @@ FUNCTION_TYPES = {
     "MultiJoin",
     "Case",
 }
-ERROR_OUTPUT_TYPES = {"Input", "Process", "Sink"}
+ERROR_OUTPUT_TYPES = {"Input", "Process", "Sink", "Query"}
 
 
 def _text(value: Any) -> str:
@@ -336,7 +339,7 @@ class Validator:
     def validate(self) -> list[Diagnostic]:
         from .connector_directions import unsupported_direction
         for stream in self.streams.values():
-            direction = {"Input": "source", "Sink": "sink"}.get(stream.type)
+            direction = {"Input": "source", "Sink": "sink", "Query": "query"}.get(stream.type)
             if not direction or stream.endpoint is None:
                 continue
             reason = unsupported_direction(stream.service.programming_language, stream.endpoint.connector.type, direction)
@@ -776,6 +779,8 @@ class Validator:
         native_fields = {"servers", "connectTimeoutMs", "operationTimeoutMs", "token", "credentialsFile"}
         if connector.type in {"RabbitMQ", "RedisStreams", "Pulsar"}:
             native_fields -= {"servers", "connectTimeoutMs", "operationTimeoutMs"}
+        if connector.type in POSTGRES_TARGETS:
+            native_fields -= {"connectTimeoutMs", "operationTimeoutMs"}
         if connector.type == "Pulsar":
             native_fields -= {"token"}
         if connector.type not in {"NATS", "JetStream"}:
@@ -925,6 +930,8 @@ class Validator:
                 "type",
                 True,
             )
+            for field, message in validate_query_connector(connector):
+                self.add(RANGE, "schema", message, path + "." + field, "dataConnector", connector.name)
             self.validate_nats_connector(connector, path)
             self.validate_rabbitmq_connector(connector, path)
             self.validate_redis_connector(connector, path)
@@ -1167,6 +1174,10 @@ class Validator:
         )
 
     def validate_streams(self) -> None:
+        for stream in self.streams.values():
+            for field, message in validate_query_bindings(stream):
+                self.add(RANGE, "schema", message, self.stream_path(stream) + "." + field,
+                         "stream", stream.name)
         self.duplicate_names("stream", self.streams.values(), "$.streams")
         for stream in self.streams.values():
             path = self.stream_path(stream)
@@ -1279,17 +1290,17 @@ class Validator:
             self.minimum(
                 _prop(stream, "ttl"), 0, path + ".ttl", "stream", stream.name, "ttl"
             )
-            if stream.type == "Sink" and stream.endpoint is None:
+            if stream.type in {"Sink", "Query"} and stream.endpoint is None:
                 self.add(
                     REQUIRED,
                     "schema",
-                    f"Sink stream {stream.name!r} requires endpoint",
+                    f"{stream.type} stream {stream.name!r} requires endpoint",
                     path + ".endpoint",
                     "stream",
                     stream.name,
                     field="endpoint",
                 )
-            if stream.endpoint is not None and stream.type not in {"Input", "Sink"}:
+            if stream.endpoint is not None and stream.type not in {"Input", "Sink", "Query"}:
                 self.add(
                     RANGE,
                     "schema",
@@ -1797,7 +1808,7 @@ class Validator:
         inputs: dict[str, list[Stream]] = defaultdict(list)
         sinks: dict[str, list[Stream]] = defaultdict(list)
         for stream in self.streams.values():
-            if not stream.endpoint or stream.type not in {"Input", "Sink"}:
+            if not stream.endpoint or stream.type not in {"Input", "Sink", "Query"}:
                 continue
             key = (stream.service.key, stream.endpoint.key, stream.type)
             if stream.type == "Input" and key in seen:
@@ -1832,7 +1843,7 @@ class Validator:
                         self.add(
                             TYPE_MISMATCH,
                             "semantic",
-                            f"shared endpoint {direction} types differ for Sink {sink.name!r}",
+                            f"shared endpoint {direction} types differ for {sink.type} {sink.name!r}",
                             self.stream_path(sink) + ".endpoint",
                             "stream",
                             sink.name,

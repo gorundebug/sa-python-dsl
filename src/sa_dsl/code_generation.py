@@ -32,7 +32,7 @@ _ENUM_VALUES = {
         "Input": 1, "Map": 2, "Filter": 3, "Join": 4, "MultiJoin": 5,
         "Process": 6, "FlatMap": 7, "FlatMapIterable": 8, "KeyBy": 9,
         "Merge": 10, "Split": 11, "Case": 12, "Sink": 13, "CycleLink": 14,
-        "Error": 15, "Delay": 16, "When": 17, "SubStream": 18,
+        "Error": 15, "Delay": 16, "When": 17, "SubStream": 18, "Query": 19,
     },
     "callSemantics": {
         "Inherited": 1, "FunctionCall": 2, "TaskPool": 3,
@@ -42,7 +42,7 @@ _ENUM_VALUES = {
         "GoLang": 1, "CppUserver": 2, "Python": 3, "Rust": 4,
         "TypeScript": 6, "CppCoro": 7,
     },
-    "connectorType": {"HTTP": 1, "gRPC": 2, "Kafka": 3, "Custom": 4, "Cron": 5, "Temporal": 6, "NATS": 7, "JetStream": 8, "RabbitMQ": 9, "RedisStreams": 10, "Pulsar": 11},
+    "connectorType": {"HTTP": 1, "gRPC": 2, "Kafka": 3, "Custom": 4, "Cron": 5, "Temporal": 6, "NATS": 7, "JetStream": 8, "RabbitMQ": 9, "RedisStreams": 10, "Pulsar": 11, "PostgreSQLBun": 12, "PostgreSQLKysely": 13, "PostgreSQLSQLAlchemy": 14, "PostgreSQLSQLx": 15, "PostgreSQLUserver": 16, "PostgreSQLLibpq": 17, "S3AWS": 18, "S3Userver": 19},
     "joinType": {"Inner": 1, "Left": 2, "Right": 3, "Outer": 4},
     "joinStorage": {"HashMap": 1, "RocksDB": 2, "Aerospike": 3},
     "processPattern": {"Execute": 1, "Collect": 2},

@@ -23,6 +23,25 @@ class McpResourcesTest(unittest.TestCase):
         )
         self.assertEqual({"GoLang", "Python", "TypeScript"}, set(resource["workflowLanguages"]))
 
+    def test_query_discovery_resolves_real_endpoint_signatures(self) -> None:
+        from sa_dsl.architecture_objects import describe_architecture_object
+        resource = json.loads(catalog_resource("semantics", "query"))
+        self.assertEqual(["Rows", "Execute"], resource["operations"]["PostgreSQL"])
+        self.assertIn("no separate completion port", " ".join(resource["lifecycle"]))
+        self.assertIn("zero results, not an empty or sentinel", " ".join(resource["lifecycle"]))
+        self.assertIn("an Error branch alone is not a reply", " ".join(resource["lifecycle"]))
+        self.assertIn("pgx through database/sql", " ".join(resource["infrastructure"]))
+        self.assertIn("servicelib::dataquery::Collector", " ".join(resource["authoring"]))
+        self.assertIn("in progress", resource["availability"])
+        for uri in resource["apiResources"]:
+            api = json.loads(catalog_resource("authoring", uri.removeprefix("servicegen://authoring/")))
+            self.assertIn("signature", api)
+        for profile in ("postgresql_bun", "postgresql_kysely", "postgresql_sqlalchemy",
+                        "postgresql_sqlx", "postgresql_userver", "postgresql_libpq", "s3_aws", "s3_userver"):
+            guide = describe_architecture_object(profile + "-endpoint")
+            self.assertEqual("servicegen://semantics/query", guide["semanticsResource"])
+        self.assertIn("Query", json.loads(catalog_resource("semantics", "operators"))["operators"])
+
     def test_catalog_resources_are_focused_and_versioned(self) -> None:
         operators = json.loads(catalog_resource("semantics", "operators"))
         self.assertEqual("1.0", operators["schemaVersion"])

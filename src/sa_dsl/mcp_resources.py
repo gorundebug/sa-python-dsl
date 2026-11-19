@@ -7,6 +7,7 @@ from .architecture_guidance import GUIDANCE_RESOURCES, IMPLEMENTATION_GUIDE
 from .api_catalog import build_connector_capabilities, build_typed_api_catalog
 from .architecture_patterns import PATTERN_CATALOG, REVIEW_CHECKLIST
 from .architecture_objects import architecture_object_index, describe_architecture_object
+from .query_examples import QUERY_EXAMPLES
 
 
 # Shared by discovery and authoring guidance; capabilities remain authoritative.
@@ -59,13 +60,82 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
             "operators": [
                 "Input", "SubStream", "Map", "Filter", "FlatMap", "FlatMapIterable", "KeyBy",
                 "Join", "MultiJoin", "Merge", "Split", "Case", "When", "Process",
-                "Delay", "CycleLink", "Sink", "Error",
+                "Delay", "CycleLink", "Sink", "Query", "Error",
             ],
             "keyed": {
                 "KeyBy": "produces a keyed value",
                 "Join": "one primary and one additional keyed source",
                 "MultiJoin": "one primary and one or more additional keyed sources",
             },
+        },
+        "query": {
+            "purpose": "Execute a request-driven PostgreSQL or S3 operation as a meaningful graph stage.",
+            "api": "pipeline.query(name, endpoint=endpoint, value_type=result_type, source=request_stream)",
+            "selection": "Connector type selects the native library; query_operation on the endpoint selects the operation. Query is independent from Sink.",
+            "operations": {
+                "PostgreSQL": ["Rows", "Execute"],
+                "S3": ["GetObject", "HeadObject", "ListObjects", "PutObject", "DeleteObject"],
+            },
+            "libraries": {
+                "GoLang": "PostgreSQLBun", "TypeScript": "PostgreSQLKysely",
+                "Python": "PostgreSQLSQLAlchemy", "Rust": "PostgreSQLSQLx",
+                "CppUserver": "PostgreSQLUserver", "CppCoro": "PostgreSQLLibpq",
+            },
+            "nativeCapabilities": "Inspect connector features.queryCodeBuilder, features.queryStreamingBody and features.queryListObjectsV2 in the selected generator capabilities. These describe native profile extensions, not new Query operations or ports. Missing features in an older capability document mean unknown, not supported.",
+            "s3": "Use S3Userver for C++/userver and S3AWS for other target languages; do not patch userver.",
+            "tls": {
+                "PostgreSQL": "Use the native connection configuration with certificate and hostname verification. Go/pgx, pg, SQLx and libpq accept sslmode=verify-full with sslrootcert. SQLAlchemy/asyncpg uses ssl=verify-full and PGSSLROOTCERT instead of passing libpq-only URL keywords. Custom native TLS configuration belongs in an infrastructure maker.",
+                "S3": {
+                    "GoLang": "AWS_CA_BUNDLE",
+                    "Python": "AWS_CA_BUNDLE",
+                    "TypeScript": "NODE_EXTRA_CA_CERTS, set before starting Node",
+                    "Rust": "SSL_CERT_FILE, set before starting the service",
+                    "CppCoro": "System CA bundle; AWS_CA_BUNDLE did not configure the pinned native client",
+                    "CppUserver": "System CA bundle used by the native HTTP client",
+                },
+                "deployment": "CA paths refer to files inside the service container. Mount public trust bundles read-only through Compose or Helm extraVolumes/extraVolumeMounts; keep DSNs, credentials and private client keys in the existing Vault/Secret path. Preserve other required system roots. Do not disable TLS verification.",
+            },
+            "infrastructure": [
+                "Create shared database pools and S3 clients through the generated service infrastructure makers during service initialization, like gRPC clients. Endpoints reuse these resources; do not create a client per request or add client construction to main.",
+                "Use the custom maker hook to configure the native library. The service or native framework component owns shutdown; borrowed cursors and response bodies belong to an individual request.",
+                "Go PostgreSQLBun uses Bun with pgx through database/sql for native request cancellation. A custom pool maker must preserve cancellation and deadline propagation.",
+                "A custom S3 client must preserve the no-automatic-replay contract. Do not re-enable native retries for writes or partially emitted results without an explicit application policy.",
+            ],
+            "backendLimits": [
+                "S3Userver supports virtual-host addressing only; forcePathStyle=true is rejected. Its address must be an HTTP(S) host with optional port, without credentials, paths, query, fragment or IPv6 literal.",
+                "The standard S3Userver maker uses connector-specific access/secret key environment settings. AWS default credential chain, IAM role discovery, temporary session tokens and automatic credential refresh are not provided; credential lifetime belongs to the supplied maker/provider.",
+                "C++/userver PostgreSQL has no independent native connection timeout setting: its connection timeout derives from command control with a two-second minimum. connectTimeoutMs is unsupported and rejected by this profile. operationTimeoutMs bounds the joined Query task, not initial component construction.",
+                "C++/userver requires a nonempty bucket in resolved endpoint runtime configuration; its native client is bucket-bound. The Python model may omit it when supplied by runtime overrides.",
+                "C++/userver S3 GetObject returns a complete object in memory and PutObject accepts a complete body. This is supported, not a byte-streaming guarantee; bound object size at the application boundary.",
+                "C++ Coro S3 uses native AWS outcomes; the default client may buffer the whole GetObject body. Query does not promise a constant-memory byte stream. Concurrent requests multiply native body memory; choose object sizes and concurrency accordingly.",
+                "C++/userver ListObjects uses native v1 marker pagination, not AWS ListObjectsV2 continuation tokens. Do not transfer pagination tokens across connector implementations.",
+                "fetch_size controls native PostgreSQL row batching where supported; it is not a result limit, completion signal, concurrency limit or a universal S3 page-size setting. Configure S3 listing in the native request builder.",
+                "PostgreSQLUserver fetch_size must fit the native uint32 range: 1..4294967295. This representational maximum is not a recommended batch size.",
+                "Query does not create or migrate a database schema automatically. Schema ownership and initialization must be explicit.",
+            ],
+            "lifecycle": [
+                "Each request emits zero, one or many ordinary typed results. An empty successful operation emits zero results, not an empty or sentinel result.",
+                "BeginRequest creates per-request HandlerState. EndRequest receives the ordinary out and error collectors, including after a begin failure or cancellation.",
+                "There is no separate completion port, automatic completion event, sentinel row or hidden Done stream. The user may emit completion from EndRequest through out.",
+                "A callable SubStream awaiting a result is not completed automatically by a Query that emits no values or only routes an error. Define an explicit application reply/completion contract or a caller deadline; an Error branch alone is not a reply.",
+                "Release native cursors/response bodies before EndRequest. EndRequest is not a barrier for asynchronously scheduled downstream work.",
+                "Query uses the existing graph delivery policy without a second result queue. Synchronous consumers delay mapping; queued links follow their configured buffering and overload policy. Do not infer bounded total memory from sequential row/page mapping alone.",
+                "Use the supplied request context for cancellation and deadlines. Do not replay partially emitted results or writes with unknown outcomes automatically.",
+                "The ordinary error/cancellation lifecycle does not promise recovery from Go/Rust panics, process termination or a failure in EndRequest itself. Downstream business errors use downstream Error streams; do not relabel them as database or S3 errors.",
+            ],
+            "authoring": [
+                "Use the native library to build parameterized queries in code, or set optional sql_file on a PostgreSQL endpoint. Do not interpolate values into SQL.",
+                "The endpoint function owns request construction and native row/result mapping. Its Query value_type describes emitted results, not incoming requests.",
+                "Rust Query handlers use servicelib::dataquery::Collector, as generated in their endpoint traits, rather than the general runtime collector. This delegates delivery to the ordinary graph collector without adding a queue or completion channel.",
+                "Keep DSNs and credentials in runtime environment/secrets. A shared endpoint contract may be referenced by separate pipeline nodes with matching request/result types.",
+                "Model meaningful storage interactions, not every SQL expression or native client method as a graph node.",
+            ],
+            "availability": "Authoring API is implemented; cross-language runtime acceptance is still in progress. Inspect selected generator capabilities and runtime versions. Do not infer successful compilation/execution from the catalog alone.",
+            "apiResources": [
+                "servicegen://authoring/typed-api-Pipeline-query",
+                "servicegen://authoring/typed-api-PostgreSQLConnector-endpoint",
+                "servicegen://authoring/typed-api-S3Connector-endpoint",
+            ],
         },
         "substreams": {
             "purpose": "Declare a small service-local graph callable from business code without a transport endpoint.",
@@ -213,7 +283,7 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
         },
         "error-handling": {
             "rules": [
-                "Only Input, Process, and Sink expose a dedicated Error output.",
+                "Only Input, Process, Sink, and Query expose a dedicated Error output.",
                 "Declare the owner-to-Error graph edge before owner.on_error(error_stream).",
                 "An owner has at most one Error consumer and both streams belong to the same service.",
                 "Separate domain failure flow from transport or runtime retries.",
@@ -272,6 +342,7 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
             "Input": "Admit messages from a concrete connector Endpoint.",
             "SubStream": "Admit an in-process invocation from business code in its owning service, without a connector Endpoint.",
             "Sink": "Submit messages through a concrete connector Endpoint.",
+            "Query": "Request-driven PostgreSQL/S3 operation through a typed endpoint; see servicegen://semantics/query. Library belongs to connector type; operation belongs to endpoint.",
             "HTTP": "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE or CONNECT with a required path; method and path must be unique within the connector.",
             "gRPC": "Requires a contract Module and explicit unary/client/server/bidirectional streaming method; Sink usage also requires address.",
             "Kafka": "Requires brokers and topic; Input usage also requires consumer group; credentials are runtime-only.",
@@ -307,6 +378,7 @@ RESOURCE_CATALOG: Mapping[str, Mapping[str, dict[str, Any]]] = {
         },
     },
     "examples": {
+        **QUERY_EXAMPLES,
         "index": {
             "examples": [{
                 "id": "processorder",

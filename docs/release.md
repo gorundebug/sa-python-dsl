@@ -1,3 +1,23 @@
+## Query preparation — unpublished
+
+Local sources support standalone Query, PostgreSQL and S3 across six targets.
+MCP semantics, storage-query recipe, checked examples and Codex authoring and
+implementation skills describe operation selection, completion and native limits.
+The local plugin archive includes these skills, but **does not upgrade the
+runtime selected by its immutable MCP manifest**.
+
+Current release coordinates remain Codex 0.1.29, runtime
+`41b56018356498856d50ab0584ee874ea48aa6be`, remote Designer 0.1.19.
+That runtime lacks Query. Local IDE bundles use Designer 0.1.20-query.7;
+this preview is not a deployed remote Designer release. Do not distribute the
+current Codex archive as a Query-capable release.
+
+When publication is authorized, publish the accepted DSL commit, select its
+immutable revision and deployed Query-capable Designer assets, advance the
+plugin version, rebuild with `make package-plugin`, then verify the exact pinned
+runtime and package contents. Reuse native acceptance already recorded in
+`servicegen/docs/query-stream-plan.md`; do not repeat it for a metadata release.
+
 # MCP release check
 
 ## Codex 0.1.29: broker MCP guidance correction

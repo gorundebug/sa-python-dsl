@@ -94,6 +94,28 @@ connectors, endpoints, modules, packages, pools, and types. Connect internal
 pipeline streams in the pipeline module and cross-pipeline or cross-service
 relationships in the owning service module.
 
+For request-driven PostgreSQL or S3 operations, read
+`servicegen://semantics/query`, `servicegen://patterns/storage-query` and the
+relevant `servicegen://examples/query-postgresql` or
+`servicegen://examples/query-s3`. Use a distinct Query stream: the connector
+selects the native library and the endpoint selects the operation. Get/Put are
+endpoint operations, not new stream kinds; SQL RETURNING uses Rows. Discover the
+exact factory and endpoint signature through the live API catalog.
+
+Model request/result/error types and the visible request producer. Query can
+emit zero or many results; EndRequest receives the result collector and may emit
+an application-defined completion. Do not create a completion port or assume an
+empty result answers a waiting SubStream. Select an explicit empty/error reply
+or a caller deadline when the application needs a reply. Use ordinary graph
+call semantics; queued output does not imply downstream completion.
+
+Check native features `queryCodeBuilder`, `queryStreamingBody` and
+`queryListObjectsV2` in the selected backend capabilities. A missing feature is
+unknown, not supported. Keep native SQL/builders and S3 mapping inside the
+endpoint handler; expose meaningful storage stages, not each SQL expression.
+If an installed runtime/catalog lacks Query, report the version mismatch rather
+than substituting Sink or claiming local skill text upgrades the installed MCP.
+
 For visual components, read `servicegen://semantics/visual-components` and its
 linked API signatures before editing. Components annotate equivalent connected
 fragments, not whole-pipeline groups or runtime wrappers. Declare and connect

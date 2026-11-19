@@ -3,6 +3,7 @@
 Does not install plugins, access credentials, publish, or claim remote Codex parity.
 """
 import argparse
+import ast
 import hashlib
 import io
 import json
@@ -13,6 +14,23 @@ from zipfile import ZipFile
 from sync_ide_assets import ASSET_DIGESTS, VERSION as DESIGNER_VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
+
+def missing_query_api(model_source):
+    """Check declarations, not mentions in comments or the packaged skill text.
+
+    This is a release prerequisite, not a substitute for MCP authoring tests.
+    """
+    tree = ast.parse(model_source)
+    classes = {node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)}
+    methods = {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
+    required_methods = (
+        'query', 'postgresql_bun_connector', 'postgresql_kysely_connector',
+        'postgresql_sqlalchemy_connector', 'postgresql_sqlx_connector',
+        'postgresql_userver_connector', 'postgresql_libpq_connector',
+        's3_aws_connector', 's3_userver_connector',
+    )
+    return ([name for name in ('PostgreSQLConnector', 'S3Connector') if name not in classes]
+            + [name for name in required_methods if name not in methods])
 
 def contents(path):
     with ZipFile(path) as archive:
@@ -53,6 +71,7 @@ def main():
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--require-codex-brokers', action='store_true', help='Fail when the pinned Codex runtime lacks broker classes')
+    parser.add_argument('--require-codex-query', action='store_true', help='Fail when pinned runtime Query APIs or Designer version are missing; does not prove remote deployment')
     parser.add_argument('--runtime-dir', type=Path, help='Extract only verified source files for packaged CLI/MCP checks')
     args = parser.parse_args()
     expected = sources()
@@ -106,10 +125,15 @@ def main():
     # Manifest alignment is necessary, not proof that remote assets are deployed.
     report['codexBrokerParity'] = (not report['codex']['missingPinnedConnectorClasses']
                                   and report['codex']['designerVersionAligned'])
+    report['codex']['missingPinnedQueryApi'] = missing_query_api(old_model)
+    report['codexQueryPrerequisites'] = (not report['codex']['missingPinnedQueryApi']
+                                        and report['codex']['designerVersionAligned'])
     args.output.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
     if args.require_codex_brokers and not report['codexBrokerParity']:
         raise SystemExit("Codex broker acceptance blocked: runtime broker classes or Designer version are not aligned")
+    if args.require_codex_query and not report['codexQueryPrerequisites']:
+        raise SystemExit("Codex Query acceptance blocked: pinned Query APIs or Designer version are not aligned")
 
 if __name__ == '__main__':
     main()

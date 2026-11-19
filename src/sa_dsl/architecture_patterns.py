@@ -9,6 +9,7 @@ PATTERN_CATALOG: Mapping[str, dict[str, Any]] = {
         "implementationResource": "servicegen://authoring/implementation-guidelines",
         "topics": [
             "kafka-processing",
+            "storage-query",
             "iterable-worker-aggregation",
             "broadcast-fan-out",
             "conditional-routing",
@@ -18,6 +19,16 @@ PATTERN_CATALOG: Mapping[str, dict[str, Any]] = {
             "failure-compensation",
             "bounded-feedback",
         ],
+    },
+    "storage-query": {
+        "intent": "Read or write storage as an explicit request-driven business stage.",
+        "prerequisites": ["compatible PostgreSQL/S3 library profile", "typed request and result", "runtime secrets"],
+        "topology": ["request producer", "Query bound to a storage endpoint", "result continuation", "optional Error branch"],
+        "decisions": ["Rows/Execute or native S3 operation", "parameterized request construction", "empty result behavior", "partial results and cancellation", "application completion value if needed"],
+        "antiPatterns": ["inherit Query from Sink", "automatic completion port", "credentials in the model", "automatic retries after partial output or unknown write outcomes", "one node for each SQL expression"],
+        "semanticsResource": "servicegen://semantics/query",
+        "exampleResources": ["servicegen://examples/query-postgresql", "servicegen://examples/query-s3"],
+        "acceptance": "Validate/export the Python model, then verify generation, compilation and native execution with selected capabilities. An authoring recipe is not runtime acceptance.",
     },
     "kafka-processing": {
         "intent": "Consume broker messages, process them, and optionally publish results.",

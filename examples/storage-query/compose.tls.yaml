@@ -1,0 +1,27 @@
+# Disposable native TLS acceptance. Public test-only certificates, no host ports.
+services:
+  postgres:
+    image: ${SA_QUERY_PG_IMAGE:-postgres:17-alpine}
+    network_mode: bridge
+    environment:
+      POSTGRES_USER: query
+      POSTGRES_PASSWORD: disposable-query
+      POSTGRES_DB: query
+    volumes:
+      - ./tls:/fixtures:ro
+    tmpfs:
+      - /var/lib/postgresql/data
+      - /tls
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        cp /fixtures/server.pem /tls/server.crt
+        cp /fixtures/key.pem /tls/server.key
+        chown postgres:postgres /tls/server.*
+        chmod 0600 /tls/server.key
+        exec docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/tls/server.crt -c ssl_key_file=/tls/server.key
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U query -d query']
+      interval: 1s
+      timeout: 2s
+      retries: 30

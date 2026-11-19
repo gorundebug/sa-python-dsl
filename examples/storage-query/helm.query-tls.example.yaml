@@ -1,0 +1,16 @@
+# Python Query example overlay; use your trusted CA, never the test fixtures.
+# Existing VaultStaticSecret supplies DSN/AWS credentials to storageworker-env.
+# Create query-trust from your public CA bundle before applying this overlay.
+env:
+  AWS_CA_BUNDLE: /etc/query-trust/ca.pem
+  PGSSLROOTCERT: /etc/query-trust/ca.pem
+secretEnvFrom:
+  - storageworker-env
+extraVolumes:
+  - name: query-trust
+    configMap:
+      name: query-trust
+extraVolumeMounts:
+  - name: query-trust
+    mountPath: /etc/query-trust
+    readOnly: true

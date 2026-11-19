@@ -1,36 +1,414 @@
 {
   "schemaVersion": "1.0",
-  "source": "ServiceGen language-pack targets.json features.source/features.sink",
+  "source": "ServiceGen language-pack targets.json features.source/features.sink/features.query",
   "languages": [
     {
       "id": 1,
       "name": "GoLang",
       "backend": "golang",
-      "connectors": {}
+      "connectors": {
+        "Cron": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Custom": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "HTTP": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Kafka": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Temporal": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "gRPC": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "NATS": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "JetStream": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "RabbitMQ": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "RedisStreams": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Pulsar": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "PostgreSQLBun": {
+          "query": {
+            "supported": true
+          },
+          "source": {
+            "supported": false,
+            "reason": "PostgreSQLBun endpoints require Query, not Input or Sink."
+          },
+          "sink": {
+            "supported": false,
+            "reason": "PostgreSQLBun endpoints require Query, not Input or Sink."
+          }
+        },
+        "S3AWS": {
+          "query": {
+            "supported": true
+          },
+          "source": {
+            "supported": false,
+            "reason": "S3AWS endpoints require Query, not Input or Sink."
+          },
+          "sink": {
+            "supported": false,
+            "reason": "S3AWS endpoints require Query, not Input or Sink."
+          }
+        }
+      }
     },
     {
       "id": 2,
       "name": "CppUserver",
       "backend": "cppUserver",
-      "connectors": {}
+      "connectors": {
+        "Cron": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Custom": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "HTTP": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Kafka": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "gRPC": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "NATS": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "JetStream": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Pulsar": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "PostgreSQLUserver": {
+          "query": {
+            "supported": true
+          },
+          "source": {
+            "supported": false,
+            "reason": "PostgreSQLUserver endpoints require Query, not Input or Sink."
+          },
+          "sink": {
+            "supported": false,
+            "reason": "PostgreSQLUserver endpoints require Query, not Input or Sink."
+          }
+        },
+        "S3Userver": {
+          "query": {
+            "supported": true
+          },
+          "source": {
+            "supported": false,
+            "reason": "S3Userver endpoints require Query, not Input or Sink."
+          },
+          "sink": {
+            "supported": false,
+            "reason": "S3Userver endpoints require Query, not Input or Sink."
+          }
+        }
+      }
     },
     {
       "id": 3,
       "name": "Python",
       "backend": "python",
-      "connectors": {}
+      "connectors": {
+        "Cron": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Custom": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "HTTP": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Kafka": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Temporal": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "gRPC": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "NATS": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "JetStream": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "RabbitMQ": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "RedisStreams": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Pulsar": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "PostgreSQLSQLAlchemy": {
+          "query": {
+            "supported": true
+          },
+          "source": {
+            "supported": false,
+            "reason": "PostgreSQLSQLAlchemy endpoints require Query, not Input or Sink."
+          },
+          "sink": {
+            "supported": false,
+            "reason": "PostgreSQLSQLAlchemy endpoints require Query, not Input or Sink."
+          }
+        },
+        "S3AWS": {
+          "query": {
+            "supported": true
+          },
+          "source": {
+            "supported": false,
+            "reason": "S3AWS endpoints require Query, not Input or Sink."
+          },
+          "sink": {
+            "supported": false,
+            "reason": "S3AWS endpoints require Query, not Input or Sink."
+          }
+        }
+      }
     },
     {
       "id": 4,
       "name": "Rust",
       "backend": "rust",
-      "connectors": {}
+      "connectors": {
+        "Cron": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Custom": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "HTTP": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Kafka": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "gRPC": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "NATS": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "JetStream": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "PostgreSQLSQLx": {
+          "query": {
+            "supported": true
+          },
+          "source": {
+            "supported": false,
+            "reason": "PostgreSQLSQLx endpoints require Query, not Input or Sink."
+          },
+          "sink": {
+            "supported": false,
+            "reason": "PostgreSQLSQLx endpoints require Query, not Input or Sink."
+          }
+        },
+        "S3AWS": {
+          "query": {
+            "supported": true
+          },
+          "source": {
+            "supported": false,
+            "reason": "S3AWS endpoints require Query, not Input or Sink."
+          },
+          "sink": {
+            "supported": false,
+            "reason": "S3AWS endpoints require Query, not Input or Sink."
+          }
+        }
+      }
     },
     {
       "id": 6,
       "name": "TypeScript",
       "backend": "typescript",
       "connectors": {
+        "Cron": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Custom": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "HTTP": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Kafka": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Temporal": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "gRPC": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "NATS": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "JetStream": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
         "RabbitMQ": {
           "source": {
             "supported": false,
@@ -38,6 +416,48 @@
           },
           "sink": {
             "supported": true
+          },
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "RedisStreams": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Pulsar": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "PostgreSQLKysely": {
+          "query": {
+            "supported": true
+          },
+          "source": {
+            "supported": false,
+            "reason": "PostgreSQLKysely endpoints require Query, not Input or Sink."
+          },
+          "sink": {
+            "supported": false,
+            "reason": "PostgreSQLKysely endpoints require Query, not Input or Sink."
+          }
+        },
+        "S3AWS": {
+          "query": {
+            "supported": true
+          },
+          "source": {
+            "supported": false,
+            "reason": "S3AWS endpoints require Query, not Input or Sink."
+          },
+          "sink": {
+            "supported": false,
+            "reason": "S3AWS endpoints require Query, not Input or Sink."
           }
         }
       }
@@ -46,7 +466,88 @@
       "id": 7,
       "name": "CppCoro",
       "backend": "cppCoro",
-      "connectors": {}
+      "connectors": {
+        "Cron": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Custom": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "HTTP": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Kafka": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "gRPC": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "NATS": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "JetStream": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "Pulsar": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "RedisStreams": {
+          "query": {
+            "supported": false,
+            "reason": "Query requires a PostgreSQL or S3 connector."
+          }
+        },
+        "PostgreSQLLibpq": {
+          "query": {
+            "supported": true
+          },
+          "source": {
+            "supported": false,
+            "reason": "PostgreSQLLibpq endpoints require Query, not Input or Sink."
+          },
+          "sink": {
+            "supported": false,
+            "reason": "PostgreSQLLibpq endpoints require Query, not Input or Sink."
+          }
+        },
+        "S3AWS": {
+          "query": {
+            "supported": true
+          },
+          "source": {
+            "supported": false,
+            "reason": "S3AWS endpoints require Query, not Input or Sink."
+          },
+          "sink": {
+            "supported": false,
+            "reason": "S3AWS endpoints require Query, not Input or Sink."
+          }
+        }
+      }
     }
   ]
 }

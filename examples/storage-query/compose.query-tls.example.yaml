@@ -1,0 +1,10 @@
+# Overlay for a generated Python service (same mount works for Go/TS/Rust).
+# Set the native CA environment variables to /etc/query-trust/ca.pem.
+# Set DSN/credentials through the generated environment bindings.
+services:
+  storageworker:
+    volumes:
+      - type: bind
+        source: ${QUERY_CA_BUNDLE_FILE:?Set path to your trusted public CA bundle}
+        target: /etc/query-trust/ca.pem
+        read_only: true

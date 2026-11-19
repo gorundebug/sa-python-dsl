@@ -16,6 +16,8 @@ from .model import (
     RabbitMQConnector,
     RedisStreamsConnector,
     PulsarConnector,
+    PostgreSQLConnector,
+    S3Connector,
     Pipeline,
     Project,
     Service,
@@ -38,6 +40,8 @@ PUBLIC_API_CLASSES = (
     RabbitMQConnector,
     RedisStreamsConnector,
     PulsarConnector,
+    PostgreSQLConnector,
+    S3Connector,
     CronConnector,
     TemporalConnector,
     CustomConnector,
@@ -54,6 +58,11 @@ CONNECTOR_FACTORIES = (
     "cron_connector",
     "temporal_connector",
     "custom_connector",
+    "pulsar_connector",
+    "postgresql_bun_connector", "postgresql_kysely_connector",
+    "postgresql_sqlalchemy_connector", "postgresql_sqlx_connector",
+    "postgresql_userver_connector", "postgresql_libpq_connector",
+    "s3_aws_connector", "s3_userver_connector",
 )
 
 
@@ -134,11 +143,15 @@ def build_connector_capabilities() -> dict[str, Any]:
     for factory_name in CONNECTOR_FACTORIES:
         signature = inspect.signature(getattr(Project, factory_name))
         connectors[factory_name] = {
-            "selection": {
+            "selection": ({
                 "parameter": "implementations",
                 "type": _annotation(signature.parameters["implementations"].annotation),
                 "defaultSource": "selected template pack",
-            },
+            } if "implementations" in signature.parameters else {
+                "parameter": None,
+                "defaultSource": "connector type selects the native library",
+                "semanticsResource": "servicegen://semantics/query",
+            }),
             "requiredParameters": [
                 parameter.name
                 for parameter in signature.parameters.values()

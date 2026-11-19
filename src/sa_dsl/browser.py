@@ -39,7 +39,7 @@ def _evaluate(files: Mapping[str, str], entrypoint: str, capture: bool) -> dict:
         if not isinstance(content, str):
             raise TypeError(f"Python project file {filename!r} must contain text")
         normalized[path] = content
-        package_names.add(path.parts[0])
+        package_names.add(path.stem if len(path.parts) == 1 else path.parts[0])
 
     with tempfile.TemporaryDirectory(prefix="sa-dsl-browser-") as temporary:
         workspace = Path(temporary)
@@ -48,6 +48,15 @@ def _evaluate(files: Mapping[str, str], entrypoint: str, capture: bool) -> dict:
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(content, encoding="utf-8")
 
+        def workspace_module(name: str) -> bool:
+            return any(name == package or name.startswith(f"{package}.") for package in package_names)
+
+        # A refresh must evaluate this workspace, not an earlier graph.py or a
+        # host module sharing its name. Restore host modules when evaluation ends.
+        previous_modules = {name: module for name, module in sys.modules.copy().items()
+                            if workspace_module(name)}
+        for name in previous_modules:
+            del sys.modules[name]
         sys.path.insert(0, str(workspace))
         importlib.invalidate_caches()
         try:
@@ -65,10 +74,7 @@ def _evaluate(files: Mapping[str, str], entrypoint: str, capture: bool) -> dict:
         finally:
             sys.path.pop(0)
             for loaded_name in list(sys.modules):
-                if any(
-                    loaded_name == package
-                    or loaded_name.startswith(f"{package}.")
-                    for package in package_names
-                ):
+                if workspace_module(loaded_name):
                     del sys.modules[loaded_name]
+            sys.modules.update(previous_modules)
             importlib.invalidate_caches()
