@@ -1,3 +1,14 @@
+# Designer 0.1.21 plugin release
+
+VS Code 0.1.24, JetBrains 0.1.31, Codex 0.1.32. Runtime remains pinned to
+`012ff85563ff67979257f97f436d4ee8669d9f3f`; managed CLI remains 0.1.26.
+Designer assets are immutable 0.1.21. MR !204 was merged into beta; both
+remote asset hashes match the packaged IDE copies (Amplify job 124).
+
+Designer 0.1.21 makes graph navigation clearer: Input, Sink and Query nodes show endpoint resources or handler names. Input and SubStream entries are circular with an arrow left of the icon; outgoing HTTP/gRPC Sink nodes are square. Full resource details remain in tooltips.
+
+Includes the shared Designer update only. Python DSL/MCP runtime pin and managed CLI version are unchanged. Focused graph tests and package builds passed; heavyweight runtime acceptance was not repeated. IDE plugins bundle the assets; Codex uses the immutable beta asset URL after deployment.
+
 # Query release 0.1.31
 
 Runtime pin: `012ff85563ff67979257f97f436d4ee8669d9f3f`.

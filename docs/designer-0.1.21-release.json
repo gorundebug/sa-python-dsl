@@ -1,0 +1,51 @@
+{
+  "artifacts": {
+    "vsix": {
+      "path": "/Users/sergeyalexeev/stream_app_go/service-architect-vscode/dist/service-architect-vscode-0.1.24.vsix",
+      "sha256": "d659dab4b9f89934c3c0e667235a4225d8c65c903e664baa8fb2b7bcc2f2ae0f"
+    },
+    "jetbrains": {
+      "path": "/Users/sergeyalexeev/stream_app_go/service-architect-jetbrains/dist/service-architect-jetbrains-0.1.31.zip",
+      "sha256": "82a5a6ddcceac36540552f84f6e6e0cc29ddf5e148fc1473435396acdeadf532"
+    },
+    "wheel": {
+      "path": "/Users/sergeyalexeev/stream_app_go/sa-python-dsl/dist/sa_python_dsl-0.1.0-py3-none-any.whl",
+      "sha256": "0d5d3eecc9447fcec2ef95a05335437b0e4da38106666471c1207852039fafd2"
+    },
+    "codex": {
+      "path": "/Users/sergeyalexeev/stream_app_go/sa-python-dsl/dist/service-architect-codex-0.1.32.zip",
+      "sha256": "d1212024a1911b2defa9f2bd6a4ac30c330dd1c17020fd803ae840a5f9a19c85"
+    }
+  },
+  "designerHashes": {
+    "designer.js": "06111b70e8c4e762d6db96630a80318d8cdb6327f25e74381ba37f6fbbafaaf2",
+    "designer.css": "fd2352c6cbbc7d1521d03a099175922cdd43baf01e409eb55dd4873cd1589881"
+  },
+  "managedCliVersion": "0.1.26",
+  "vsixDslFiles": 62,
+  "jetbrainsDslFiles": 62,
+  "wheelDslFiles": 62,
+  "codex": {
+    "runtimePin": "012ff85563ff67979257f97f436d4ee8669d9f3f",
+    "remoteDesigner": "https://beta.gorundebug.com/mcp-ui/0.1.21",
+    "missingPinnedConnectorClasses": [],
+    "expectedDesignerVersion": "0.1.21",
+    "designerVersionAligned": true,
+    "missingPinnedQueryApi": []
+  },
+  "localIdeAndWheelParity": true,
+  "codexBrokerParity": true,
+  "codexQueryPrerequisites": true,
+  "designerMergeRequest": "https://gitlab.com/sergeyalexeev/service_architect_vue3/-/merge_requests/204",
+  "publication": {
+    "vscode": "https://github.com/gorundebug/service-architect-vscode/releases/tag/v0.1.24",
+    "jetbrains": "https://github.com/gorundebug/service-architect-jetbrains/releases/tag/v0.1.31",
+    "codex": "https://github.com/gorundebug/sa-python-dsl/releases/tag/v0.1.32"
+  },
+  "uploadedIdeDigestsVerified": true,
+  "remoteDesignerHashesVerified": {
+    "designer.js": "06111b70e8c4e762d6db96630a80318d8cdb6327f25e74381ba37f6fbbafaaf2",
+    "designer.css": "fd2352c6cbbc7d1521d03a099175922cdd43baf01e409eb55dd4873cd1589881"
+  },
+  "amplifyBetaJob": "124"
+}
