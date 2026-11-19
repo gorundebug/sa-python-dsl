@@ -1,37 +1,18 @@
-## Query release 0.1.30 — prepared for publication
+# Query release 0.1.31
 
-Runtime pin: `012ff85563ff67979257f97f436d4ee8669d9f3f` (published).
-Designer: 0.1.20; MR !199 targets beta, not master:
-https://gitlab.com/sergeyalexeev/service_architect_vue3/-/merge_requests/199.
+Runtime pin: `012ff85563ff67979257f97f436d4ee8669d9f3f`.
+Designer 0.1.20 is deployed at `https://beta.gorundebug.com/mcp-ui/0.1.20`
+after MR !199 was merged into beta by the maintainer. Both remote asset hashes
+match the IDE packages. Production Designer is unchanged.
+
 VS Code 0.1.23 and JetBrains 0.1.30 bundle identical immutable assets and CLI
-cache 0.1.26. Codex 0.1.30 selects the new runtime and remote asset version.
-The wheel retains distribution version 0.1.0; Git-backed clients pin the commit.
+cache 0.1.26. The wheel retains version 0.1.0; Git-backed clients pin the commit.
+Codex 0.1.30 was an unpublished draft pointing to the production asset host;
+0.1.31 supersedes it without changing the existing tag.
 
-Exact pinned MCP install/handshake passed (21 tools, eight resources); all 62 DSL
-files match both IDE archives and wheel, and Query declarations exist at the pin.
-Native six-runtime acceptance is reused. Release must not be marked published
-until remote assets and uploaded artifacts are verified; source manifest
-alignment alone does not establish remote availability.
-
-## Query preparation — unpublished
-
-Local sources support standalone Query, PostgreSQL and S3 across six targets.
-MCP semantics, storage-query recipe, checked examples and Codex authoring and
-implementation skills describe operation selection, completion and native limits.
-The local plugin archive includes these skills, but **does not upgrade the
-runtime selected by its immutable MCP manifest**.
-
-Current release coordinates remain Codex 0.1.29, runtime
-`41b56018356498856d50ab0584ee874ea48aa6be`, remote Designer 0.1.19.
-That runtime lacks Query. Local IDE bundles use Designer 0.1.20-query.7;
-this preview is not a deployed remote Designer release. Do not distribute the
-current Codex archive as a Query-capable release.
-
-When publication is authorized, publish the accepted DSL commit, select its
-immutable revision and deployed Query-capable Designer assets, advance the
-plugin version, rebuild with `make package-plugin`, then verify the exact pinned
-runtime and package contents. Reuse native acceptance already recorded in
-`servicegen/docs/query-stream-plan.md`; do not repeat it for a metadata release.
+The exact pinned MCP handshake passed (21 tools, eight resources), including
+Query semantics and PostgreSQL/S3 examples. Package parity checks cover all
+62 DSL files. Six-runtime acceptance is reused, not repeated for publication.
 
 # MCP release check
 
