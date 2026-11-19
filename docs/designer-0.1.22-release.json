@@ -1,0 +1,49 @@
+{
+  "artifacts": {
+    "vsix": {
+      "path": "/Users/sergeyalexeev/stream_app_go/service-architect-vscode/dist/service-architect-vscode-0.1.25.vsix",
+      "sha256": "44555a209f400e7c7ead99040b3dd0161d1829d4a4c83295823e2dddd4f56b56"
+    },
+    "jetbrains": {
+      "path": "/Users/sergeyalexeev/stream_app_go/service-architect-jetbrains/dist/service-architect-jetbrains-0.1.32.zip",
+      "sha256": "d44322b1991e2c5ea0916b650a9cdf2ec9e3155e34b2297f3a86e6176f5f9cb1"
+    },
+    "wheel": {
+      "path": "/Users/sergeyalexeev/stream_app_go/sa-python-dsl/dist/sa_python_dsl-0.1.0-py3-none-any.whl",
+      "sha256": "0d5d3eecc9447fcec2ef95a05335437b0e4da38106666471c1207852039fafd2"
+    },
+    "codex": {
+      "path": "/Users/sergeyalexeev/stream_app_go/sa-python-dsl/dist/service-architect-codex-0.1.33.zip",
+      "sha256": "9cceab2de628e30206b7007529e8a9497a8c4da994e3e00a8bdf8e8046f8873f"
+    }
+  },
+  "designerHashes": {
+    "designer.js": "be412fca6bdd383a4753ea6e31ea3a48ab9c9453964a76c10b1cba7b1e2794a6",
+    "designer.css": "72409767b88d63145aae195f801b34efb29e35c89cc1008ce667b33ef391e0a0"
+  },
+  "managedCliVersion": "0.1.26",
+  "vsixDslFiles": 62,
+  "jetbrainsDslFiles": 62,
+  "wheelDslFiles": 62,
+  "codex": {
+    "runtimePin": "012ff85563ff67979257f97f436d4ee8669d9f3f",
+    "remoteDesigner": "https://beta.gorundebug.com/mcp-ui/0.1.22",
+    "missingPinnedConnectorClasses": [],
+    "expectedDesignerVersion": "0.1.22",
+    "designerVersionAligned": true,
+    "missingPinnedQueryApi": []
+  },
+  "localIdeAndWheelParity": true,
+  "codexBrokerParity": true,
+  "codexQueryPrerequisites": true,
+  "designerMergeRequest": "https://gitlab.com/sergeyalexeev/service_architect_vue3/-/merge_requests/210",
+  "uploadedIdeDigestsVerified": true,
+  "amplifyBetaJob": "127",
+  "publication": {
+    "vscode": "https://github.com/gorundebug/service-architect-vscode/releases/tag/v0.1.25",
+    "jetbrains": "https://github.com/gorundebug/service-architect-jetbrains/releases/tag/v0.1.32",
+    "codex": "https://github.com/gorundebug/sa-python-dsl/releases/tag/v0.1.33"
+  },
+  "remoteDesignerHashesVerified": true,
+  "amplifyStatus": "SUCCEED"
+}

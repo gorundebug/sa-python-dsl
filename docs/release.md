@@ -1,3 +1,12 @@
+# Designer 0.1.22 plugin release
+
+VS Code 0.1.25, JetBrains 0.1.32, Codex 0.1.33 use Designer 0.1.22.
+Entry arrows are outside the circle at double size/stroke; icons are centered.
+Runtime remains pinned to `012ff85563ff67979257f97f436d4ee8669d9f3f`,
+managed CLI cache remains 0.1.26. Assets are published via MR !210 to beta.
+Both remote asset hashes match the IDE bundles; beta deployment 127 succeeded.
+No heavy checks repeated.
+
 # Designer 0.1.21 plugin release
 
 VS Code 0.1.24, JetBrains 0.1.31, Codex 0.1.32. Runtime remains pinned to
