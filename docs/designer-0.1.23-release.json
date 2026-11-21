@@ -1,0 +1,50 @@
+{
+  "artifacts": {
+    "vsix": {
+      "path": "/Users/sergeyalexeev/stream_app_go/service-architect-vscode/dist/service-architect-vscode-0.1.26.vsix",
+      "sha256": "5676a5c2152cd223a383ae54f2a6f466493a0ea632887c428844251e6eeb45ab"
+    },
+    "jetbrains": {
+      "path": "/Users/sergeyalexeev/stream_app_go/service-architect-jetbrains/dist/service-architect-jetbrains-0.1.33.zip",
+      "sha256": "e68770b3ef1fed77c4a70beb654e57190f7be27c48575f732e30916548b26d20"
+    },
+    "wheel": {
+      "path": "/Users/sergeyalexeev/stream_app_go/sa-python-dsl/dist/sa_python_dsl-0.1.0-py3-none-any.whl",
+      "sha256": "0d5d3eecc9447fcec2ef95a05335437b0e4da38106666471c1207852039fafd2"
+    },
+    "codex": {
+      "path": "/private/tmp/sa-plugin-release-0.1.34/dist/service-architect-codex-0.1.34.zip",
+      "sha256": "bd3dbe9dd6ae0c05b9e5f915790dbd1ad16d21e74785914ac9dd2e48645af512"
+    }
+  },
+  "designerHashes": {
+    "designer.js": "e1aed0ea5ddd7fefe373304826cf47e168052f0f1d1cfaf8bd8bd55dd5c67b61",
+    "designer.css": "aae89911f16cc5dc5384df1683084d65333b3e71d879d823ac44fb43065325ab"
+  },
+  "managedCliVersion": "0.1.26",
+  "vsixDslFiles": 62,
+  "jetbrainsDslFiles": 62,
+  "wheelDslFiles": 62,
+  "codex": {
+    "runtimePin": "012ff85563ff67979257f97f436d4ee8669d9f3f",
+    "remoteDesigner": "https://beta.gorundebug.com/mcp-ui/0.1.23",
+    "missingPinnedConnectorClasses": [],
+    "expectedDesignerVersion": "0.1.23",
+    "designerVersionAligned": true,
+    "missingPinnedQueryApi": []
+  },
+  "localIdeAndWheelParity": true,
+  "codexBrokerParity": true,
+  "codexQueryPrerequisites": true,
+  "remoteDesignerHashesVerified": true,
+  "uploadedIdeDigestsVerified": true,
+  "designerMergeRequest": "https://gitlab.com/sergeyalexeev/service_architect_vue3/-/merge_requests/216",
+  "amplifyBetaJob": "130",
+  "amplifyStatus": "SUCCEED",
+  "jetbrainsAdditionalCompileTarget": "GoLand 2026.3 (263.7307.211), JBR 25, --release 21",
+  "publication": {
+    "vscode": "https://github.com/gorundebug/service-architect-vscode/releases/tag/v0.1.26",
+    "jetbrains": "https://github.com/gorundebug/service-architect-jetbrains/releases/tag/v0.1.33",
+    "codex": "https://github.com/gorundebug/sa-python-dsl/releases/tag/v0.1.34"
+  }
+}

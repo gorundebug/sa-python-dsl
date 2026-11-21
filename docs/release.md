@@ -1,3 +1,16 @@
+# Designer 0.1.23 plugin release
+
+VS Code 0.1.26, JetBrains 0.1.33 and Codex 0.1.34 use Designer 0.1.23,
+which removes duplicate endpoint tooltip metadata. The Python runtime remains
+pinned to `012ff85563ff67979257f97f436d4ee8669d9f3f`; managed CLI cache
+remains 0.1.26. MR !216 was merged into beta; Amplify deployment 130 succeeded.
+Both published asset hashes match the IDE bundles and Codex selection.
+The standard Docker builds and package source/asset parity checks passed.
+JetBrains additionally compiles against GoLand 2026.3 (263.7307.211) with JBR 25;
+the distributed package keeps its 2026.1.3 API baseline.
+Unrelated in-progress Claude plugin files are excluded from the release archive.
+Heavy runtime acceptance is not repeated.
+
 # Designer 0.1.22 plugin release
 
 VS Code 0.1.25, JetBrains 0.1.32, Codex 0.1.33 use Designer 0.1.22.
