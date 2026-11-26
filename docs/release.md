@@ -1,3 +1,19 @@
+# Designer 0.1.26 plugin release
+
+JetBrains 0.1.37, VS Code 0.1.29 and Claude Code/Codex 0.1.37 use Designer
+0.1.26. Both graph renderers export node descriptions as SVG title elements.
+MR !242 also adds the standalone local SVG viewer with safe hover tooltips,
+zoom and pan. The viewer is a website route, not an IDE navigation entry.
+
+MR !242 was merged into beta. Published immutable JavaScript and CSS hashes
+match the local packages. Standard IDE Docker builds, nine SVG export tests,
+four release contract checks and package parity checks passed; Chromium verified
+viewer tooltips, pan, zoom and removal of active SVG content. Heavy runtime
+acceptance was not repeated. Evidence: `designer-0.1.26-release.json`.
+
+Managed CLI remains 0.1.27; runtime pin remains
+`8ab58165ac69d90e686c5ea5fc15d2aad78cf3f9`.
+
 # Designer 0.1.25 plugin release
 
 JetBrains 0.1.36, VS Code 0.1.28 and the shared Claude Code/Codex plugin
