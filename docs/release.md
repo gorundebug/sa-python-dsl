@@ -4,13 +4,15 @@ Prepared JetBrains 0.1.34, VS Code 0.1.27 and Codex 0.1.35 with Designer
 0.1.24. Managed CLI cache advances to 0.1.27 to load the new typed deployment
 metadata. Runtime pin: `8ab58165ac69d90e686c5ea5fc15d2aad78cf3f9`.
 
-This is a local build, not a published release. Publish that runtime revision
-and the immutable Designer assets before distributing Codex: its manifest uses
+This is a prepared build, not a published release. The runtime revision is pushed.
+Publish the immutable Designer assets from MR !222 before distributing Codex: its manifest uses
 `https://beta.gorundebug.com/mcp-ui/0.1.24`. Local MCP handshake passed with
 21 tools and eight resources; deployment tests passed (8 tests, 10 subtests).
 Both standard Docker builds passed. All 65 bundled DSL files and Designer assets
 match across the IDE packages and wheel. Build evidence: `designer-0.1.24-build.json`.
-No heavy runtime acceptance was repeated. In-progress Claude packaging is excluded.
+Packages rebuilt with persistent pipeline/component backgrounds; shared asset hashes
+and all bundled DSL files match. No heavy runtime acceptance was repeated.
+In-progress Claude packaging is excluded.
 
 # Designer 0.1.23 plugin release
 

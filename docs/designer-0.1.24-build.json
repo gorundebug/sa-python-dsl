@@ -2,11 +2,11 @@
   "artifacts": {
     "vsix": {
       "path": "/Users/sergeyalexeev/stream_app_go/service-architect-vscode/dist/service-architect-vscode-0.1.27.vsix",
-      "sha256": "cdd988b4f2f1fc2eb6ce99dd74752a0d562652c47b33915bcbf6c47c984ac5eb"
+      "sha256": "3bd0ca895e2d1f9b590dfefc0a15813013b0caf2166ad04f4edf6afbd79c549f"
     },
     "jetbrains": {
       "path": "/Users/sergeyalexeev/stream_app_go/service-architect-jetbrains/dist/service-architect-jetbrains-0.1.34.zip",
-      "sha256": "458cc27df4290d688561d22890d86d7a3dc6a855a56108ecb706eb1231da00dd"
+      "sha256": "ae8ed51f0f6ee4dcd2b5d3f85b24449d61439c272471ecac65cfb13c49e7f2a8"
     },
     "wheel": {
       "path": "/Users/sergeyalexeev/stream_app_go/sa-python-dsl/dist/sa_python_dsl-0.1.0-py3-none-any.whl",
@@ -14,12 +14,12 @@
     },
     "codex": {
       "path": "/Users/sergeyalexeev/stream_app_go/sa-python-dsl/dist/service-architect-codex-0.1.35.zip",
-      "sha256": "051f71ad07a13fc981afe391f4809ebe59e81c2d6f8822ca20b574931e997e17"
+      "sha256": "35ec5684fd0bd32d9891e4ca13c35470c43269365b0e44c0b5e1c803c7ba46af"
     }
   },
   "designerHashes": {
-    "designer.js": "addd1cf3bfaa42bb0aa809aa4e446f070710cb6fd482b026ff7ba0d4dab9012c",
-    "designer.css": "32f9dfd132918ce015937ddb9f98d46b514c27be0c38164663f6da089404c7fb"
+    "designer.js": "4c8833c23bf464f70909cdfc181ce97918576f184d75fe48b039e545addd285a",
+    "designer.css": "cd33347fcaadbd2aeb80b4eaad72365ad72d4d302b32d5c18f9907c32d357dbc"
   },
   "managedCliVersion": "0.1.27",
   "vsixDslFiles": 65,
@@ -36,15 +36,9 @@
   "localIdeAndWheelParity": true,
   "codexBrokerParity": true,
   "codexQueryPrerequisites": true,
-  "publicationStatus": "local-build-only",
-  "runtimeRevisionPublished": false,
+  "publicationStatus": "packages-built-not-released",
+  "runtimeRevisionPublished": true,
   "remoteDesignerHashesVerified": false,
-  "localMcpHandshake": {
-    "tools": 21,
-    "resources": 8
-  },
-  "deploymentTests": {
-    "passed": 8,
-    "subtests": 10
-  }
+  "designerMergeRequest": "https://gitlab.com/sergeyalexeev/service_architect_vue3/-/merge_requests/222",
+  "includesPersistentRegionBackgrounds": true
 }

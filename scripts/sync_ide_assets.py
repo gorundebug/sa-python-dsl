@@ -11,8 +11,8 @@ DESIGNER = ROOT.parent / "service_architect" / "service_architect_vue3"
 VERSION = "0.1.24"
 SOURCE = DESIGNER / "public" / "mcp-ui" / VERSION
 ASSET_DIGESTS = {
-    "designer.js": "addd1cf3bfaa42bb0aa809aa4e446f070710cb6fd482b026ff7ba0d4dab9012c",
-    "designer.css": "32f9dfd132918ce015937ddb9f98d46b514c27be0c38164663f6da089404c7fb",
+    "designer.js": "4c8833c23bf464f70909cdfc181ce97918576f184d75fe48b039e545addd285a",
+    "designer.css": "cd33347fcaadbd2aeb80b4eaad72365ad72d4d302b32d5c18f9907c32d357dbc",
 }
 DESTINATIONS = (
     (ROOT / "service-architect-vscode", Path("media")),
