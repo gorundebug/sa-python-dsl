@@ -1,3 +1,17 @@
+# Designer 0.1.27 plugin release
+
+JetBrains 0.1.38 and VS Code 0.1.30 are published with Designer 0.1.27.
+SVG entry arrows share the live canvas implementation; the standalone viewer
+suppresses native tooltips while keeping exported title elements intact.
+MR !245 was merged into beta. Published JavaScript and CSS hashes match
+the packaged Designer assets. Claude/Codex 0.1.38 use the verified immutable URL.
+
+Standard Docker builds, release contracts and package parity checks passed.
+Focused SVG and Chromium checks from implementation are reused; no heavy
+acceptance repeated. Evidence: `designer-0.1.27-release.json`.
+Managed CLI 0.1.27 and runtime pin
+`8ab58165ac69d90e686c5ea5fc15d2aad78cf3f9` remain unchanged.
+
 # Designer 0.1.26 plugin release
 
 JetBrains 0.1.37, VS Code 0.1.29 and Claude Code/Codex 0.1.37 use Designer
