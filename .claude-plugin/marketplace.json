@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "service-architect",
+  "description": "Service Architect tooling for Claude Code: typed Python authoring, deterministic validation, canonical YAML export, and code generation.",
+  "owner": {
+    "name": "Sergey Alexeev"
+  },
+  "plugins": [
+    {
+      "name": "service-architect",
+      "description": "Build service architecture as typed Python. Author, validate, export, and generate Service Architect projects through the bundled MCP server.",
+      "author": {
+        "name": "Sergey Alexeev"
+      },
+      "category": "developer-tools",
+      "source": "./plugins/service-architect",
+      "homepage": "https://www.gorundebug.com/help/python-dsl"
+    }
+  ]
+}

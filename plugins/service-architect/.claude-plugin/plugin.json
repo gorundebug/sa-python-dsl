@@ -1,0 +1,23 @@
+{
+  "name": "service-architect",
+  "version": "0.1.35",
+  "description": "Author, validate, export, and generate Service Architect projects from typed Python.",
+  "author": {
+    "name": "Sergey Alexeev"
+  },
+  "license": "MIT",
+  "icon": "./.claude-plugin/icon.png",
+  "homepage": "https://www.gorundebug.com/help/python-dsl",
+  "repository": "https://github.com/gorundebug/sa-python-dsl",
+  "keywords": [
+    "architecture",
+    "service-architect",
+    "servicegen",
+    "python-dsl",
+    "code-generation",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "mcpServers": "./.mcp.json"
+}

@@ -1,23 +1,42 @@
 # Service Architect Python DSL
 
 For the manifest-driven Codex and MCP workflow, see
-[`docs/codex.md`](docs/codex.md). Typed Python is the editable source of truth;
-canonical YAML is generated for Designer interchange and code generation.
+[`docs/codex.md`](docs/codex.md); for the Claude Code plugin, see
+[`docs/claude-code.md`](docs/claude-code.md). Typed Python is the editable source
+of truth; canonical YAML is generated for Designer interchange and code generation.
 
-Install the Codex plugin from the public marketplace after installing
-[`uv`](https://docs.astral.sh/uv/getting-started/installation/):
+Both agents install the same plugin folder. Install
+[`uv`](https://docs.astral.sh/uv/getting-started/installation/) first.
+
+### Install in Codex
 
 ```bash
 codex plugin marketplace add gorundebug/sa-python-dsl
 codex plugin add service-architect@service-architect
 ```
 
-### Install MAC OS
+#### Install MAC OS
 ```bash
 cd stream_app_go/sa-python-dsl
 CODEX="/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
 "$CODEX" plugin add service-architect@service-architect
 ```
+
+### Install in Claude Code
+
+```
+/plugin install service-architect --marketplace gorundebug/sa-python-dsl
+```
+
+Or from the shell:
+
+```bash
+claude plugin marketplace add gorundebug/sa-python-dsl
+claude plugin install service-architect@service-architect
+```
+
+Claude Code also gets `/service-architect:inspect`, `:validate`, `:export`,
+`:generate`, `:review` and `:designer` as shortcuts into the same MCP tools.
 
 `sa-python-dsl` is a typed authoring layer for Service Architect graphs. Python is
 used to compose and reuse graph definitions; the resulting YAML remains the stable
@@ -480,11 +499,13 @@ by `inspect_project` and `describe_architecture_object`:
   narrow makers, startup/completion, API ownership and generated-path verification.
 - `servicegen://authoring/review-checklist`: checks before reporting a model or implementation change complete.
 
-The Codex plugin includes `service-architect-implementation` for work in generated
-services, alongside the authoring and modeling skills. This guidance is shared
-across projects; it contains no application-specific architecture or execution
-policy. It does not add DSL fields or automatically enforce review rules.
+The Codex and Claude Code plugins include `service-architect-implementation` for
+work in generated services, alongside the authoring and modeling skills. This
+guidance is shared across projects; it contains no application-specific
+architecture or execution policy. It does not add DSL fields or automatically
+enforce review rules.
 
 Local source changes do not update an already installed plugin or its pinned MCP
 revision. A release must publish the tested server commit, update the plugin's
-immutable `.mcp.json` source pin and plugin version, and verify that exact revision.
+immutable `.mcp.json` source pin and both plugin manifest versions, and verify that
+exact revision.
