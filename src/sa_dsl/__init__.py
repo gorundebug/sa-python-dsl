@@ -1,3 +1,4 @@
+from .deployment import Deployment, KubernetesDeployment, SecretKeyRef
 from .execution import ExecutionResult, execute_project, write_canonical_yaml
 from .generation import GenerationResult, generate_project_archive
 from .manifest import (
@@ -99,6 +100,9 @@ from .auth import AuthenticationError, CognitoAuthenticator
 from .browser import python_files_to_yaml, python_files_to_snapshot
 
 __all__ = [
+    "Deployment",
+    "KubernetesDeployment",
+    "SecretKeyRef",
     "NativeTypeBinding",
     "Component",
     "ActivityTimeouts",

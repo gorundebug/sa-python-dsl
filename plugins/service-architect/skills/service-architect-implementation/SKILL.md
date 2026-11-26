@@ -60,7 +60,20 @@ generated contracts. C++ userver and C++ Coro remain independent. Record missing
 support and unverified cases; do not patch upstream or silently weaken guarantees.
 
 Keep API contract modules separate from service implementations and unrelated
-shared libraries. Use the destination project's merge entrypoint and hooks;
+shared libraries. Implement a public modeled type in its declared owning module;
+consumers import it, not the reverse. Do not leave a public alias pointing at a
+consumer's private implementation or application model as a substitute for the
+declared contract. For request-local graph values, model a private local type
+instead of inventing an external contract module solely to share business code.
+Audit sibling types, generated imports/serdes and module dependencies after such
+a correction; remove obsolete managed contract artifacts only after tracing users.
+
+Preserve the original error at internal failure boundaries so callers can inspect
+its cause (for Go, errors.Is/As). Context cancellation is additional evidence, not
+a replacement for a failed Scan/Commit/read. Redact public responses at the API
+boundary; do not erase the internal cause to produce a safe public classification.
+
+Use the destination project's merge entrypoint and hooks;
 a fresh archive's default hook is not the installed project's policy. Preserve
 existing template path/name headers and ownership contracts. Review stale-file
 removal and protect user-owned files and data.

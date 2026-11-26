@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Iterable, Literal, Mapping, Sequence
 
 import yaml
+from .deployment import Deployment
 from .visual_components import normalize_components
 from .connector_bindings import normalize_connector_implementations, require_connector_fields
 from .native_bindings import NativeTypeBinding, normalize_native_type_bindings, require_type_fields
@@ -1758,6 +1759,7 @@ class Project:
     types: dict[str, TypeDefinition] = field(default_factory=dict)
     services: dict[str, Service] = field(default_factory=dict)
     connectors: dict[str, Connector] = field(default_factory=dict)
+    deployment: Deployment | None = None
 
     def _type(
         self,
@@ -2764,6 +2766,7 @@ class Project:
         grpc_server: GrpcServer | None = None,
         observability: Observability | None = None,
         kubernetes: Kubernetes | None = None,
+        deployment: Deployment | None = None,
         **properties: Any,
     ) -> Service:
         if not isinstance(language, ServiceLanguage):
@@ -2829,6 +2832,13 @@ class Project:
             "liveness_handler": "health/live",
         }
         defaults.update(properties)
+        if deployment is not None:
+            if not isinstance(deployment, Deployment):
+                raise DslValidationError("Service deployment must be Deployment")
+            try:
+                defaults["deployment"] = deployment.to_document()
+            except ValueError as error:
+                raise DslValidationError(str(error)) from error
         defaults.update(language.to_properties())
         for group in (http_server, grpc_server, observability, kubernetes):
             if group is not None:
@@ -2878,12 +2888,34 @@ class Project:
 
     def to_document(self) -> dict[str, Any]:
         self._validate_references()
+        if "deployment" in self.properties:
+            raise DslValidationError("Project deployment must use deployment=Deployment(...)")
         settings = {
             "name": self.name,
             "moduleVersion": self.module_version,
             "repoPath": self.repo_path,
             **_properties(self.properties),
         }
+        if self.deployment is not None:
+            if not isinstance(self.deployment, Deployment):
+                raise DslValidationError("Project deployment must be Deployment")
+            try:
+                settings["deployment"] = self.deployment.to_document()
+            except ValueError as error:
+                raise DslValidationError(str(error)) from error
+        services = {key: service.to_document() for key, service in self.services.items()}
+        from ._deployment_validation import resolve_deployment, validate_deployment
+
+        for service in services.values():
+            effective = resolve_deployment(
+                settings.get("deployment", {}).get("kubernetes"),
+                service.get("deployment", {}).get("kubernetes"),
+            )
+            if effective is not None:
+                try:
+                    validate_deployment(effective, effective=True)
+                except ValueError as error:
+                    raise DslValidationError(str(error)) from error
         return _document(
             {
                 "dataConnectors": {
@@ -2894,9 +2926,7 @@ class Project:
                     key: module.to_document() for key, module in self.modules.items()
                 },
                 "pools": {key: pool.to_document() for key, pool in self.pools.items()},
-                "services": {
-                    key: service.to_document() for key, service in self.services.items()
-                },
+                "services": services,
                 "settings": settings,
                 "types": {
                     key: type_.to_document() for key, type_ in self.types.items()

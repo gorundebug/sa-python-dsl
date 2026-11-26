@@ -67,9 +67,13 @@ IMPLEMENTATION_GUIDE = {
     "boundariesAndReuse": [
         "pipeline organizes a scenario; component only folds equivalent concrete fragments visually; SubStream provides service-local invocation semantics; service is an independent deployment/network boundary. Do not interchange these concepts.",
         "Keep service-owned API contracts in independent API modules, separate from service implementation and unrelated shared libraries. API modules must not require service implementation modules; make genuine shared protocol dependencies explicit rather than coupling unrelated service APIs.",
+        "Implement public modeled types in their declared owning module; consumers import that implementation. Do not use a public alias to a consumer's private/application model to conceal misplaced ownership. Request-local graph types should be private/local rather than placed in an invented external contract module solely for business-code reuse. Audit related types, generated imports/serdes and dependencies when correcting ownership.",
         "Adapters convert partner protocols at declared boundaries while preserving ownership. A local and a remote implementation of the same public role should supply the same complete contract; do not secretly reconstruct one provider's missing response from its private state.",
         "IDE-discovered SubStream calls are a read-only possible-call overlay, not persisted graph links or runtime proof. For current Go analysis, Refresh uses saved code, follows helpers/interfaces including local modules, and creates one link per modeled business ancestor. No ancestor means no business link. Do not add watchers or claim equivalent analysis for other languages without implementation.",
         "If call analysis fails, check the generated workspace, saved sources, resolved SDK/module versions and visible diagnostics before changing topology. A valid Python model alone does not prove Go code can be analyzed or compiled.",
+    ],
+    "errorCauses": [
+        "Preserve original failures across internal classification boundaries so errors.Is/As or the language's cause mechanism can inspect them. Context cancellation is additional evidence, not a substitute for the actual failed operation. Capture errors from Commit/Scan/iterator completion instead of discarding them in a boolean test. Keep public API responses redacted without erasing internal causes.",
     ],
     "sdkChanges": [
         "An SDK extension needs a concrete uncovered requirement and an explanation of why existing contracts plus simpler application coordination cannot meet it. Make any extension explicit and reusable, not a product-specific hook or a way to legitimize redundant code.",

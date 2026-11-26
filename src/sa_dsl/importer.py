@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import keyword
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any, Mapping
 
 import yaml
+from .deployment import Deployment, KubernetesDeployment, SecretKeyRef, _camel
 from .visual_components import normalize_components
 from .native_bindings import normalize_native_type_bindings, require_type_fields
 
@@ -128,6 +129,43 @@ def _literal(value: Any) -> str:
     return repr(value)
 
 
+def _deployment_code(value: Any) -> _Code:
+    if not isinstance(value, Mapping) or set(value) - {"kubernetes"}:
+        raise ValueError("Deployment must contain supported platform settings only")
+    if "kubernetes" not in value:
+        return _Code("Deployment()")
+    kubernetes = value["kubernetes"]
+    if not isinstance(kubernetes, Mapping):
+        raise ValueError("Deployment.kubernetes must be a mapping")
+    names = {_camel(field.name): field.name for field in fields(KubernetesDeployment)}
+    if set(kubernetes) - names.keys():
+        raise ValueError("Unsupported Kubernetes deployment setting")
+    arguments = {names[key]: item for key, item in kubernetes.items()}
+    # Null is not absence: rejecting it avoids a lossy round trip.
+    if any(item is None for item in arguments.values()):
+        raise ValueError("Kubernetes deployment settings cannot be null")
+    rendered = dict(arguments)
+    if "secret_env" in arguments:
+        refs = arguments["secret_env"]
+        if not isinstance(refs, Mapping):
+            raise ValueError("secret_env must be a mapping")
+        typed_refs = {}
+        for name, ref in refs.items():
+            if not isinstance(ref, Mapping) or set(ref) - {"name", "key", "optional"} or any(item is None for item in ref.values()):
+                raise ValueError("Invalid SecretKeyRef")
+            typed_refs[name] = SecretKeyRef(**ref)
+        arguments["secret_env"] = typed_refs
+        rendered["secret_env"] = _Code("{" + ", ".join(
+            f"{name!r}: SecretKeyRef(" + ", ".join(
+                f"{key}={item!r}" for key, item in ref.to_document().items()
+            ) + ")" for name, ref in typed_refs.items()
+        ) + "}")
+    Deployment(kubernetes=KubernetesDeployment(**arguments)).to_document()
+    return _Code("Deployment(kubernetes=KubernetesDeployment(" + ", ".join(
+        f"{name}={_literal(item)}" for name, item in rendered.items()
+    ) + "))")
+
+
 def _enum(field: str, value: Any) -> Any:
     enum_type = _ENUM_FIELDS.get(field)
     if enum_type is None or value is None:
@@ -186,6 +224,9 @@ def _object_code(values: dict[str, Any], class_name: str, fields: tuple[tuple[st
 
 def _dsl_imports(body: str) -> str:
     names = [
+        "Deployment",
+        "KubernetesDeployment",
+        "SecretKeyRef",
         "NativeTypeBinding",
         "ActivityTimeouts",
         "ActivityWorker",
@@ -388,6 +429,9 @@ def yaml_to_python_files(
 
     settings = dict(document.get("settings") or {})
     project_name = settings.pop("name", package)
+    deployment_values = {}
+    if "deployment" in settings:
+        deployment_values["deployment"] = _deployment_code(settings.pop("deployment"))
     project_file = _snake(package)
     project_body = _call(
         "project",
@@ -398,6 +442,7 @@ def yaml_to_python_files(
             "module_version": settings.pop("moduleVersion", None),
             "repo_path": settings.pop("repoPath", None),
             "properties": settings,
+            **deployment_values,
         },
     ).replace(" = .Project(", " = Project(")
     writer.write(f"project/{project_file}.py", project_body)
@@ -746,6 +791,8 @@ def yaml_to_python_files(
         service_module = f"services.{service_variable}.service"
         service_modules.append(service_module)
         service_values = _property_values(service_values)
+        if "deployment" in service_values:
+            service_values["deployment"] = _deployment_code(service_values["deployment"])
         service_groups = (
             (
                 "http_server",
