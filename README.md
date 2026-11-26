@@ -1,4 +1,57 @@
-# Service Architect Python DSL
+# Service Architect MCP Server and Python DSL
+
+A local **Model Context Protocol (MCP) server** for designing service architectures
+with typed Python, validating pipelines, viewing their graphs, and generating
+service projects. Connect it to an MCP client over **stdio**; no hosted MCP URL or
+listening port is required.
+
+## What an agent can do
+
+- Discover architecture objects, supported connectors, and modeling guidance.
+- Inspect a Python model, add nodes and endpoints, connect ports, and preview changes.
+- Validate the model and export canonical YAML for the visual Designer.
+- Request code generation, preview the generated changes, and apply them to a project.
+- Inspect business tasks, run project verification, and display the architecture graph.
+
+Python remains the editable architecture source. Business logic remains ordinary
+application code. See the [workflow and tool documentation](docs/codex.md).
+
+## Connect any stdio MCP client
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and Git.
+The package requires Python 3.11 or newer. Add the following server entry to your
+client's MCP configuration (the surrounding configuration format may vary by client):
+
+```json
+{
+  "mcpServers": {
+    "service-architect": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/gorundebug/sa-python-dsl.git@8ab58165ac69d90e686c5ea5fc15d2aad78cf3f9",
+        "sa-dsl-mcp",
+        "--workspace",
+        "/absolute/path/to/your/project"
+      ]
+    }
+  }
+}
+```
+
+Replace the workspace path with your local project directory. Make `uvx` available
+to the client process, or use its absolute executable path. The example pins the
+same server revision as the bundled plugin. Restart or reconnect the client after
+saving its configuration, then ask it to inspect the project.
+
+Local model inspection, validation, and YAML export do not require a generation
+API key. Remote code generation requires `SERVICE_ARCHITECT_API_KEY` and the backend
+configuration described in [the generation setup](docs/codex.md). Generation sends
+the architecture model to the backend. Capability discovery and hosted Designer
+assets also use network access. Only open trusted Python architecture projects:
+validation and export execute their Python entrypoint locally.
+
+## Agent plugins
 
 For the manifest-driven Codex and MCP workflow, see
 [`docs/codex.md`](docs/codex.md); for the Claude Code plugin, see
