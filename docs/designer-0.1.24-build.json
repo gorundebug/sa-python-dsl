@@ -1,0 +1,50 @@
+{
+  "artifacts": {
+    "vsix": {
+      "path": "/Users/sergeyalexeev/stream_app_go/service-architect-vscode/dist/service-architect-vscode-0.1.27.vsix",
+      "sha256": "cdd988b4f2f1fc2eb6ce99dd74752a0d562652c47b33915bcbf6c47c984ac5eb"
+    },
+    "jetbrains": {
+      "path": "/Users/sergeyalexeev/stream_app_go/service-architect-jetbrains/dist/service-architect-jetbrains-0.1.34.zip",
+      "sha256": "458cc27df4290d688561d22890d86d7a3dc6a855a56108ecb706eb1231da00dd"
+    },
+    "wheel": {
+      "path": "/Users/sergeyalexeev/stream_app_go/sa-python-dsl/dist/sa_python_dsl-0.1.0-py3-none-any.whl",
+      "sha256": "24a45dd6667950fff330abbbf6ce3be3506320353ed97d43ad21a34af8db74c6"
+    },
+    "codex": {
+      "path": "/Users/sergeyalexeev/stream_app_go/sa-python-dsl/dist/service-architect-codex-0.1.35.zip",
+      "sha256": "051f71ad07a13fc981afe391f4809ebe59e81c2d6f8822ca20b574931e997e17"
+    }
+  },
+  "designerHashes": {
+    "designer.js": "addd1cf3bfaa42bb0aa809aa4e446f070710cb6fd482b026ff7ba0d4dab9012c",
+    "designer.css": "32f9dfd132918ce015937ddb9f98d46b514c27be0c38164663f6da089404c7fb"
+  },
+  "managedCliVersion": "0.1.27",
+  "vsixDslFiles": 65,
+  "jetbrainsDslFiles": 65,
+  "wheelDslFiles": 65,
+  "codex": {
+    "runtimePin": "8ab58165ac69d90e686c5ea5fc15d2aad78cf3f9",
+    "remoteDesigner": "https://beta.gorundebug.com/mcp-ui/0.1.24",
+    "missingPinnedConnectorClasses": [],
+    "expectedDesignerVersion": "0.1.24",
+    "designerVersionAligned": true,
+    "missingPinnedQueryApi": []
+  },
+  "localIdeAndWheelParity": true,
+  "codexBrokerParity": true,
+  "codexQueryPrerequisites": true,
+  "publicationStatus": "local-build-only",
+  "runtimeRevisionPublished": false,
+  "remoteDesignerHashesVerified": false,
+  "localMcpHandshake": {
+    "tools": 21,
+    "resources": 8
+  },
+  "deploymentTests": {
+    "passed": 8,
+    "subtests": 10
+  }
+}
