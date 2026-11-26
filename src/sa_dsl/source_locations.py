@@ -39,13 +39,18 @@ class SourceLocations:
         self.nodes = {}
         self.edges = {}
         self.trees = {}
+        self.code_positions = {}
+        self.paths = {}
 
     def position(self):
         frame = sys._getframe(1)
         positions = []
         try:
             while frame is not None:
-                path = Path(frame.f_code.co_filename).resolve()
+                filename = frame.f_code.co_filename
+                if filename not in self.paths:
+                    self.paths[filename] = Path(filename).resolve()
+                path = self.paths[filename]
                 if (path.is_relative_to(self.root) and path.suffix == ".py"
                         and not any(part in SKIP_DIRS for part in path.relative_to(self.root).parts)
                         and not str(frame.f_globals.get("__name__", "")).startswith("sa_dsl.")):
@@ -54,7 +59,10 @@ class SourceLocations:
                             text = path.read_text(encoding="utf-8")
                             self.trees[path] = (text.splitlines(), [n for n in ast.walk(ast.parse(text)) if isinstance(n, (ast.Call, ast.BinOp))])
                         lines, calls = self.trees[path]
-                        instruction = list(frame.f_code.co_positions())[frame.f_lasti // 2]
+                        code = frame.f_code
+                        if code not in self.code_positions:
+                            self.code_positions[code] = tuple(code.co_positions())
+                        instruction = self.code_positions[code][frame.f_lasti // 2]
                         line, end, column, end_column = instruction
                         matches = [n for n in calls if n.lineno <= frame.f_lineno <= n.end_lineno
                                    and (line is None or (n.lineno, n.col_offset) <= (line, column or 0)
