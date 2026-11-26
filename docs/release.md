@@ -1,3 +1,19 @@
+# Designer 0.1.25 plugin release
+
+JetBrains 0.1.36, VS Code 0.1.28 and the shared Claude Code/Codex plugin
+0.1.36 use Designer 0.1.25. This release includes pipeline entry placement
+and corrected double-click navigation for overlapping edges and crossing arcs.
+
+MR !236 was merged into beta. Both published immutable assets at
+`https://beta.gorundebug.com/mcp-ui/0.1.25` match the packaged Designer hashes.
+The standard IDE Docker builds, release contract checks and package parity
+checks passed. Evidence: `designer-0.1.25-release.json`.
+Heavy runtime acceptance was not repeated.
+
+The managed CLI remains 0.1.27 and the Python runtime remains pinned to
+`8ab58165ac69d90e686c5ea5fc15d2aad78cf3f9`. Claude and Codex archives contain
+the same shared plugin, including both manifests, skills and commands.
+
 # Published release: Designer 0.1.24 and deployment settings
 
 Prepared JetBrains 0.1.34, VS Code 0.1.27 and Codex 0.1.35 with Designer
