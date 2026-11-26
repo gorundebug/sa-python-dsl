@@ -1,3 +1,14 @@
+# Designer 0.1.28 plugin release
+
+JetBrains 0.1.39, VS Code 0.1.31 and Claude/Codex 0.1.39 use Designer
+0.1.28. Overlapping routed segments use parallel lanes without node relayout;
+arrowheads remain at icon boundaries. Short shared endpoint stubs are intentional.
+MR !248 was merged into beta; published JS/CSS hashes match the packages.
+Standard Docker builds, release contracts and package parity passed; 33 focused
+graph checks are reused. No heavy regression repeated.
+Evidence: `designer-0.1.28-release.json`. Managed CLI 0.1.27 and runtime pin
+`8ab58165ac69d90e686c5ea5fc15d2aad78cf3f9` are unchanged.
+
 # Designer 0.1.27 plugin release
 
 JetBrains 0.1.38 and VS Code 0.1.30 are published with Designer 0.1.27.
