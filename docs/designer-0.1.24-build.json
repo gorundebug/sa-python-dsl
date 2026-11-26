@@ -36,9 +36,17 @@
   "localIdeAndWheelParity": true,
   "codexBrokerParity": true,
   "codexQueryPrerequisites": true,
-  "publicationStatus": "packages-built-not-released",
+  "publicationStatus": "published",
   "runtimeRevisionPublished": true,
-  "remoteDesignerHashesVerified": false,
+  "remoteDesignerHashesVerified": true,
   "designerMergeRequest": "https://gitlab.com/sergeyalexeev/service_architect_vue3/-/merge_requests/222",
-  "includesPersistentRegionBackgrounds": true
+  "includesPersistentRegionBackgrounds": true,
+  "publication": {
+    "jetbrains": "https://github.com/gorundebug/service-architect-jetbrains/releases/tag/v0.1.34",
+    "vsix": "https://github.com/gorundebug/service-architect-vscode/releases/tag/v0.1.27",
+    "codex": "https://github.com/gorundebug/sa-python-dsl/releases/tag/v0.1.35"
+  },
+  "uploadedDigestsVerified": true,
+  "amplifyMasterJob": "524",
+  "amplifyBetaJob": "133"
 }
